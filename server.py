@@ -6,6 +6,15 @@ import re
 
 PORT = 8000
 
+# Initialize Headroom context compression (if available)
+try:
+    from headroom import compress as headroom_compress
+    HEADROOM_AVAILABLE = True
+    print("Headroom context compression: ENABLED (60-95% token reduction)")
+except ImportError:
+    HEADROOM_AVAILABLE = False
+    print("Headroom not installed. Running without context compression.")
+
 # Original files templates for reset
 ORIGINAL_SKILLS = """import { MEMBER_BENEFITS, CLINICAL_GUIDELINES } from './cases.js';
 
@@ -998,9 +1007,33 @@ Respond ONLY with the JSON object, no other text.
             try:
                 import urllib.request
                 
+                # Compress context through Headroom if available (reduces token load on large contexts)
+                effective_context = system_context
+                compression_note = ""
+                if HEADROOM_AVAILABLE and len(system_context) > 500:
+                    try:
+                        # Structure as tool output (which Headroom compresses aggressively)
+                        messages = [
+                            {"role": "assistant", "content": "Let me look at the case context."},
+                            {"role": "tool", "content": system_context, "tool_call_id": "case_ctx"}
+                        ]
+                        result = headroom_compress(messages, model='gemma-2-9b', model_limit=8192, compress_user_messages=True)
+                        # Extract the compressed tool message
+                        for msg in result.messages:
+                            if msg.get("role") == "tool":
+                                effective_context = msg["content"]
+                                break
+                        if result.tokens_saved > 0:
+                            savings = round((1 - result.tokens_after / result.tokens_before) * 100)
+                            compression_note = f" [Headroom: {savings}% fewer tokens, {result.tokens_saved} saved]"
+                            print(f"  Headroom compression: {result.tokens_before} → {result.tokens_after} tokens ({savings}% saved)")
+                    except Exception as he:
+                        effective_context = system_context  # Fallback to uncompressed
+                        print(f"  Headroom compression skipped: {he}")
+                
                 full_prompt = f"<start_of_turn>user\n"
-                if system_context:
-                    full_prompt += f"CONTEXT:\n{system_context}\n\n"
+                if effective_context:
+                    full_prompt += f"CONTEXT:\n{effective_context}\n\n"
                 full_prompt += f"{prompt_text}\n<end_of_turn>\n<start_of_turn>model\n"
                 
                 ollama_payload = json.dumps({
@@ -1038,7 +1071,8 @@ Respond ONLY with the JSON object, no other text.
                 self.end_headers()
                 self.wfile.write(json.dumps({
                     "status": "success",
-                    "response": clean_response
+                    "response": clean_response,
+                    "compression": compression_note if compression_note else None
                 }).encode())
                 
             except urllib.error.URLError as e:
