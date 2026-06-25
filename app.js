@@ -1013,6 +1013,19 @@ Clinical notes to score:\n${notes}`,
   const aviSend = document.getElementById('avi-send');
   const aviMessages = document.getElementById('avi-messages');
 
+  const AVI_SYSTEM_PROMPT = `You are AVI, a clinical intelligence assistant built into the PriorAuthAI Governance Console. You help users understand prior authorization cases, policies, and decisions.
+
+Your capabilities within this tool:
+1. Explain why a case was approved or escalated
+2. Identify what documentation is missing for approval
+3. Explain what specific rules (RULE-01 through RULE-05) do
+4. Describe how the 5-stage progressive disclosure pipeline works
+5. Help interpret CPT codes, ICD-10 codes, and clinical criteria
+6. Suggest what providers should include in clinical notes
+7. Explain the difference between regex and ClinicalNLP extraction
+
+Keep answers concise (3-5 sentences max). Be direct and clinical. Never say "I'm just an AI" — you ARE AVI, this tool's assistant.`;
+
   aviFab.addEventListener('click', () => {
     aviPanel.style.display = aviPanel.style.display === 'none' ? 'flex' : 'none';
     if (aviPanel.style.display === 'flex') aviInput.focus();
@@ -1026,7 +1039,7 @@ Clinical notes to score:\n${notes}`,
     // Show user message
     const userBubble = document.createElement('div');
     userBubble.className = 'avi-msg avi-user';
-    userBubble.innerHTML = `<p>${msg}</p>`;
+    userBubble.innerHTML = `<p>${escapeHtml(msg)}</p>`;
     aviMessages.appendChild(userBubble);
     aviInput.value = '';
     
@@ -1038,7 +1051,7 @@ Clinical notes to score:\n${notes}`,
     aviMessages.scrollTop = aviMessages.scrollHeight;
     
     try {
-      const response = await callAI(msg, getCurrentCaseContext());
+      const response = await callAI(msg, AVI_SYSTEM_PROMPT + '\n\nCURRENT CASE CONTEXT:\n' + getCurrentCaseContext());
       typing.remove();
       const botBubble = document.createElement('div');
       botBubble.className = 'avi-msg avi-bot';
@@ -1048,7 +1061,7 @@ Clinical notes to score:\n${notes}`,
       typing.remove();
       const errBubble = document.createElement('div');
       errBubble.className = 'avi-msg avi-bot';
-      errBubble.innerHTML = `<p style="color:var(--accent-red);">Sorry, I couldn't process that: ${e.message}</p>`;
+      errBubble.innerHTML = `<p style="color:var(--accent-red);">ClinicalNLP Engine offline: ${e.message}</p>`;
       aviMessages.appendChild(errBubble);
     }
     aviMessages.scrollTop = aviMessages.scrollHeight;

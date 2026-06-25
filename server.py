@@ -1010,7 +1010,7 @@ Respond ONLY with the JSON object, no other text.
                     "raw": True,
                     "options": {
                         "temperature": 0.3,
-                        "num_predict": 600
+                        "num_predict": 250
                     }
                 }).encode()
                 
