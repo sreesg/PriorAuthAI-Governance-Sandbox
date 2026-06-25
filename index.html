@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PriorAuthAI | Payer Clinical Governance Sandbox (SkillJuror)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+  <div class="glow-container">
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+  </div>
+
+  <header class="app-header">
+    <div class="logo-area">
+      <span class="logo-icon">🛡️</span>
+      <div class="logo-text">
+        <h1>PriorAuth<span class="highlight">AI</span> Governance Console</h1>
+        <p>Declarative Clinical Markdown • SkillOpt & SkillJuror Compliant</p>
+      </div>
+    </div>
+    <div class="header-badges">
+      <span class="badge badge-purple" id="juror-status-badge">Juror: ACTIVE</span>
+      <span class="badge badge-orange">OPA Gherkin Rules</span>
+      <span class="badge badge-blue" id="discovered-skills-count">5 Active Skills</span>
+      <a href="help.html" style="text-decoration:none;"><span class="badge badge-blue">❓ Help</span></a>
+    </div>
+  </header>
+
+  <main class="dashboard-grid">
+    
+    <!-- COLUMN 1: Low-Code Clinical Editor (Left) -->
+    <section class="panel-column workspace-column">
+      <div class="glass-card full-height">
+        <div class="card-header">
+          <h2>📂 Clinical Policy Workspace</h2>
+          <p class="subtitle">Edit declarations or review OPA/JS output compilation</p>
+        </div>
+
+        <!-- File Tabs Selector -->
+        <div class="file-tabs">
+          <button class="tab-btn active" data-file="rules_declaration.md">📄 rules_declaration.md</button>
+          <button class="tab-btn" data-file="skills_declaration.md">📄 skills_declaration.md</button>
+          <button class="tab-btn" data-file="rules.rego">⚙️ rules.rego</button>
+          <button class="tab-btn" data-file="skills.js">🛠️ skills.js</button>
+          <button class="tab-btn" data-file="real_payer_policy_uhc.pdf">📄 Policy PDF</button>
+        </div>
+
+        <!-- Editable Code Editor Area -->
+        <div class="editor-workspace-container">
+          <textarea id="editor-textarea" class="editor-textarea" style="display: block;"></textarea>
+          <pre id="code-viewer-pre" style="display: none;"><code id="code-viewer">Loading file source...</code></pre>
+          
+          <div id="pdf-download-panel" style="display: none;" class="pdf-panel">
+            <div class="pdf-icon">📄</div>
+            <h3>UHC Policy Document</h3>
+            <p>Reference real payer clinical policy.</p>
+            <a href="./real_payer_policy_uhc.pdf" target="_blank" class="btn-pdf-download">
+              📥 Open UHC Policy PDF
+            </a>
+          </div>
+        </div>
+
+        <!-- Save & Compile Control Bar -->
+        <div class="editor-controls">
+          <button id="btn-save-compile" class="btn-primary-action">
+            💾 Save & Compile Policies
+          </button>
+          <button id="btn-reset-workspace" class="btn-tertiary">
+            🔄 Reset Workspace
+          </button>
+        </div>
+
+        <!-- SkillJuror Audit Console -->
+        <div class="skill-injector-card">
+          <h3>⚖️ SkillJuror Audit Trail</h3>
+          <p class="card-para-small">Security sandboxing, PHI compliance logs, and API contract evaluation results.</p>
+          
+          <div class="audit-console-wrapper">
+            <pre class="audit-console" id="audit-console">Awaiting workspace compile triggers...</pre>
+          </div>
+
+          <!-- Natural Language Skill Creator -->
+          <div class="nl-skill-creator">
+            <h4>➕ Create Skill from Plain English</h4>
+            <textarea id="nl-skill-input" class="nl-skill-textarea" rows="3" placeholder="Describe a new skill in plain English, e.g.: 'Check if the patient's age is over 65 and flag for senior review if true'"></textarea>
+            <button id="btn-create-skill" class="btn-secondary" type="button">🧠 Generate & Register Skill</button>
+            <div id="nl-skill-status" class="nl-skill-status"></div>
+          </div>
+
+          <div class="active-skills-list-wrapper">
+            <h4>Discovered Active Skills:</h4>
+            <div class="skills-pills-container" id="active-skills-pills">
+              <!-- Dynamically populated skills pills -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUMN 2: Case Workspace (Middle) -->
+    <section class="panel-column cases-column">
+      <!-- Preset selector -->
+      <div class="glass-card presets-card">
+        <h2>📁 Preset Clinical Cases</h2>
+        <div class="case-buttons-grid" id="preset-cases-container">
+          <!-- Preset buttons render here -->
+        </div>
+      </div>
+
+      <!-- Request Editor Form -->
+      <div class="glass-card form-card">
+        <h2>✍️ Prior Authorization Request Details</h2>
+        <form id="pa-request-form" class="request-form">
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="input-member-id">Member ID</label>
+              <input type="text" id="input-member-id" required>
+            </div>
+            <div class="form-group">
+              <label for="input-patient-name">Patient Name (PHI)</label>
+              <input type="text" id="input-patient-name" required>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="input-ssn">SSN (PHI)</label>
+              <input type="text" id="input-ssn" required>
+            </div>
+            <div class="form-group">
+              <label for="input-dob">DOB (PHI)</label>
+              <input type="date" id="input-dob" required>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="input-cpt">CPT Code (Procedure)</label>
+              <input type="text" id="input-cpt" required>
+            </div>
+            <div class="form-group">
+              <label for="input-icd10">ICD-10 Code (Diagnosis)</label>
+              <input type="text" id="input-icd10" required>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="input-provider-name">Provider Name</label>
+              <input type="text" id="input-provider-name" required>
+            </div>
+            <div class="form-group">
+              <label for="input-npi">Provider NPI</label>
+              <input type="text" id="input-npi" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="input-notes">Clinical Notes & Evidence</label>
+            <textarea id="input-notes" rows="6" required></textarea>
+          </div>
+
+          <!-- Rules Toggles -->
+          <div class="rules-checkboxes-compact">
+            <h3>⚙️ Active Guardrail Rules:</h3>
+            <div class="checkbox-grid" id="rules-checkbox-container">
+              <!-- Rules checkboxes render here -->
+            </div>
+          </div>
+
+          <button type="submit" class="btn-execute">
+            <span class="btn-icon">⚡</span> Run Prior Auth Agent Review
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- COLUMN 3: Real-Time Execution Console & Letter (Right) -->
+    <section class="panel-column execution-column">
+      <!-- Outcome Card -->
+      <div class="glass-card outcome-card">
+        <h2>🔍 Decision Review Outcome</h2>
+        <div class="outcome-status-badge" id="outcome-badge">Awaiting Execution</div>
+        <span id="npi-status-badge" class="badge"></span>
+        <div class="outcome-reason" id="outcome-reason">Click 'Run Prior Auth Agent' to start.</div>
+      </div>
+
+      <!-- Live trace timelines -->
+      <div class="glass-card trace-card">
+        <div class="trace-header">
+          <h2>🧬 Agent Lifecycle Timeline</h2>
+          <span class="trace-counter" id="trace-counter">0 events logged</span>
+        </div>
+        <p class="subtitle" style="margin-bottom: 0.75rem;">Interactive progressive disclosure and gate validation logs</p>
+
+        <!-- Governance Gate Flowchart -->
+        <div class="pipeline-flow">
+          <div class="flow-step" id="flow-step-1">
+            <div class="flow-step-label">1. PHI Scrub</div>
+            <div class="flow-step-disclosure" id="flow-disc-1">RULE-01</div>
+          </div>
+          <span class="flow-arrow">➔</span>
+          <div class="flow-step" id="flow-step-2">
+            <div class="flow-step-label">2. Coverage</div>
+            <div class="flow-step-disclosure" id="flow-disc-2">RULE-04</div>
+          </div>
+          <span class="flow-arrow">➔</span>
+          <div class="flow-step" id="flow-step-3">
+            <div class="flow-step-label">3. Evidence</div>
+            <div class="flow-step-disclosure" id="flow-disc-3">Guidelines</div>
+          </div>
+          <span class="flow-arrow">➔</span>
+          <div class="flow-step" id="flow-step-4">
+            <div class="flow-step-label">4. OPA Rego</div>
+            <div class="flow-step-disclosure" id="flow-disc-4">RULE-02</div>
+          </div>
+          <span class="flow-arrow">➔</span>
+          <div class="flow-step" id="flow-step-5">
+            <div class="flow-step-label">5. Notice</div>
+            <div class="flow-step-disclosure" id="flow-disc-5">RULE-03,05</div>
+          </div>
+        </div>
+
+        <!-- Progressive Disclosure Status Panel -->
+        <div class="disclosure-panel" id="disclosure-panel">
+          <div class="disclosure-header">
+            <span class="disclosure-icon">🔒</span>
+            <span class="disclosure-title">Progressive Disclosure Status</span>
+            <span class="disclosure-badge" id="disclosure-stage-badge">Idle</span>
+          </div>
+          <div class="disclosure-body" id="disclosure-body">
+            <div class="disclosure-row">
+              <span class="disc-label">Disclosed:</span>
+              <span class="disc-value" id="disc-disclosed">—</span>
+            </div>
+            <div class="disclosure-row">
+              <span class="disc-label">Withheld:</span>
+              <span class="disc-value disc-withheld" id="disc-withheld">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline" id="trace-timeline">
+          <div class="timeline-empty-state">
+            <span class="timeline-empty-icon">🤖</span>
+            <p>Execution trace outputs will display here.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- notice letter preview -->
+      <div class="glass-card letter-card">
+        <h2>✉️ Generated Clinical Decision Notice</h2>
+        <div class="paper-preview">
+          <pre id="letter-content" class="letter-content">Awaiting review execution to draft notice letter...</pre>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <p>PriorAuthAI Audit Sandbox • Built on SkillOpt & SkillJuror Specifications</p>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

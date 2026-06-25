@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PriorAuthAI | Help & Architecture Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+  <style>
+    .help-container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 2.5rem 4rem;
+    }
+    .help-container h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, var(--accent-blue) 30%, var(--accent-purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .help-container .lead {
+      font-size: 1rem;
+      color: var(--text-muted);
+      margin-bottom: 2.5rem;
+      line-height: 1.6;
+    }
+    .help-section {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 1.75rem;
+      margin-bottom: 1.5rem;
+      backdrop-filter: blur(10px);
+    }
+</style>
+</head>
+<body>
+  <div class="glow-container">
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+  </div>
+
+  <header class="app-header">
+    <div class="logo-area">
+      <span class="logo-icon">🛡️</span>
+      <div class="logo-text">
+        <h1>PriorAuth<span class="highlight">AI</span> Help & Architecture</h1>
+        <p>Understanding the Agentic Governance Sandbox</p>
+      </div>
+    </div>
+    <div class="header-badges">
+      <a href="index.html" style="text-decoration:none;">
+        <span class="badge badge-blue">← Back to Console</span>
+      </a>
+    </div>
+  </header>
+
+  <div class="help-container">
+    <h1>PriorAuthAI Governance Console — Help Guide</h1>
+    <p class="lead">
+      This sandbox demonstrates a fully governed AI agent for healthcare prior authorization.
+      It shows how Skills, Rules, Hooks, and Progressive Disclosure work together to create
+      a transparent, auditable, and safe clinical decision support system — all powered by
+      declarative markdown that non-programmers can edit.
+    </p>
+
+    <!-- USE CASE OVERVIEW -->
+    <div class="help-section">
+      <h2>🏥 The Use Case: AI-Powered Prior Authorization</h2>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        Prior authorization (PA) is the process where health insurers review whether a requested
+        medical procedure or medication meets clinical necessity guidelines before approving coverage.
+        Traditionally, this involves manual review by clinical staff — slow, inconsistent, and expensive.
+      </p>
+      <p style="color:var(--text-muted); margin-top:0.75rem; line-height:1.7;">
+        <strong style="color:var(--text-main);">PriorAuthAI</strong> automates this review using an
+        AI agent that follows strict governance guardrails. It evaluates clinical notes against
+        payer-defined policy criteria (expressed in OPA Rego rules) and either auto-approves cases
+        that clearly meet guidelines or escalates ambiguous cases to a human Medical Director —
+        never auto-denying.
+      </p>
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">Key Principles</h3>
+      <ul style="color:var(--text-muted); line-height:2; margin-top:0.5rem; padding-left:1.25rem;">
+        <li><strong style="color:var(--text-main);">Clinical Conservatism</strong> — The agent never denies. Uncertain cases escalate to humans.</li>
+        <li><strong style="color:var(--text-main);">Full Transparency</strong> — Every decision step is traced and auditable in real-time.</li>
+        <li><strong style="color:var(--text-main);">PHI Protection</strong> — Patient data is redacted from logs before any external processing.</li>
+        <li><strong style="color:var(--text-main);">Declarative Policies</strong> — Clinical directors edit markdown, not code.</li>
+        <li><strong style="color:var(--text-main);">Dynamic Extensibility</strong> — New skills can be added at runtime via plain English.</li>
+      </ul>
+    </div>
+
+    <!-- SKILLS -->
+    <div class="help-section">
+      <h2>🛠️ Skills — The Agent's Capabilities</h2>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        Skills are discrete, composable functions that the agent invokes during its review pipeline.
+        Each skill has a defined contract: specific inputs it requires and outputs it produces.
+        Skills are declared in <code style="color:#a5f3fc;">skills_declaration.md</code> (human-readable)
+        and compiled into executable JavaScript in <code style="color:#a5f3fc;">skills.js</code>.
+      </p>
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">Core Skills</h3>
+      <table style="width:100%; margin-top:0.75rem; border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">SKILL</th>
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">PURPOSE</th>
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">PIPELINE STAGE</th>
+          </tr>
+        </thead>
+        <tbody style="color:var(--text-main); font-size:0.82rem;">
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;"><code style="color:#22d3ee;">VerifyCoverageSkill</code></td>
+            <td style="padding:0.5rem;">Checks member enrollment and plan coverage for the requested service category</td>
+            <td style="padding:0.5rem;">Stage 2: Coverage</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;"><code style="color:#22d3ee;">RetrieveGuidelinesSkill</code></td>
+            <td style="padding:0.5rem;">Fetches the clinical policy rules for the requested CPT procedure code</td>
+            <td style="padding:0.5rem;">Stage 2: Coverage</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;"><code style="color:#22d3ee;">ExtractClinicalDataSkill</code></td>
+            <td style="padding:0.5rem;">Parses provider clinical notes to extract structured evidence (symptom duration, therapy weeks, findings)</td>
+            <td style="padding:0.5rem;">Stage 3: OPA Rego</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;"><code style="color:#22d3ee;">EvaluateClinicalCriteriaSkill</code></td>
+            <td style="padding:0.5rem;">Maps extracted evidence against OPA Rego policy checklist criteria</td>
+            <td style="padding:0.5rem;">Stage 3: OPA Rego</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;"><code style="color:#22d3ee;">GenerateDecisionNoticeSkill</code></td>
+            <td style="padding:0.5rem;">Drafts the formal patient/provider correspondence letter with citations</td>
+            <td style="padding:0.5rem;">Stage 5: Notice</td>
+          </tr>
+          <tr>
+            <td style="padding:0.5rem;"><code style="color:#c084fc;">VerifyNpiStatusSkill</code></td>
+            <td style="padding:0.5rem;">Dynamically injected skill that validates provider NPI registry format</td>
+            <td style="padding:0.5rem;">Dynamic (post-coverage)</td>
+          </tr>
+        </tbody>
+      </table>
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">Creating Skills from Plain English</h3>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        The "Create Skill from Plain English" panel allows non-programmers to describe a new validation
+        rule in natural language. The system parses the description to extract:
+      </p>
+      <ul style="color:var(--text-muted); line-height:2; margin-top:0.5rem; padding-left:1.25rem;">
+        <li><strong style="color:var(--text-main);">Action verb</strong> → becomes the skill name prefix (Check, Verify, Flag, etc.)</li>
+        <li><strong style="color:var(--text-main);">Domain objects</strong> → determine inputs (age→patientDob, NPI→providerNpi)</li>
+        <li><strong style="color:var(--text-main);">Conditions</strong> → numeric comparisons ("over 65"), text matching ("contains opioid")</li>
+        <li><strong style="color:var(--text-main);">Actions</strong> → what happens when conditions are met ("flag for senior review")</li>
+      </ul>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        The generated skill is security-audited by SkillJuror, appended to both the markdown declaration
+        and the executable JavaScript, then immediately available in the agent pipeline.
+      </p>
+    </div>
+
+    <!-- RULES -->
+    <div class="help-section">
+      <h2>⚙️ Rules — Governance Guardrails</h2>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        Rules are non-negotiable governance constraints enforced at specific lifecycle points.
+        Unlike skills (which do work), rules act as <strong style="color:var(--text-main);">guardrails</strong>
+        — they validate, constrain, and transform data to ensure compliance. Each rule can be
+        independently toggled on/off via the UI checkboxes.
+      </p>
+      <table style="width:100%; margin-top:0.75rem; border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">RULE</th>
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">ENFORCEMENT</th>
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">WHEN</th>
+          </tr>
+        </thead>
+        <tbody style="color:var(--text-main); font-size:0.82rem;">
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;"><code style="color:#fbbf24;">RULE-01: PHI Redaction</code></td>
+            <td style="padding:0.5rem;">Scrubs SSN, DOB, and patient names from all trace logs before display or storage</td>
+            <td style="padding:0.5rem;">on_request_received</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;"><code style="color:#fbbf24;">RULE-02: Clinical Conservatism</code></td>
+            <td style="padding:0.5rem;">Forces escalation to human Medical Director for any unmet or ambiguous criteria — never auto-denies</td>
+            <td style="padding:0.5rem;">on_criteria_evaluated</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;"><code style="color:#fbbf24;">RULE-03: Citation Compulsory</code></td>
+            <td style="padding:0.5rem;">Validates that every notice letter cites the specific policy ID and criteria references</td>
+            <td style="padding:0.5rem;">on_notice_generated</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;"><code style="color:#fbbf24;">RULE-04: Code Match</code></td>
+            <td style="padding:0.5rem;">Validates CPT/ICD-10 code formatting and confirms the diagnosis maps to the procedure's guidelines</td>
+            <td style="padding:0.5rem;">on_guidelines_loaded</td>
+          </tr>
+          <tr>
+            <td style="padding:0.5rem;"><code style="color:#fbbf24;">RULE-05: Plain Language</code></td>
+            <td style="padding:0.5rem;">Translates medical acronyms (MRI, CPT, PT, DMARD) to patient-readable language in notice letters</td>
+            <td style="padding:0.5rem;">on_notice_generated</td>
+          </tr>
+        </tbody>
+      </table>
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">OPA Rego Rules Engine</h3>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        Clinical policy criteria are expressed in <strong style="color:var(--text-main);">OPA Rego</strong>
+        (Open Policy Agent) format — a declarative policy language. Medical directors edit the
+        human-readable <code style="color:#a5f3fc;">rules_declaration.md</code> markdown file, and
+        the SkillJuror compiler automatically generates the corresponding
+        <code style="color:#a5f3fc;">rules.rego</code> file. This means:
+      </p>
+      <ul style="color:var(--text-muted); line-height:2; margin-top:0.5rem; padding-left:1.25rem;">
+        <li>Non-programmers maintain policy in plain markdown</li>
+        <li>The Rego interpreter evaluates criteria deterministically</li>
+        <li>Adding new policies requires zero code changes</li>
+        <li>All criteria thresholds (symptom weeks, therapy duration) are data-driven</li>
+      </ul>
+    </div>
+
+    <!-- PDF POLICY DOCUMENT -->
+    <div class="help-section">
+      <h2>📄 UHC Policy PDF — The Source of Truth</h2>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        The file <code style="color:#a5f3fc;">real_payer_policy_uhc.pdf</code> is a
+        <strong style="color:var(--text-main);">real-world payer clinical policy document</strong>
+        that serves as the authoritative source from which all rules and guidelines in this system
+        are derived. It represents how actual health insurance payers (like UnitedHealthcare)
+        publish their medical necessity criteria.
+      </p>
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">How the PDF Guides the System</h3>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        The workflow from payer policy to automated enforcement follows a progressive chain:
+      </p>
+      <div style="margin-top:0.75rem; display:flex; flex-direction:column; gap:0.5rem;">
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <div style="min-width:2.2rem; height:2.2rem; background:rgba(6,182,212,0.08); border:1px solid rgba(6,182,212,0.2); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:1rem;">📄</div>
+          <div>
+            <div style="font-weight:700; font-size:0.82rem; color:var(--text-main);">Payer Policy PDF (Source)</div>
+            <p style="font-size:0.72rem; color:var(--text-muted);">UHC publishes clinical policies as PDF documents. These define CPT codes, ICD-10 diagnosis requirements, minimum therapy durations, required documentation, and specialist consult requirements.</p>
+          </div>
+        </div>
+        <div style="padding-left:1rem; color:var(--text-dark);">↓ <span style="font-size:0.65rem; color:var(--text-muted);">Medical Director reads and translates</span></div>
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <div style="min-width:2.2rem; height:2.2rem; background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.2); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:1rem;">📝</div>
+          <div>
+            <div style="font-weight:700; font-size:0.82rem; color:var(--text-main);">rules_declaration.md (Human-Readable)</div>
+            <p style="font-size:0.72rem; color:var(--text-muted);">A clinical director translates the PDF criteria into structured markdown. Each policy gets: CPT code, allowed ICD-10 codes, minimum symptom duration, minimum therapy weeks, objective findings requirements, and specialist consult flags.</p>
+          </div>
+        </div>
+        <div style="padding-left:1rem; color:var(--text-dark);">↓ <span style="font-size:0.65rem; color:var(--text-muted);">SkillJuror compiler auto-generates</span></div>
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <div style="min-width:2.2rem; height:2.2rem; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.2); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:1rem;">⚙️</div>
+          <div>
+            <div style="font-weight:700; font-size:0.82rem; color:var(--text-main);">rules.rego (Executable OPA Policy)</div>
+            <p style="font-size:0.72rem; color:var(--text-muted);">The compiler generates deterministic Rego rules with exact thresholds (e.g., therapyWeeks >= 6), code validation sets, and approval/escalation logic. These are what the agent actually evaluates at runtime.</p>
+          </div>
+        </div>
+        <div style="padding-left:1rem; color:var(--text-dark);">↓ <span style="font-size:0.65rem; color:var(--text-muted);">Agent executes at Stage 4 via progressive disclosure</span></div>
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <div style="min-width:2.2rem; height:2.2rem; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.2); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:1rem;">🤖</div>
+          <div>
+            <div style="font-weight:700; font-size:0.82rem; color:var(--text-main);">Agent Evaluation (Automated Decision)</div>
+            <p style="font-size:0.72rem; color:var(--text-muted);">The Rego interpreter evaluates extracted clinical evidence against compiled policy rules and produces approve/escalate decisions with full audit trail.</p>
+          </div>
+        </div>
+      </div>
+      <h3 style="margin-top:1.5rem; color:var(--accent-blue);">What the PDF Contains (Policy Structure)</h3>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        A typical payer policy PDF includes:
+      </p>
+      <ul style="color:var(--text-muted); line-height:2; margin-top:0.5rem; padding-left:1.25rem;">
+        <li><strong style="color:var(--text-main);">Policy Identifiers</strong> — Policy number (e.g., POL-RAD-402), effective dates, revision history</li>
+        <li><strong style="color:var(--text-main);">Covered Procedures</strong> — CPT/HCPCS codes with descriptions (e.g., 73721 = MRI Lower Joint)</li>
+        <li><strong style="color:var(--text-main);">Medical Necessity Criteria</strong> — Specific conditions that must be documented:
+          <ul style="margin-top:0.25rem; padding-left:1rem;">
+            <li>Minimum symptom duration (e.g., "persistent pain for at least 6 weeks")</li>
+            <li>Conservative therapy requirements (e.g., "6 weeks of physical therapy")</li>
+            <li>Required diagnostic workup (e.g., "plain radiographs completed")</li>
+            <li>Objective clinical findings (e.g., "joint line tenderness documented")</li>
+          </ul>
+        </li>
+        <li><strong style="color:var(--text-main);">Diagnosis Restrictions</strong> — Allowed ICD-10 codes that map to this procedure</li>
+        <li><strong style="color:var(--text-main);">Step Therapy Requirements</strong> — Failed-first treatments before escalation to advanced procedures</li>
+        <li><strong style="color:var(--text-main);">Provider Requirements</strong> — Specialist consultations, network status, credentialing</li>
+      </ul>
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">Why the PDF Matters for This Demo</h3>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        The PDF demonstrates that AI prior authorization governance is grounded in
+        <strong style="color:var(--text-main);">real clinical policy</strong> — not invented rules.
+        Medical directors can reference the original PDF, update the markdown declarations to match
+        policy changes, recompile, and the agent immediately enforces the updated criteria.
+        This creates a traceable chain: <em>PDF → Markdown → Rego → Agent Decision</em>, where every
+        automated decision can be audited back to the source payer policy document.
+      </p>
+    </div>
+
+    <!-- HOOKS -->
+    <div class="help-section">
+      <h2>🪝 Hooks — Lifecycle Event Orchestration</h2>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        Hooks are the orchestration mechanism that connects rules to the agent's execution lifecycle.
+        They fire at specific moments during the review pipeline and execute registered callbacks.
+        This is the <strong style="color:var(--text-main);">event-driven architecture</strong> that
+        makes the agent composable and extensible.
+      </p>
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">Agent Lifecycle Hooks</h3>
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.75rem;">
+        <div style="flex:1; min-width:180px; background:rgba(168,85,247,0.05); border:1px solid rgba(168,85,247,0.15); border-radius:8px; padding:0.75rem;">
+          <div style="font-size:0.72rem; font-weight:800; color:#c084fc; text-transform:uppercase;">1. on_request_received</div>
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:0.35rem;">Fires when a PA request enters the system. Triggers PHI redaction.</p>
+        </div>
+        <div style="flex:1; min-width:180px; background:rgba(168,85,247,0.05); border:1px solid rgba(168,85,247,0.15); border-radius:8px; padding:0.75rem;">
+          <div style="font-size:0.72rem; font-weight:800; color:#c084fc; text-transform:uppercase;">2. on_guidelines_loaded</div>
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:0.35rem;">Fires after clinical guidelines are fetched. Triggers code format validation.</p>
+        </div>
+        <div style="flex:1; min-width:180px; background:rgba(168,85,247,0.05); border:1px solid rgba(168,85,247,0.15); border-radius:8px; padding:0.75rem;">
+          <div style="font-size:0.72rem; font-weight:800; color:#c084fc; text-transform:uppercase;">3. on_evidence_extracted</div>
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:0.35rem;">Fires after NLP extraction from clinical notes. Validates evidence consistency.</p>
+        </div>
+        <div style="flex:1; min-width:180px; background:rgba(168,85,247,0.05); border:1px solid rgba(168,85,247,0.15); border-radius:8px; padding:0.75rem;">
+          <div style="font-size:0.72rem; font-weight:800; color:#c084fc; text-transform:uppercase;">4. on_criteria_evaluated</div>
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:0.35rem;">Fires after OPA evaluation. Applies Clinical Conservatism routing logic.</p>
+        </div>
+        <div style="flex:1; min-width:180px; background:rgba(168,85,247,0.05); border:1px solid rgba(168,85,247,0.15); border-radius:8px; padding:0.75rem;">
+          <div style="font-size:0.72rem; font-weight:800; color:#c084fc; text-transform:uppercase;">5. on_notice_generated</div>
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:0.35rem;">Fires after letter drafting. Enforces citation and plain language rules.</p>
+        </div>
+      </div>
+      <p style="color:var(--text-muted); margin-top:1rem; line-height:1.7;">
+        Hooks decouple "what happens" (skills) from "when it's validated" (rules). This means
+        new governance requirements can be added by registering callbacks on existing lifecycle
+        events without modifying the core agent pipeline.
+      </p>
+    </div>
+
+    <!-- MCP SERVER -->
+    <div class="help-section">
+      <h2>🔌 MCP Server — Model Context Protocol Architecture</h2>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        The Python backend (<code style="color:#a5f3fc;">server.py</code>) acts as an
+        <strong style="color:var(--text-main);">MCP-style context server</strong> — it provides
+        the agent with structured tools and resources through a defined protocol:
+      </p>
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">Server Endpoints (Tool Surface)</h3>
+      <table style="width:100%; margin-top:0.75rem; border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">ENDPOINT</th>
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">MCP ANALOGY</th>
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">FUNCTION</th>
+          </tr>
+        </thead>
+        <tbody style="color:var(--text-main); font-size:0.82rem;">
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;"><code style="color:#22d3ee;">POST /save-file</code></td>
+            <td style="padding:0.5rem;">Tool: compile</td>
+            <td style="padding:0.5rem;">Saves markdown declarations and compiles them into executable Rego/JS. Runs SkillJuror audit.</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;"><code style="color:#22d3ee;">POST /generate-skill</code></td>
+            <td style="padding:0.5rem;">Tool: create_skill</td>
+            <td style="padding:0.5rem;">Accepts plain English, parses into skill contract, generates JS, validates syntax, registers skill.</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;"><code style="color:#22d3ee;">POST /reset-workspace</code></td>
+            <td style="padding:0.5rem;">Tool: reset</td>
+            <td style="padding:0.5rem;">Restores all declaration and compiled files to their original templates.</td>
+          </tr>
+          <tr>
+            <td style="padding:0.5rem;"><code style="color:#22d3ee;">GET /&lt;file&gt;</code></td>
+            <td style="padding:0.5rem;">Resource: file_read</td>
+            <td style="padding:0.5rem;">Serves static files (HTML, JS, CSS, Rego, MD) as resources the frontend agent consumes.</td>
+          </tr>
+        </tbody>
+      </table>
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">How This Maps to MCP Concepts</h3>
+      <ul style="color:var(--text-muted); line-height:2; margin-top:0.5rem; padding-left:1.25rem;">
+        <li><strong style="color:var(--text-main);">Tools</strong> — The POST endpoints expose capabilities (compile, generate, reset) with defined input/output schemas</li>
+        <li><strong style="color:var(--text-main);">Resources</strong> — Static file serving provides the agent with policy documents, compiled rules, and skill definitions</li>
+        <li><strong style="color:var(--text-main);">Context</strong> — The server maintains workspace state (which skills are compiled, current Rego rules) that the agent reads on each execution</li>
+        <li><strong style="color:var(--text-main);">Security Boundary</strong> — SkillJuror audits every tool invocation for unsafe patterns (eval, network calls, process access) before allowing compilation</li>
+      </ul>
+      <p style="color:var(--text-muted); margin-top:0.75rem; line-height:1.7;">
+        In a production MCP deployment, this server would be registered as an MCP server in
+        <code style="color:#a5f3fc;">.kiro/settings/mcp.json</code>, exposing its tools to AI agents
+        with proper authentication and auto-approval rules.
+      </p>
+    </div>
+
+    <!-- PROGRESSIVE DISCLOSURE -->
+    <div class="help-section">
+      <h2>🧬 Progressive Disclosure — Agent Execution Pattern (Not Just UI)</h2>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        Progressive disclosure in PriorAuthAI is <strong style="color:var(--accent-orange);">NOT merely a UI presentation pattern</strong>.
+        It is the <strong style="color:var(--text-main);">core agent execution architecture</strong>. The agent itself receives
+        rules, policies, and context <strong style="color:var(--text-main);">incrementally at each pipeline stage</strong> — never
+        the full corpus at once. This prevents context overload and mirrors how a human reviewer works:
+        you don't read the entire policy manual before looking at a case.
+      </p>
+
+      <h3 style="margin-top:1.25rem; color:var(--accent-orange);">Agent-Level Progressive Disclosure (Execution Architecture)</h3>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        At the code level (<code style="color:#a5f3fc;">agent.js</code>), each pipeline stage explicitly <strong style="color:var(--text-main);">discloses</strong>
+        only the rules and context needed for that specific gate:
+      </p>
+      <table style="width:100%; margin-top:0.75rem; border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">STAGE</th>
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">WHAT IS DISCLOSED</th>
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">WHAT IS WITHHELD</th>
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">WHY</th>
+          </tr>
+        </thead>
+        <tbody style="color:var(--text-main); font-size:0.78rem;">
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;"><strong>1. Intake</strong></td>
+            <td style="padding:0.5rem;">Raw request + PHI redaction rule only</td>
+            <td style="padding:0.5rem;">Clinical policies, Rego rules, guidelines</td>
+            <td style="padding:0.5rem;">Agent must sanitize data before it sees any policy — prevents PHI leaking into decision logs</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;"><strong>2. Coverage</strong></td>
+            <td style="padding:0.5rem;">Member eligibility + code format rules</td>
+            <td style="padding:0.5rem;">Clinical criteria, Rego evaluation logic</td>
+            <td style="padding:0.5rem;">No point evaluating clinical necessity if the patient isn't even covered — fail fast</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;"><strong>3. Evidence</strong></td>
+            <td style="padding:0.5rem;">Guidelines for THIS specific CPT code only</td>
+            <td style="padding:0.5rem;">Rego evaluation rules, decision conservatism rules</td>
+            <td style="padding:0.5rem;">Agent extracts evidence guided by the specific policy criteria — not the full guidelines catalog</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;"><strong>4. Evaluation</strong></td>
+            <td style="padding:0.5rem;">OPA Rego policy rules (loaded NOW, not before)</td>
+            <td style="padding:0.5rem;">Notice formatting rules, plain language rules</td>
+            <td style="padding:0.5rem;">Rego rules need extracted evidence as input — loading them earlier would be premature</td>
+          </tr>
+          <tr>
+            <td style="padding:0.5rem;"><strong>5. Decision</strong></td>
+            <td style="padding:0.5rem;">Conservatism guardrails + notice generation rules</td>
+            <td style="padding:0.5rem;">Nothing withheld — all context now available</td>
+            <td style="padding:0.5rem;">Output formatting rules are disclosed last so evaluation can't be biased by output format</td>
+          </tr>
+        </tbody>
+      </table>
+      <h3 style="margin-top:1.5rem; color:var(--accent-blue);">Why This Matters for AI Agents</h3>
+      <ul style="color:var(--text-muted); line-height:2.2; margin-top:0.5rem; padding-left:1.25rem;">
+        <li><strong style="color:var(--text-main);">Prevents Context Overload</strong> — LLM-based agents degrade when given too much context at once. Disclosing incrementally keeps each decision focused and accurate.</li>
+        <li><strong style="color:var(--text-main);">Enforces Separation of Concerns</strong> — A rule scoped to Stage 5 CANNOT influence Stage 2 processing. This is architecturally enforced, not just convention.</li>
+        <li><strong style="color:var(--text-main);">Enables Early Termination</strong> — If Stage 2 fails (coverage denied), the agent never receives the Rego rules. Resources aren't wasted evaluating irrelevant policies.</li>
+        <li><strong style="color:var(--text-main);">Mirrors Human Clinical Workflow</strong> — A real reviewer checks coverage before reading guidelines. They don't pull up the notice template until they've made their decision.</li>
+        <li><strong style="color:var(--text-main);">Improves Auditability</strong> — The trace shows exactly WHEN each piece of context was disclosed. Regulators can verify the agent didn't have access to information it shouldn't have at a given stage.</li>
+      </ul>
+
+      <h3 style="margin-top:1.5rem; color:var(--accent-blue);">UI-Level Progressive Disclosure (Presentation Layer)</h3>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        The UI mirrors the agent's internal progressive disclosure with multiple depth levels
+        for human consumers:
+      </p>
+      <div style="margin-top:0.75rem;">
+        <div style="display:flex; gap:0.75rem; align-items:flex-start; margin-bottom:1rem;">
+          <div style="min-width:2rem; height:2rem; background:rgba(6,182,212,0.1); border:1px solid rgba(6,182,212,0.2); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:800; color:#22d3ee;">1</div>
+          <div>
+            <div style="font-weight:700; font-size:0.85rem;">Pipeline Flowchart (Top-Level View)</div>
+            <p style="color:var(--text-muted); font-size:0.78rem; margin-top:0.2rem;">The 5-stage gate flowchart (PHI Scrub → Coverage → OPA Rego → Decision → Notice) gives an instant high-level status. Green = passed, orange = warning, red = failed. Users see the overall outcome without reading any details.</p>
+          </div>
+        </div>
+        <div style="display:flex; gap:0.75rem; align-items:flex-start; margin-bottom:1rem;">
+          <div style="min-width:2rem; height:2rem; background:rgba(6,182,212,0.1); border:1px solid rgba(6,182,212,0.2); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:800; color:#22d3ee;">2</div>
+          <div>
+            <div style="font-weight:700; font-size:0.85rem;">Timeline Events (Mid-Level Detail)</div>
+            <p style="color:var(--text-muted); font-size:0.78rem; margin-top:0.2rem;">The Agent Lifecycle Timeline shows each step as a compact card with type badge (hook/skill/rule/system), timestamp, and one-line summary. Users can scan the sequence without reading details.</p>
+          </div>
+        </div>
+        <div style="display:flex; gap:0.75rem; align-items:flex-start; margin-bottom:1rem;">
+          <div style="min-width:2rem; height:2rem; background:rgba(6,182,212,0.1); border:1px solid rgba(6,182,212,0.2); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:800; color:#22d3ee;">3</div>
+          <div>
+            <div style="font-weight:700; font-size:0.85rem;">Expandable Details (Deep-Level Data)</div>
+            <p style="color:var(--text-muted); font-size:0.78rem; margin-top:0.2rem;">Clicking any timeline item expands it to show the full JSON payload — extracted evidence values, Rego evaluation inputs, criteria match results. This raw data is hidden until explicitly requested.</p>
+          </div>
+        </div>
+        <div style="display:flex; gap:0.75rem; align-items:flex-start; margin-bottom:1rem;">
+          <div style="min-width:2rem; height:2rem; background:rgba(6,182,212,0.1); border:1px solid rgba(6,182,212,0.2); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:800; color:#22d3ee;">4</div>
+          <div>
+            <div style="font-weight:700; font-size:0.85rem;">Decision Notice (Actionable Output)</div>
+            <p style="color:var(--text-muted); font-size:0.78rem; margin-top:0.2rem;">The generated letter is the final artifact — a formal clinical decision document with policy citations and criteria checklist. It's shown after all processing completes.</p>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">Why Progressive Disclosure Is Critical for Healthcare AI Governance</h3>
+      <ul style="color:var(--text-muted); line-height:2.2; margin-top:0.5rem; padding-left:1.25rem;">
+        <li><strong style="color:var(--text-main);">Regulatory Compliance</strong> — Auditors need to verify specific decision steps. Progressive disclosure lets them drill into exactly the step they're investigating without sifting through irrelevant data.</li>
+        <li><strong style="color:var(--text-main);">Cognitive Load Management</strong> — Clinical reviewers handle hundreds of cases daily. A glanceable flowchart tells them instantly whether a case needs attention, without reading 20+ trace events.</li>
+        <li><strong style="color:var(--text-main);">Trust Building</strong> — When AI makes clinical decisions, transparency isn't optional. Showing "how" the decision was made at every granularity level builds trust with providers and patients.</li>
+        <li><strong style="color:var(--text-main);">Debugging & Iteration</strong> — When a policy produces unexpected results, developers can expand the exact Rego evaluation step to see which criterion failed and what the actual input values were.</li>
+        <li><strong style="color:var(--text-main);">Multi-Audience Design</strong> — Medical Directors see the flowchart. Clinical staff read the timeline. Engineers inspect the JSON payloads. Same data, different depth levels.</li>
+      </ul>
+    </div>
+
+    <!-- ARCHITECTURE DIAGRAM -->
+    <div class="help-section">
+      <h2>🏗️ System Architecture</h2>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        The complete data flow from request submission to decision notice:
+      </p>
+      <pre style="background:#03050a; border:1px solid rgba(255,255,255,0.04); border-radius:8px; padding:1.25rem; font-family:var(--font-mono); font-size:0.72rem; color:#94a3b8; line-height:1.6; overflow-x:auto; margin-top:0.75rem;">
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        PRIORAUTHAI AGENT PIPELINE                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌──────────┐    ┌──────────────┐    ┌────────────┐    ┌────────────────┐  │
+│  │  REQUEST │───▶│ HOOK 1:      │───▶│ SKILL 1:   │───▶│ SKILL 2:       │  │
+│  │  INPUT   │    │ PHI Redact   │    │ Coverage   │    │ Guidelines     │  │
+│  └──────────┘    └──────────────┘    └────────────┘    └────────────────┘  │
+│                         │                   │                    │           │
+│                    RULE-01              RULE-04              RULE-04         │
+│                                             │                    │           │
+│                                             ▼                    ▼           │
+│  ┌──────────────┐    ┌──────────────┐    ┌────────────────────────────┐    │
+│  │ HOOK 3:      │◀───│ SKILL 3:     │◀───│ HOOK 2: Code Match         │    │
+│  │ Evidence Chk │    │ Extract NLP  │    │ Validate CPT/ICD formats   │    │
+│  └──────────────┘    └──────────────┘    └────────────────────────────┘    │
+│         │                                                                   │
+│         ▼                                                                   │
+│  ┌──────────────┐    ┌──────────────┐    ┌────────────────────────────┐    │
+│  │ OPA REGO     │───▶│ SKILL 4:     │───▶│ DYNAMIC SKILLS             │    │
+│  │ INTERPRETER  │    │ Criteria Map │    │ (NPI, Age Check, etc.)     │    │
+│  └──────────────┘    └──────────────┘    └────────────────────────────┘    │
+│         │                                          │                        │
+│         ▼                                          ▼                        │
+│  ┌──────────────┐    ┌──────────────┐    ┌────────────────────────────┐    │
+│  │ HOOK 4:      │───▶│ SKILL 5:     │───▶│ HOOK 5: Citation &         │    │
+│  │ Conservatism │    │ Notice Gen   │    │ Plain Language Rules       │    │
+│  └──────────────┘    └──────────────┘    └────────────────────────────┘    │
+│                                                         │                   │
+│                    RULE-02              RULE-03      RULE-05                 │
+│                                                         │                   │
+│                                                         ▼                   │
+│                                              ┌────────────────────┐         │
+│                                              │  DECISION OUTPUT   │         │
+│                                              │  Approved │ Escalated        │
+│                                              └────────────────────┘         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          MCP SERVER (server.py)                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  /save-file      → Markdown ──compile──▶ Rego/JS (SkillJuror Audit)        │
+│  /generate-skill → Plain English ──NLP──▶ MD Declaration + JS Function     │
+│  /reset-workspace→ Restore all templates to defaults                        │
+│  GET /*          → Serve resources (HTML, JS, CSS, Rego, PDF)              │
+└─────────────────────────────────────────────────────────────────────────────┘
+      </pre>
+    </div>
+
+    <!-- QUICK START -->
+    <div class="help-section">
+      <h2>🚀 Quick Start Guide</h2>
+      <h3 style="margin-top:0.75rem; color:var(--accent-blue);">Running a Prior Auth Review</h3>
+      <ol style="color:var(--text-muted); line-height:2.2; margin-top:0.5rem; padding-left:1.25rem;">
+        <li>Select a preset case (1-4) from the middle column to populate the form</li>
+        <li>Review or edit the patient details, CPT/ICD codes, and clinical notes</li>
+        <li>Toggle guardrail rules on/off using the checkboxes to see their effect</li>
+        <li>Click <strong style="color:var(--text-main);">⚡ Run Prior Auth Agent Review</strong></li>
+        <li>Watch the pipeline flowchart light up as each stage completes</li>
+        <li>Click timeline items to expand and see detailed JSON payloads</li>
+        <li>Read the generated decision notice letter at the bottom</li>
+      </ol>
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">Editing Policies</h3>
+      <ol style="color:var(--text-muted); line-height:2.2; margin-top:0.5rem; padding-left:1.25rem;">
+        <li>Click the <code style="color:#a5f3fc;">rules_declaration.md</code> tab in the left column</li>
+        <li>Edit criteria values (e.g., change "Minimum Symptom Duration: 6 weeks" to "4 weeks")</li>
+        <li>Click <strong style="color:var(--text-main);">💾 Save & Compile Policies</strong></li>
+        <li>The SkillJuror audit console shows compilation results</li>
+        <li>Switch to the <code style="color:#a5f3fc;">rules.rego</code> tab to see the compiled output</li>
+        <li>Re-run a case to see the updated criteria in action</li>
+      </ol>
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">Adding a New Skill</h3>
+      <ol style="color:var(--text-muted); line-height:2.2; margin-top:0.5rem; padding-left:1.25rem;">
+        <li>Find the "Create Skill from Plain English" panel at the bottom of the left column</li>
+        <li>Type a description like: <em>"Check if patient age is over 65 and flag for senior review"</em></li>
+        <li>Click <strong style="color:var(--text-main);">🧠 Generate & Register Skill</strong></li>
+        <li>The skill appears as a new pill in the "Discovered Active Skills" list</li>
+        <li>Run a case — the new skill executes and appears in the timeline trace</li>
+      </ol>
+    </div>
+
+    <!-- PRESET CASES -->
+    <div class="help-section">
+      <h2>📁 Understanding the Preset Cases</h2>
+      <table style="width:100%; margin-top:0.75rem; border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">CASE</th>
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">SCENARIO</th>
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">EXPECTED OUTCOME</th>
+          </tr>
+        </thead>
+        <tbody style="color:var(--text-main); font-size:0.82rem;">
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;"><strong>Case 1</strong></td>
+            <td style="padding:0.5rem;">Knee MRI with 8 weeks symptoms, 6 weeks PT, tenderness documented, X-rays completed</td>
+            <td style="padding:0.5rem; color:var(--accent-green);">✓ Approved — all criteria met</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;"><strong>Case 2</strong></td>
+            <td style="padding:0.5rem;">Knee MRI with only 2 weeks pain, no PT completed, no X-rays</td>
+            <td style="padding:0.5rem; color:var(--accent-orange);">⚠ Escalated — conservative therapy not met</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;"><strong>Case 3</strong></td>
+            <td style="padding:0.5rem;">Humira (biologic) for HMO member without pharmacy coverage; ICD-10 mismatch</td>
+            <td style="padding:0.5rem; color:var(--accent-red);">✗ Escalated — coverage exclusion + code mismatch</td>
+          </tr>
+          <tr>
+            <td style="padding:0.5rem;"><strong>Case 4</strong></td>
+            <td style="padding:0.5rem;">Blank sandbox for custom testing</td>
+            <td style="padding:0.5rem; color:var(--text-muted);">Depends on your input</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <footer class="app-footer">
+    <p>PriorAuthAI Help Guide • Built on SkillOpt & SkillJuror Specifications</p>
+  </footer>
+</body>
+</html>
