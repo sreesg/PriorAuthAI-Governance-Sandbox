@@ -224,6 +224,8 @@ For any questions regarding this decision, contact Payer Member Services.
 }
 
 // Auto-generated skill: Check the patient sex and make sure it male and in the age group 60 and above
+
+// Auto-generated skill: Check the patient sex and make sure it male and in the age group 60 and above
 export function CheckAgePatientSkill(context, agent) {
   agent.logTrace("skill", "CheckAgePatientSkill", "Executing: Check the patient sex and make sure it male and in the age g...", "info");
   function calculateAge(dob) {

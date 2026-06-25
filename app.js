@@ -341,9 +341,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     inputNpi.value = req.providerNpi;
     inputNotes.value = req.clinicalNotes;
 
+    // Clear all output panels when loading a new case
     outcomeCard.className = 'glass-card outcome-card pending';
     outcomeBadge.textContent = 'Ready to Run';
     outcomeReason.textContent = 'Case loaded: ' + caseObj.title;
+    letterContent.textContent = 'Awaiting review execution to draft notice letter...';
+    timeline.innerHTML = `<div class="timeline-empty-state"><span class="timeline-empty-icon">🤖</span><p>Execution trace outputs will display here.</p></div>`;
+    traceCounter.textContent = '0 events logged';
+    
+    // Reset pipeline flow
+    [1, 2, 3, 4, 5].forEach(s => {
+      const el = document.getElementById(`flow-step-${s}`);
+      el.className = 'flow-step';
+      const disc = el.querySelector('.flow-step-disclosure');
+      if (disc) disc.classList.remove('disc-active');
+    });
+    
+    // Reset disclosure panel
+    document.getElementById('disclosure-stage-badge').textContent = 'Idle';
+    document.getElementById('disclosure-stage-badge').className = 'disclosure-badge';
+    document.getElementById('disc-disclosed').textContent = '—';
+    document.getElementById('disc-withheld').textContent = '—';
+    
+    // Hide AI panels
+    const aiCard = document.getElementById('ai-reasoning-card');
+    if (aiCard) aiCard.style.display = 'none';
+    const aiInsights = document.getElementById('ai-insights-panel');
+    if (aiInsights) aiInsights.style.display = 'none';
+    const aiModelBadge = document.getElementById('ai-model-badge');
+    if (aiModelBadge) { aiModelBadge.textContent = ''; aiModelBadge.className = 'badge'; }
+    const npiBadge = document.getElementById('npi-status-badge');
+    if (npiBadge) { npiBadge.textContent = ''; npiBadge.className = 'badge'; }
+    
+    // Remove any note summary/quality popups
+    document.querySelectorAll('.notes-summary-popup').forEach(el => el.remove());
   }
 
   // 8. Compact Rules Checkbox toggles
@@ -1028,7 +1059,28 @@ Your capabilities within this tool:
 6. Suggest what providers should include in clinical notes
 7. Explain the difference between regex and ClinicalNLP extraction
 
-Keep answers concise (3-5 sentences max). Be direct and clinical. Never say "I'm just an AI" — you ARE AVI, this tool's assistant.`;
+IMPORTANT REFERENCE DATA (use ONLY this data for code lookups — do NOT guess or hallucinate code meanings):
+- CPT 73721 = MRI, any joint of lower extremity (knee), without contrast
+- CPT J0135 = Injection, adalimumab (Humira), 20mg subcutaneous
+- ICD-10 M25.561 = Pain in right knee
+- ICD-10 M25.562 = Pain in left knee
+- ICD-10 M25.569 = Pain in unspecified knee
+- ICD-10 S83.206A = Unspecified tear of lateral meniscus, initial encounter
+- ICD-10 M05.79 = Rheumatoid arthritis with rheumatoid factor, unspecified site
+- ICD-10 M06.9 = Rheumatoid arthritis, unspecified
+
+RULES in this system:
+- RULE-01 (PHI Redaction): Scrubs patient names/SSN/DOB from logs
+- RULE-02 (Clinical Conservatism): Never auto-deny; escalate uncertain cases to human
+- RULE-03 (Citation Compulsory): Every notice must cite the policy ID
+- RULE-04 (Code Match): Validates CPT/ICD format and guideline alignment
+- RULE-05 (Plain Language): Translates medical acronyms for patients
+
+POLICIES in this system:
+- POL-RAD-402: MRI Knee — requires 6+ weeks symptoms, 6+ weeks PT, objective findings, radiographs
+- POL-PHARM-809: Humira/Biologic — requires RA diagnosis, 12+ weeks DMARD failure, rheumatologist consult
+
+Keep answers concise (3-5 sentences max). Be direct and clinical. If you don't know something, say so — never fabricate medical code definitions. You ARE AVI, this tool's assistant.`;
 
   aviFab.addEventListener('click', () => {
     aviPanel.style.display = aviPanel.style.display === 'none' ? 'flex' : 'none';
