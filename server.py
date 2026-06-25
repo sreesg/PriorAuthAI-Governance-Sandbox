@@ -15,6 +15,35 @@ except ImportError:
     HEADROOM_AVAILABLE = False
     print("Headroom not installed. Running without context compression.")
 
+# LLM Performance Configuration
+LLM_CONFIG = {
+    "chat": {"num_predict": 150, "temperature": 0.3},       # AVI: short, fast answers
+    "extract": {"num_predict": 250, "temperature": 0.1},    # Clinical extraction: precise JSON
+    "letter": {"num_predict": 350, "temperature": 0.4},     # Letter rewrite: creative but bounded
+    "appeal": {"num_predict": 300, "temperature": 0.3},     # Appeal guide: detailed but focused
+    "summarize": {"num_predict": 120, "temperature": 0.2},  # Summary: very short
+    "score": {"num_predict": 150, "temperature": 0.1},      # Quality score: JSON only
+}
+
+# Pre-warm the LLM on startup (keeps model in GPU memory)
+def prewarm_llm():
+    try:
+        import urllib.request
+        payload = json.dumps({
+            "model": "gemma4:12b",
+            "prompt": "<start_of_turn>user\nReady<end_of_turn>\n<start_of_turn>model\n",
+            "stream": False, "raw": True,
+            "keep_alive": "24h",
+            "options": {"num_predict": 1}
+        }).encode()
+        req = urllib.request.Request('http://localhost:11434/api/generate', data=payload, headers={'Content-Type': 'application/json'})
+        urllib.request.urlopen(req, timeout=30)
+        print("LLM pre-warmed: gemma4:12b loaded in GPU memory (keep_alive=24h)")
+    except Exception as e:
+        print(f"LLM pre-warm skipped (Ollama may not be running): {e}")
+
+prewarm_llm()
+
 # Original files templates for reset
 ORIGINAL_SKILLS = """import { MEMBER_BENEFITS, CLINICAL_GUIDELINES } from './cases.js';
 
@@ -916,9 +945,12 @@ Respond ONLY with the JSON object, no other text.
                     "prompt": prompt,
                     "stream": False,
                     "raw": True,
+                    "keep_alive": "24h",
                     "options": {
-                        "temperature": 0.1,
-                        "num_predict": 400
+                        "temperature": LLM_CONFIG["extract"]["temperature"],
+                        "num_predict": LLM_CONFIG["extract"]["num_predict"],
+                        "num_ctx": 4096,
+                        "repeat_penalty": 1.1
                     }
                 }).encode()
                 
@@ -995,6 +1027,7 @@ Respond ONLY with the JSON object, no other text.
             
             prompt_text = params.get('prompt', '')
             system_context = params.get('systemContext', '')
+            mode = params.get('mode', 'chat')  # chat|letter|appeal|summarize|score
             
             if not prompt_text:
                 self.send_response(400)
@@ -1034,16 +1067,21 @@ Respond ONLY with the JSON object, no other text.
                 full_prompt = f"<start_of_turn>user\n"
                 if effective_context:
                     full_prompt += f"CONTEXT:\n{effective_context}\n\n"
-                full_prompt += f"{prompt_text}\n<end_of_turn>\n<start_of_turn>model\n"
+                full_prompt += f"{prompt_text}\nRespond concisely in 2-4 sentences.\n<end_of_turn>\n<start_of_turn>model\n<|channel>text\n<channel|>"
                 
                 ollama_payload = json.dumps({
                     "model": "gemma4:12b",
                     "prompt": full_prompt,
                     "stream": False,
                     "raw": True,
+                    "keep_alive": "24h",
                     "options": {
-                        "temperature": 0.3,
-                        "num_predict": 250
+                        "temperature": LLM_CONFIG.get(mode, LLM_CONFIG["chat"])["temperature"],
+                        "num_predict": LLM_CONFIG.get(mode, LLM_CONFIG["chat"])["num_predict"],
+                        "num_ctx": 2048 if mode in ("chat", "summarize", "score") else 4096,
+                        "repeat_penalty": 1.1,
+                        "top_k": 40,
+                        "top_p": 0.9
                     }
                 }).encode()
                 

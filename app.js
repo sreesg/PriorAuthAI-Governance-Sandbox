@@ -863,11 +863,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ═══════════════════════════════════════════════════════════════
 
   // Helper: Call the AI chat endpoint
-  async function callAI(prompt, systemContext = '') {
+  async function callAI(prompt, systemContext = '', mode = 'chat') {
     const res = await fetch('/ai-chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, systemContext })
+      body: JSON.stringify({ prompt, systemContext, mode })
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -895,7 +895,8 @@ Decision Reason: ${outcomeReason.textContent}`;
     try {
       const result = await callAI(
         `Rewrite this prior authorization decision letter to be warm, empathetic, and in plain language that a patient can understand. Keep all factual content but make it human and clear. Include the policy reference. Here is the current letter:\n\n${letterContent.textContent}`,
-        getCurrentCaseContext()
+        getCurrentCaseContext(),
+        'letter'
       );
       letterContent.textContent = result;
       showToast('🧠 Letter rewritten with empathetic AI tone', 'success');
@@ -921,7 +922,8 @@ Decision Reason: ${outcomeReason.textContent}`;
 4. Suggested language for the appeal letter
 
 Be specific and actionable.`,
-        getCurrentCaseContext()
+        getCurrentCaseContext(),
+        'appeal'
       );
       letterContent.textContent = `═══ APPEAL GUIDE ═══\n\n${result}\n\n═══ ORIGINAL NOTICE ═══\n\n${letterContent.textContent}`;
       showToast('📋 Appeal guide generated', 'success');
@@ -942,7 +944,8 @@ Be specific and actionable.`,
       const notes = inputNotes.value;
       const result = await callAI(
         `Summarize these clinical notes in exactly 3 bullet points for quick reviewer triage. Each bullet should capture a key clinical fact relevant to prior authorization:\n\n${notes}`,
-        `CPT Code: ${inputCpt.value}, ICD-10: ${inputIcd.value}`
+        `CPT Code: ${inputCpt.value}, ICD-10: ${inputIcd.value}`,
+        'summarize'
       );
       showToast('📝 Notes summarized', 'success');
       // Show summary above the notes field
@@ -974,7 +977,8 @@ Be specific and actionable.`,
 {"score": <1-10>, "missing": ["<list of missing elements>"], "suggestion": "<one-sentence improvement suggestion>"}
 
 Clinical notes to score:\n${notes}`,
-        `CPT Code: ${inputCpt.value}. Required: symptom duration, conservative therapy history, objective findings, imaging results.`
+        `CPT Code: ${inputCpt.value}. Required: symptom duration, conservative therapy history, objective findings, imaging results.`,
+        'score'
       );
       // Parse the score
       let scoreData;
