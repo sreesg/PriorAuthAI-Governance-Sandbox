@@ -284,6 +284,12 @@
       <!-- notice letter preview -->
       <div class="glass-card letter-card">
         <h2>✉️ Generated Clinical Decision Notice</h2>
+        <div class="ai-letter-actions">
+          <button type="button" class="btn-ai-action" id="btn-ai-letter">🧠 Rewrite with AI</button>
+          <button type="button" class="btn-ai-action" id="btn-appeal-reason">📋 Generate Appeal Guide</button>
+          <button type="button" class="btn-ai-action" id="btn-summarize-notes">📝 Summarize Notes</button>
+          <button type="button" class="btn-ai-action" id="btn-quality-score">📊 Score Notes Quality</button>
+        </div>
         <div class="paper-preview">
           <pre id="letter-content" class="letter-content">Awaiting review execution to draft notice letter...</pre>
         </div>
@@ -292,8 +298,37 @@
 
   </main>
 
+  <!-- AVI Chat Panel (floating) -->
+  <div class="avi-chat-panel" id="avi-chat-panel" style="display:none;">
+    <div class="avi-header">
+      <div class="avi-title">
+        <span class="avi-avatar">🤖</span>
+        <div>
+          <h3>AVI</h3>
+          <p>Clinical Intelligence Assistant</p>
+        </div>
+      </div>
+      <button class="avi-close" id="avi-close">✕</button>
+    </div>
+    <div class="avi-messages" id="avi-messages">
+      <div class="avi-msg avi-bot">
+        <p>Hi, I'm <strong>AVI</strong> — your clinical intelligence assistant. Ask me about this case, policies, decisions, or what's needed for approval.</p>
+      </div>
+    </div>
+    <div class="avi-input-row">
+      <input type="text" id="avi-input" placeholder="Ask about this case..." autocomplete="off">
+      <button id="avi-send">➤</button>
+    </div>
+  </div>
+
+  <!-- AVI Floating Action Button -->
+  <button class="avi-fab" id="avi-fab">
+    <span class="avi-fab-icon">🤖</span>
+    <span class="avi-fab-label">AVI</span>
+  </button>
+
   <footer class="app-footer">
-    <p>PriorAuthAI Audit Sandbox • Built on SkillOpt & SkillJuror Specifications</p>
+    <p>PriorAuthAI Audit Sandbox • Built on SkillOpt & SkillJuror Specifications • Powered by ClinicalNLP Engine</p>
   </footer>
 
   <script type="module" src="app.js"></script>

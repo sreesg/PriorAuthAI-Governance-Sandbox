@@ -1350,3 +1350,195 @@ footer.app-footer {
   border-color: rgba(168, 85, 247, 0.25);
   animation: pulse-border 1.5s infinite alternate;
 }
+
+/* AI Action Buttons Row */
+.ai-letter-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.65rem;
+}
+
+.btn-ai-action {
+  background: rgba(168, 85, 247, 0.08);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+  padding: 0.3rem 0.6rem;
+  border-radius: 5px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.btn-ai-action:hover {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: rgba(168, 85, 247, 0.4);
+  transform: translateY(-1px);
+}
+
+/* AVI Floating Action Button */
+.avi-fab {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  background: linear-gradient(135deg, var(--accent-purple) 0%, #7e22ce 100%);
+  border: none;
+  border-radius: 50px;
+  padding: 0.7rem 1.2rem;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  box-shadow: 0 6px 20px rgba(168, 85, 247, 0.4);
+  z-index: 999;
+  transition: var(--transition-smooth);
+}
+
+.avi-fab:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 10px 30px rgba(168, 85, 247, 0.5);
+}
+
+.avi-fab-icon { font-size: 1.1rem; }
+.avi-fab-label { font-size: 0.8rem; }
+
+/* AVI Chat Panel */
+.avi-chat-panel {
+  position: fixed;
+  bottom: 5rem;
+  right: 1.5rem;
+  width: 380px;
+  max-height: 520px;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.6), 0 0 20px rgba(168, 85, 247, 0.1);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+}
+
+.avi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: rgba(168, 85, 247, 0.06);
+  border-bottom: 1px solid rgba(168, 85, 247, 0.1);
+}
+
+.avi-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.avi-avatar { font-size: 1.5rem; }
+.avi-title h3 { font-size: 0.9rem; font-weight: 800; color: #c084fc; }
+.avi-title p { font-size: 0.65rem; color: var(--text-muted); }
+
+.avi-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.avi-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-height: 360px;
+}
+
+.avi-msg {
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  max-width: 90%;
+}
+
+.avi-msg p { margin: 0; }
+
+.avi-bot {
+  background: rgba(168, 85, 247, 0.06);
+  border: 1px solid rgba(168, 85, 247, 0.1);
+  color: var(--text-main);
+  align-self: flex-start;
+}
+
+.avi-user {
+  background: rgba(6, 182, 212, 0.1);
+  border: 1px solid rgba(6, 182, 212, 0.15);
+  color: var(--text-main);
+  align-self: flex-end;
+}
+
+.avi-input-row {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.6rem 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.avi-input-row input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  color: var(--text-main);
+  padding: 0.5rem 0.7rem;
+  font-size: 0.8rem;
+  font-family: var(--font-sans);
+}
+
+.avi-input-row input:focus {
+  outline: none;
+  border-color: var(--accent-purple);
+}
+
+.avi-input-row button {
+  background: var(--accent-purple);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.avi-input-row button:hover { background: #9333ea; }
+
+.avi-typing {
+  font-style: italic;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  animation: ai-pulse 1.2s ease-in-out infinite;
+}
+
+/* Notes Summary/Quality Popup */
+.notes-summary-popup {
+  background: rgba(168, 85, 247, 0.05);
+  border: 1px solid rgba(168, 85, 247, 0.15);
+  border-radius: 6px;
+  padding: 0.5rem 0.7rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  animation: disc-unlock 0.3s ease-out;
+}

@@ -857,4 +857,204 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderPresets();
   renderRulesToggles();
   loadCaseToForm(PRESET_CASES[0]);
+
+  // ═══════════════════════════════════════════════════════════════
+  // AI FEATURES (All powered by ClinicalNLP Engine via /ai-chat)
+  // ═══════════════════════════════════════════════════════════════
+
+  // Helper: Call the AI chat endpoint
+  async function callAI(prompt, systemContext = '') {
+    const res = await fetch('/ai-chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, systemContext })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    return data.response;
+  }
+
+  // Get current form context for AI features
+  function getCurrentCaseContext() {
+    return `Patient: ${inputPatientName.value}, Member: ${inputMemberId.value}
+CPT Code: ${inputCpt.value}, ICD-10: ${inputIcd.value}
+Provider: ${inputProvider.value}, NPI: ${inputNpi.value}
+Clinical Notes: ${inputNotes.value}
+Current Decision: ${outcomeBadge.textContent}
+Decision Reason: ${outcomeReason.textContent}`;
+  }
+
+  // FEATURE 1: AI-Powered Notice Letter Rewrite
+  document.getElementById('btn-ai-letter').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-ai-letter');
+    btn.disabled = true;
+    btn.textContent = '🧠 Writing...';
+    try {
+      const result = await callAI(
+        `Rewrite this prior authorization decision letter to be warm, empathetic, and in plain language that a patient can understand. Keep all factual content but make it human and clear. Include the policy reference. Here is the current letter:\n\n${letterContent.textContent}`,
+        getCurrentCaseContext()
+      );
+      letterContent.textContent = result;
+      showToast('🧠 Letter rewritten with empathetic AI tone', 'success');
+    } catch (e) {
+      showToast(`AI letter rewrite failed: ${e.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🧠 Rewrite with AI';
+    }
+  });
+
+  // FEATURE 5: Appeal Reasoning Generator
+  document.getElementById('btn-appeal-reason').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-appeal-reason');
+    btn.disabled = true;
+    btn.textContent = '📋 Generating...';
+    try {
+      const result = await callAI(
+        `This prior authorization case was escalated/denied. Generate a concise appeal guide for the provider explaining:
+1. What specific documentation is missing
+2. What criteria were not met
+3. Exactly what the provider should submit to get approval
+4. Suggested language for the appeal letter
+
+Be specific and actionable.`,
+        getCurrentCaseContext()
+      );
+      letterContent.textContent = `═══ APPEAL GUIDE ═══\n\n${result}\n\n═══ ORIGINAL NOTICE ═══\n\n${letterContent.textContent}`;
+      showToast('📋 Appeal guide generated', 'success');
+    } catch (e) {
+      showToast(`Appeal guide failed: ${e.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '📋 Generate Appeal Guide';
+    }
+  });
+
+  // FEATURE 6: Clinical Notes Summarizer
+  document.getElementById('btn-summarize-notes').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-summarize-notes');
+    btn.disabled = true;
+    btn.textContent = '📝 Summarizing...';
+    try {
+      const notes = inputNotes.value;
+      const result = await callAI(
+        `Summarize these clinical notes in exactly 3 bullet points for quick reviewer triage. Each bullet should capture a key clinical fact relevant to prior authorization:\n\n${notes}`,
+        `CPT Code: ${inputCpt.value}, ICD-10: ${inputIcd.value}`
+      );
+      showToast('📝 Notes summarized', 'success');
+      // Show summary above the notes field
+      const summaryDiv = document.createElement('div');
+      summaryDiv.className = 'notes-summary-popup';
+      summaryDiv.innerHTML = `<strong>📝 AI Summary:</strong><br>${result.replace(/\n/g, '<br>')}`;
+      const notesField = document.getElementById('input-notes');
+      if (notesField.parentElement.querySelector('.notes-summary-popup')) {
+        notesField.parentElement.querySelector('.notes-summary-popup').remove();
+      }
+      notesField.parentElement.insertBefore(summaryDiv, notesField);
+    } catch (e) {
+      showToast(`Summarize failed: ${e.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '📝 Summarize Notes';
+    }
+  });
+
+  // FEATURE 2: Clinical Notes Quality Scoring
+  document.getElementById('btn-quality-score').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-quality-score');
+    btn.disabled = true;
+    btn.textContent = '📊 Scoring...';
+    try {
+      const notes = inputNotes.value;
+      const result = await callAI(
+        `Score these clinical notes for completeness on a scale of 1-10 for prior authorization review. Respond with ONLY a JSON object:
+{"score": <1-10>, "missing": ["<list of missing elements>"], "suggestion": "<one-sentence improvement suggestion>"}
+
+Clinical notes to score:\n${notes}`,
+        `CPT Code: ${inputCpt.value}. Required: symptom duration, conservative therapy history, objective findings, imaging results.`
+      );
+      // Parse the score
+      let scoreData;
+      try {
+        const jsonStr = result.substring(result.indexOf('{'), result.lastIndexOf('}') + 1);
+        scoreData = JSON.parse(jsonStr);
+      } catch (_) {
+        scoreData = { score: 5, missing: ['Could not parse'], suggestion: result.substring(0, 100) };
+      }
+      // Display inline
+      const summaryDiv = document.createElement('div');
+      summaryDiv.className = 'notes-summary-popup quality-popup';
+      const scoreColor = scoreData.score >= 7 ? 'var(--accent-green)' : scoreData.score >= 4 ? 'var(--accent-orange)' : 'var(--accent-red)';
+      summaryDiv.innerHTML = `<strong style="color:${scoreColor}">📊 Quality: ${scoreData.score}/10</strong><br>` +
+        (scoreData.missing?.length ? `<span style="color:var(--text-muted)">Missing: ${scoreData.missing.join(', ')}</span><br>` : '') +
+        `<span style="color:var(--text-muted)">${scoreData.suggestion || ''}</span>`;
+      const notesField = document.getElementById('input-notes');
+      if (notesField.parentElement.querySelector('.quality-popup')) {
+        notesField.parentElement.querySelector('.quality-popup').remove();
+      }
+      notesField.parentElement.insertBefore(summaryDiv, notesField);
+      showToast(`📊 Quality score: ${scoreData.score}/10`, scoreData.score >= 7 ? 'success' : 'info');
+    } catch (e) {
+      showToast(`Quality score failed: ${e.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '📊 Score Notes Quality';
+    }
+  });
+
+  // FEATURE 7: AVI Conversational Chat
+  const aviFab = document.getElementById('avi-fab');
+  const aviPanel = document.getElementById('avi-chat-panel');
+  const aviClose = document.getElementById('avi-close');
+  const aviInput = document.getElementById('avi-input');
+  const aviSend = document.getElementById('avi-send');
+  const aviMessages = document.getElementById('avi-messages');
+
+  aviFab.addEventListener('click', () => {
+    aviPanel.style.display = aviPanel.style.display === 'none' ? 'flex' : 'none';
+    if (aviPanel.style.display === 'flex') aviInput.focus();
+  });
+  aviClose.addEventListener('click', () => { aviPanel.style.display = 'none'; });
+
+  async function sendAviMessage() {
+    const msg = aviInput.value.trim();
+    if (!msg) return;
+    
+    // Show user message
+    const userBubble = document.createElement('div');
+    userBubble.className = 'avi-msg avi-user';
+    userBubble.innerHTML = `<p>${msg}</p>`;
+    aviMessages.appendChild(userBubble);
+    aviInput.value = '';
+    
+    // Show typing indicator
+    const typing = document.createElement('div');
+    typing.className = 'avi-msg avi-bot';
+    typing.innerHTML = '<p class="avi-typing">AVI is thinking...</p>';
+    aviMessages.appendChild(typing);
+    aviMessages.scrollTop = aviMessages.scrollHeight;
+    
+    try {
+      const response = await callAI(msg, getCurrentCaseContext());
+      typing.remove();
+      const botBubble = document.createElement('div');
+      botBubble.className = 'avi-msg avi-bot';
+      botBubble.innerHTML = `<p>${response.replace(/\n/g, '<br>')}</p>`;
+      aviMessages.appendChild(botBubble);
+    } catch (e) {
+      typing.remove();
+      const errBubble = document.createElement('div');
+      errBubble.className = 'avi-msg avi-bot';
+      errBubble.innerHTML = `<p style="color:var(--accent-red);">Sorry, I couldn't process that: ${e.message}</p>`;
+      aviMessages.appendChild(errBubble);
+    }
+    aviMessages.scrollTop = aviMessages.scrollHeight;
+  }
+
+  aviSend.addEventListener('click', sendAviMessage);
+  aviInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendAviMessage(); });
+
 });

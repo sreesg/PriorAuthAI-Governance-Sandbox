@@ -978,7 +978,83 @@ Respond ONLY with the JSON object, no other text.
                     "rawResponse": raw_response if 'raw_response' in dir() else ""
                 }).encode())
 
-        # 4. Generate skill from natural language description
+        # 4. General-purpose AI chat endpoint (AVI + all AI features)
+        elif self.path == '/ai-chat':
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            params = json.loads(post_data.decode())
+            
+            prompt_text = params.get('prompt', '')
+            system_context = params.get('systemContext', '')
+            
+            if not prompt_text:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "No prompt provided"}).encode())
+                return
+            
+            try:
+                import urllib.request
+                
+                full_prompt = f"<start_of_turn>user\n"
+                if system_context:
+                    full_prompt += f"CONTEXT:\n{system_context}\n\n"
+                full_prompt += f"{prompt_text}\n<end_of_turn>\n<start_of_turn>model\n"
+                
+                ollama_payload = json.dumps({
+                    "model": "gemma4:12b",
+                    "prompt": full_prompt,
+                    "stream": False,
+                    "raw": True,
+                    "options": {
+                        "temperature": 0.3,
+                        "num_predict": 600
+                    }
+                }).encode()
+                
+                req = urllib.request.Request(
+                    'http://localhost:11434/api/generate',
+                    data=ollama_payload,
+                    headers={'Content-Type': 'application/json'}
+                )
+                
+                resp = urllib.request.urlopen(req, timeout=90)
+                resp_data = json.loads(resp.read().decode())
+                raw_response = resp_data.get('response', '')
+                
+                # Clean Gemma 4 thought channel markers
+                clean_response = raw_response
+                if '<|channel>' in clean_response:
+                    parts = clean_response.split('<channel|>')
+                    clean_response = parts[-1].strip() if len(parts) > 1 else clean_response
+                # Remove any trailing turn markers
+                clean_response = clean_response.replace('<end_of_turn>', '').strip()
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "success",
+                    "response": clean_response
+                }).encode())
+                
+            except urllib.error.URLError as e:
+                self.send_response(503)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "ClinicalNLP Engine offline. Ensure Ollama is running.", "details": str(e)}).encode())
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+        # 5. Generate skill from natural language description
         elif self.path == '/generate-skill':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
