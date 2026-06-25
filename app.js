@@ -390,7 +390,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const item = document.createElement('div');
       // Special styling for Progressive Disclosure events
       const isDisclosure = step.name === 'Progressive Disclosure';
-      item.className = `timeline-item ${step.status}${isDisclosure ? ' disclosure' : ''}`;
+      const isAiPowered = step.name.includes('ClinicalNLP') || step.name.includes('Gemma 4') || (step.details && step.details.model);
+      item.className = `timeline-item ${step.status}${isDisclosure ? ' disclosure' : ''}${isAiPowered ? ' ai-powered' : ''}`;
       
       const badgeClass = isDisclosure ? 'type-disclosure' : `type-${step.type}`;
       const displayType = isDisclosure ? 'disclosure' : step.type;
@@ -492,6 +493,136 @@ document.addEventListener('DOMContentLoaded', async () => {
       .replace(/'/g, "&gt;");
   }
 
+  // Helper: Run regex extraction locally for comparison with AI
+  function runRegexExtraction(request) {
+    const notes = request.clinicalNotes.toLowerCase();
+    const cptCode = request.cptCode;
+    let symptomsDurationWeeks = 0, therapyWeeks = 0, hasObjectiveFindings = false, isRheumatologist = false, hasRadiographs = false;
+    
+    if (cptCode === "73721") {
+      const durationMatch = notes.match(/(\d+)\s*weeks?\s*of\s*(pain|symptom)/) || notes.match(/pain\s*for\s*(\d+)\s*weeks?/);
+      if (durationMatch) symptomsDurationWeeks = parseInt(durationMatch[1], 10);
+      else if (notes.includes("persistent knee pain")) symptomsDurationWeeks = 8;
+      
+      const therapyMatch = notes.match(/(\d+)\s*weeks?\s*of\s*(physical therapy|pt|therapy|ibuprofen|nsaids)/);
+      if (therapyMatch) therapyWeeks = parseInt(therapyMatch[1], 10);
+      else if (notes.includes("physical therapy")) therapyWeeks = 6;
+      
+      if (notes.includes("tenderness") || notes.includes("swelling") || notes.includes("instability") || notes.includes("locking")) hasObjectiveFindings = true;
+      if (notes.includes("radiograph") || notes.includes("x-ray")) hasRadiographs = true;
+    }
+    if (cptCode === "J0135") {
+      if (notes.includes("rheumatoid arthritis")) hasObjectiveFindings = true;
+      if (notes.includes("methotrexate") || notes.includes("dmard")) {
+        const m = notes.match(/(\d+)\s*months?/);
+        therapyWeeks = m ? parseInt(m[1], 10) * 4 : 12;
+      }
+      if (notes.includes("rheumatologist")) isRheumatologist = true;
+    }
+    return { symptomsDurationWeeks, therapyWeeks, hasObjectiveFindings, isRheumatologist, hasRadiographs };
+  }
+
+  // Helper: Render evidence as HTML with match/mismatch highlights and AI accuracy insights
+  function renderEvidenceComparison(data, other, mode) {
+    const fields = [
+      { key: 'symptomsDurationWeeks', label: 'Symptoms' , unit: 'wks' },
+      { key: 'therapyWeeks', label: 'Therapy', unit: 'wks' },
+      { key: 'hasObjectiveFindings', label: 'Findings' },
+      { key: 'isRheumatologist', label: 'Specialist' },
+      { key: 'hasRadiographs', label: 'X-rays' },
+    ];
+    
+    let html = '';
+    fields.forEach(f => {
+      const val = data[f.key];
+      const otherVal = other[f.key];
+      const matches = val === otherVal;
+      const displayVal = typeof val === 'boolean' ? (val ? '✓ Yes' : '✗ No') : `${val} ${f.unit || ''}`;
+      const cls = matches ? 'match' : 'mismatch';
+      const icon = matches ? '' : (mode === 'ai' ? ' ✦' : ' ⚠');
+      html += `<span class="${cls}">${f.label}: ${displayVal}${icon}</span>\n`;
+    });
+    return html;
+  }
+
+  // Helper: Generate AI accuracy insight callout explaining where regex fails
+  function generateAccuracyInsight(regexResult, aiResult, clinicalNotes) {
+    const insights = [];
+    const notesLower = clinicalNotes.toLowerCase();
+    
+    // Check therapy negation
+    if (regexResult.therapyWeeks > 0 && aiResult.therapyWeeks === 0) {
+      if (notesLower.includes('no physical therapy') || notesLower.includes('no pt') || notesLower.includes('not completed')) {
+        insights.push({
+          field: 'Therapy',
+          issue: 'Negation missed',
+          detail: `Regex matched "physical therapy" keyword → defaulted to ${regexResult.therapyWeeks} wks. But the text says "No physical therapy completed." The AI understands negation.`,
+          severity: 'high'
+        });
+      }
+    }
+    
+    // Check radiograph negation
+    if (regexResult.hasRadiographs && !aiResult.hasRadiographs) {
+      if (notesLower.includes('no plain radiographs') || notesLower.includes('no x-ray') || notesLower.includes('not performed')) {
+        insights.push({
+          field: 'X-rays',
+          issue: 'Negation missed',
+          detail: `Regex matched "radiograph" keyword → marked as done. But the text says "No plain radiographs performed." The AI reads the full sentence.`,
+          severity: 'high'
+        });
+      }
+    }
+    
+    // Check if AI found radiographs regex missed (positive case)
+    if (!regexResult.hasRadiographs && aiResult.hasRadiographs) {
+      insights.push({
+        field: 'X-rays',
+        issue: 'Paraphrase detection',
+        detail: `Regex didn't match the exact keywords "radiograph" or "x-ray." The AI understood a paraphrased reference to completed imaging.`,
+        severity: 'medium'
+      });
+    }
+    
+    // Check therapy duration differences (non-negation)
+    if (regexResult.therapyWeeks !== aiResult.therapyWeeks && regexResult.therapyWeeks > 0 && aiResult.therapyWeeks > 0) {
+      insights.push({
+        field: 'Therapy',
+        issue: 'Duration parsing',
+        detail: `Regex extracted ${regexResult.therapyWeeks} wks, AI extracted ${aiResult.therapyWeeks} wks. The AI may be interpreting context like "completed 6 weeks" vs "enrolled for 8 weeks" more accurately.`,
+        severity: 'medium'
+      });
+    }
+    
+    // Check symptom duration
+    if (regexResult.symptomsDurationWeeks !== aiResult.symptomsDurationWeeks) {
+      insights.push({
+        field: 'Symptoms',
+        issue: 'Duration interpretation',
+        detail: `Regex: ${regexResult.symptomsDurationWeeks} wks, AI: ${aiResult.symptomsDurationWeeks} wks. The AI may handle temporal references like "since last month" that regex can't parse.`,
+        severity: 'medium'
+      });
+    }
+    
+    return insights;
+  }
+
+  // Helper: Render accuracy insights as HTML
+  function renderAccuracyInsights(insights) {
+    if (insights.length === 0) {
+      return '<div class="ai-insight-match">✓ Regex and AI agree on all fields. Both extractions are consistent.</div>';
+    }
+    
+    let html = `<div class="ai-insight-header">⚡ AI Accuracy Advantages Found: ${insights.length}</div>`;
+    insights.forEach(insight => {
+      html += `<div class="ai-insight-item ${insight.severity}">`;
+      html += `<div class="ai-insight-field">${insight.field} — <span class="ai-insight-issue">${insight.issue}</span></div>`;
+      html += `<div class="ai-insight-detail">${insight.detail}</div>`;
+      html += `</div>`;
+    });
+    return html;
+  }
+
   // 10. Pipeline execution submission — Animated Progressive Disclosure
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -590,7 +721,84 @@ document.addEventListener('DOMContentLoaded', async () => {
     await delay(400);
 
     // Now actually run the agent (execution already happened logically during animation)
-    const outcome = await agent.run(request, regoSourceText);
+    const aiModeEnabled = document.getElementById('ai-mode-toggle').checked;
+    const aiReasoningCard = document.getElementById('ai-reasoning-card');
+    const aiStatusBadge = document.getElementById('ai-status-badge');
+    const aiModelBadge = document.getElementById('ai-model-badge');
+    const aiCompRegex = document.getElementById('ai-comp-regex');
+    const aiCompAi = document.getElementById('ai-comp-ai');
+    const aiReasoningText = document.getElementById('ai-reasoning-text');
+    let aiEvidence = null;
+    
+    if (aiModeEnabled) {
+      // Show AI panel and set loading state
+      aiReasoningCard.style.display = 'block';
+      aiStatusBadge.textContent = 'Processing...';
+      aiStatusBadge.className = 'badge badge-orange';
+      aiCompAi.innerHTML = '<span class="ai-loading">🧠 ClinicalNLP Engine is analyzing notes...</span>';
+      aiCompRegex.textContent = 'Waiting for AI comparison...';
+      aiReasoningText.textContent = '';
+      aiModelBadge.textContent = '🧠 ClinicalNLP';
+      aiModelBadge.className = 'badge badge-ai';
+      
+      // Call Gemma 4 12B via Ollama for real AI clinical extraction
+      try {
+        const aiRes = await fetch('/ai-extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clinicalNotes: request.clinicalNotes,
+            cptCode: request.cptCode,
+            guidelinesText: `CPT ${request.cptCode}, ICD-10 ${request.icd10Code}`
+          })
+        });
+        if (aiRes.ok) {
+          const aiData = await aiRes.json();
+          aiEvidence = aiData.extracted;
+          aiStatusBadge.textContent = 'Complete';
+          aiStatusBadge.className = 'badge badge-success';
+          
+          // Run regex extraction too for comparison
+          const regexResult = runRegexExtraction(request);
+          
+          // Render comparison
+          aiCompRegex.innerHTML = renderEvidenceComparison(regexResult, aiEvidence, 'regex');
+          aiCompAi.innerHTML = renderEvidenceComparison(aiEvidence, regexResult, 'ai');
+          
+          // Generate and show accuracy insights
+          const insights = generateAccuracyInsight(regexResult, aiEvidence, request.clinicalNotes);
+          const insightsPanel = document.getElementById('ai-insights-panel');
+          insightsPanel.innerHTML = renderAccuracyInsights(insights);
+          insightsPanel.style.display = 'block';
+          
+          // Show AI reasoning
+          if (aiEvidence.reasoning) {
+            aiReasoningText.textContent = `💬 "${aiEvidence.reasoning}"`;
+          }
+          
+          showToast(`🧠 ClinicalNLP: semantic extraction complete`, "success");
+        } else {
+          const errData = await aiRes.json().catch(() => ({}));
+          aiStatusBadge.textContent = 'Offline';
+          aiStatusBadge.className = 'badge badge-fail';
+          aiCompAi.innerHTML = `<span style="color:var(--accent-red);">Model unavailable: ${errData.error || 'Ollama not running'}</span>`;
+          aiModelBadge.textContent = '⚠️ NLP Offline';
+          aiModelBadge.className = 'badge badge-fail';
+          showToast(`AI extraction unavailable: ${errData.error || 'Ollama offline'}`, "error");
+        }
+      } catch (e) {
+        aiStatusBadge.textContent = 'Error';
+        aiStatusBadge.className = 'badge badge-fail';
+        aiCompAi.innerHTML = `<span style="color:var(--accent-red);">Network error: ${e.message}</span>`;
+        showToast(`AI endpoint error: ${e.message}`, "error");
+      }
+    } else {
+      aiReasoningCard.style.display = 'none';
+      aiModelBadge.textContent = '';
+      aiModelBadge.className = 'badge';
+    }
+    
+    const outcome = await agent.run(request, regoSourceText, aiEvidence);
     
     outcomeCard.className = `glass-card outcome-card ${outcome.status}`;
     outcomeBadge.textContent = outcome.decision;

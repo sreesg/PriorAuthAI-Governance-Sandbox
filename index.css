@@ -669,6 +669,33 @@ body {
   box-shadow: 0 10px 20px rgba(6, 182, 212, 0.4);
 }
 
+.ai-toggle-row {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  background: rgba(168, 85, 247, 0.04);
+  border: 1px solid rgba(168, 85, 247, 0.12);
+  border-radius: 6px;
+}
+
+.ai-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.ai-toggle-label input[type="checkbox"] {
+  accent-color: var(--accent-purple);
+  width: 16px;
+  height: 16px;
+}
+
+.ai-toggle-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #c084fc;
+}
+
 /* COLUMN 3: Real-Time Console timeline */
 .outcome-banner {
   padding: 0.85rem 1rem;
@@ -1148,4 +1175,178 @@ footer.app-footer {
   background: rgba(168, 85, 247, 0.12);
   color: #c084fc;
   border: 1px solid rgba(168, 85, 247, 0.25);
+}
+
+/* AI Reasoning Card */
+.ai-reasoning-card {
+  border-color: rgba(168, 85, 247, 0.15) !important;
+  background: rgba(168, 85, 247, 0.02) !important;
+}
+
+.ai-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ai-comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.ai-comp-col {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+
+.ai-comp-header {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.ai-comp-header.regex-header {
+  background: rgba(245, 158, 11, 0.08);
+  color: #fbbf24;
+  border-bottom: 1px solid rgba(245, 158, 11, 0.1);
+}
+
+.ai-comp-header.ai-header {
+  background: rgba(168, 85, 247, 0.08);
+  color: #c084fc;
+  border-bottom: 1px solid rgba(168, 85, 247, 0.1);
+}
+
+.ai-comp-body {
+  padding: 0.5rem 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.ai-comp-body .match { color: var(--accent-green); }
+.ai-comp-body .mismatch { color: var(--accent-orange); font-weight: 700; }
+
+.ai-reasoning-text {
+  font-size: 0.75rem;
+  color: #c084fc;
+  background: rgba(168, 85, 247, 0.04);
+  border: 1px solid rgba(168, 85, 247, 0.1);
+  border-radius: 6px;
+  padding: 0.6rem;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.ai-reasoning-text:empty {
+  display: none;
+}
+
+/* AI Accuracy Insights Panel */
+.ai-insights-panel {
+  margin-top: 0.6rem;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(6, 182, 212, 0.15);
+}
+
+.ai-insight-header {
+  background: rgba(6, 182, 212, 0.08);
+  padding: 0.45rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #22d3ee;
+  border-bottom: 1px solid rgba(6, 182, 212, 0.1);
+}
+
+.ai-insight-match {
+  padding: 0.5rem 0.65rem;
+  font-size: 0.72rem;
+  color: var(--accent-green);
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.ai-insight-item {
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.ai-insight-item:last-child {
+  border-bottom: none;
+}
+
+.ai-insight-item.high {
+  background: rgba(244, 63, 94, 0.04);
+  border-left: 3px solid var(--accent-red);
+}
+
+.ai-insight-item.medium {
+  background: rgba(245, 158, 11, 0.04);
+  border-left: 3px solid var(--accent-orange);
+}
+
+.ai-insight-field {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0.2rem;
+}
+
+.ai-insight-issue {
+  font-weight: 600;
+  color: var(--accent-red);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.ai-insight-item.medium .ai-insight-issue {
+  color: var(--accent-orange);
+}
+
+.ai-insight-detail {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* AI badge in timeline */
+.timeline-item.ai-powered {
+  border-left: 2px solid rgba(168, 85, 247, 0.4);
+  background: rgba(168, 85, 247, 0.03);
+}
+
+.timeline-item.ai-powered .timeline-dot {
+  background: #a855f7;
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.6);
+  width: 8px;
+  height: 8px;
+}
+
+/* AI loading spinner */
+@keyframes ai-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.ai-loading {
+  animation: ai-pulse 1.2s ease-in-out infinite;
+  color: #c084fc;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.badge-ai {
+  background: rgba(168, 85, 247, 0.12);
+  color: #c084fc;
+  border-color: rgba(168, 85, 247, 0.25);
+  animation: pulse-border 1.5s infinite alternate;
 }

@@ -392,6 +392,82 @@
       </p>
     </div>
 
+    <!-- CLINICALNLP ENGINE -->
+    <div class="help-section">
+      <h2>🧠 ClinicalNLP Engine — Real AI in the Pipeline</h2>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        The ClinicalNLP Engine is a <strong style="color:var(--text-main);">local large language model</strong>
+        (powered by Google's Gemma 4 12B) running entirely on your machine via Ollama. It replaces
+        the regex-based clinical note extraction with genuine semantic understanding — the only
+        component in this demo that performs real AI inference.
+      </p>
+
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">What It Does</h3>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        When enabled (via the toggle below the Run button), the ClinicalNLP Engine reads clinical
+        notes and extracts structured medical evidence by <em>understanding language</em> rather than
+        matching patterns. It handles:
+      </p>
+      <ul style="color:var(--text-muted); line-height:2.2; margin-top:0.5rem; padding-left:1.25rem;">
+        <li><strong style="color:var(--text-main);">Negation Detection</strong> — "No physical therapy completed" → therapy = 0 weeks (regex incorrectly matches "physical therapy" as present)</li>
+        <li><strong style="color:var(--text-main);">Paraphrase Understanding</strong> — "Plain films of the joint were obtained" → hasRadiographs = true (regex only matches "radiograph" or "x-ray")</li>
+        <li><strong style="color:var(--text-main);">Contextual Reasoning</strong> — "Patient tried NSAIDs for the first two months before switching to PT last month" → therapy = 4 weeks (regex can't chain temporal references)</li>
+        <li><strong style="color:var(--text-main);">Implicit Inference</strong> — "Dr. Evans at the Rheumatology Center reviewed the case" → isRheumatologist = true (regex only matches the literal word)</li>
+      </ul>
+
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">Regex vs ClinicalNLP Comparison</h3>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        The UI shows a side-by-side comparison when ClinicalNLP is active. Mismatches are highlighted
+        with an accuracy insight panel that explains <em>why</em> the AI answer is more accurate:
+      </p>
+      <table style="width:100%; margin-top:0.75rem; border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">CLINICAL TEXT</th>
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">REGEX RESULT</th>
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">CLINICALNLP RESULT</th>
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">CORRECT</th>
+          </tr>
+        </thead>
+        <tbody style="color:var(--text-main); font-size:0.78rem;">
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;">"No physical therapy completed yet"</td>
+            <td style="padding:0.5rem; color:var(--accent-orange);">6 weeks ✗</td>
+            <td style="padding:0.5rem; color:var(--accent-green);">0 weeks ✓</td>
+            <td style="padding:0.5rem;">ClinicalNLP</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;">"No plain radiographs performed"</td>
+            <td style="padding:0.5rem; color:var(--accent-orange);">Yes ✗</td>
+            <td style="padding:0.5rem; color:var(--accent-green);">No ✓</td>
+            <td style="padding:0.5rem;">ClinicalNLP</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:0.5rem;">"Pain for 8 weeks with 6 weeks of PT"</td>
+            <td style="padding:0.5rem; color:var(--accent-green);">8 wks / 6 wks ✓</td>
+            <td style="padding:0.5rem; color:var(--accent-green);">8 wks / 6 wks ✓</td>
+            <td style="padding:0.5rem;">Both agree</td>
+          </tr>
+          <tr>
+            <td style="padding:0.5rem;">"Consulted by Dr. Evans (Rheumatology)"</td>
+            <td style="padding:0.5rem; color:var(--accent-green);">Yes ✓</td>
+            <td style="padding:0.5rem; color:var(--accent-green);">Yes ✓</td>
+            <td style="padding:0.5rem;">Both agree</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">Architecture</h3>
+      <ul style="color:var(--text-muted); line-height:2; margin-top:0.5rem; padding-left:1.25rem;">
+        <li><strong style="color:var(--text-main);">Model:</strong> Google Gemma 4 12B (Apache 2.0, 7.6 GB quantized)</li>
+        <li><strong style="color:var(--text-main);">Runtime:</strong> Ollama (local inference on Apple Silicon unified memory)</li>
+        <li><strong style="color:var(--text-main);">Endpoint:</strong> <code style="color:#a5f3fc;">POST /ai-extract</code> sends clinical notes → receives structured JSON</li>
+        <li><strong style="color:var(--text-main);">Privacy:</strong> 100% local — no data leaves your machine. No cloud API calls.</li>
+        <li><strong style="color:var(--text-main);">Latency:</strong> ~3-8 seconds per extraction (vs instant for regex)</li>
+        <li><strong style="color:var(--text-main);">Progressive Disclosure:</strong> The LLM is invoked at Stage 3 only — after coverage is confirmed. It never sees the full policy corpus.</li>
+      </ul>
+    </div>
+
     <!-- PROGRESSIVE DISCLOSURE -->
     <div class="help-section">
       <h2>🧬 Progressive Disclosure — Agent Execution Pattern (Not Just UI)</h2>

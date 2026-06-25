@@ -167,10 +167,14 @@ export class PriorAuthAgent {
    * Guidelines are NOT fetched until after coverage is confirmed.
    * Decision rules are NOT consulted until all evidence is gathered.
    */
-  async run(request, regoSourceText) {
+  async run(request, regoSourceText, aiEvidence = null) {
     this.clearTrace();
     this.logTrace("system", "Agent Engine", "Initializing Prior Authorization review cycle.", "info");
     this.logTrace("system", "Progressive Disclosure", "Agent context is empty. Stages will disclose rules and policies incrementally.", "info");
+    
+    if (aiEvidence) {
+      this.logTrace("system", "Agent Engine", "🧠 ClinicalNLP Engine evidence provided. Using semantic extraction for clinical evaluation.", "success");
+    }
 
     // Context starts minimal — only the raw request. No policies, no rules loaded yet.
     const context = {
@@ -264,8 +268,23 @@ export class PriorAuthAgent {
         `Stage 3 (Evidence): Guidelines for CPT ${context.request.cptCode} now disclosed. Extracting clinical evidence. Rego rules NOT yet loaded.`,
         "info", { guidelinesLoaded: !!context.guidelines, regoLoaded: false });
 
-      // Skill: Parse clinical notes using ONLY the criteria from the disclosed guideline
-      if (this.skills.ExtractClinicalDataSkill) {
+      // Skill: Parse clinical notes — use AI evidence if provided, otherwise regex extraction
+      if (aiEvidence) {
+        // Use ClinicalNLP Engine extracted evidence (semantic AI)
+        context.evidence = {
+          symptomsDurationWeeks: aiEvidence.symptomsDurationWeeks || 0,
+          therapyWeeks: aiEvidence.therapyWeeks || 0,
+          hasObjectiveFindings: aiEvidence.hasObjectiveFindings || false,
+          isRheumatologist: aiEvidence.isRheumatologist || false,
+          hasRadiographs: aiEvidence.hasRadiographs || false
+        };
+        this.logTrace("skill", "ExtractClinicalDataSkill (ClinicalNLP)",
+          "🧠 Semantic extraction via ClinicalNLP Engine — understands negation, paraphrasing, and context.", "success", {
+            ...context.evidence,
+            reasoning: aiEvidence.reasoning || "Semantic extraction",
+            engine: "ClinicalNLP"
+          });
+      } else if (this.skills.ExtractClinicalDataSkill) {
         this.skills.ExtractClinicalDataSkill(context, this);
       } else {
         this.logTrace("system", "Agent Engine", "Required ExtractClinicalDataSkill is missing.", "fail");

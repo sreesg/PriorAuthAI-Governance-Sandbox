@@ -856,7 +856,129 @@ class DynamicAuditorHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(str(e).encode())
 
-        # 3. Generate skill from natural language description
+        # 3. AI Clinical Note Extraction via Gemma 4 12B (Ollama)
+        elif self.path == '/ai-extract':
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            params = json.loads(post_data.decode())
+            
+            clinical_notes = params.get('clinicalNotes', '')
+            cpt_code = params.get('cptCode', '')
+            guidelines_text = params.get('guidelinesText', '')
+            
+            if not clinical_notes:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "No clinical notes provided"}).encode())
+                return
+            
+            try:
+                import urllib.request
+                
+                prompt = f"""<start_of_turn>user
+You are a clinical data extraction system for prior authorization review.
+Given the clinical notes below, extract structured medical facts as JSON.
+
+CPT Code: {cpt_code}
+Clinical Guidelines Context: {guidelines_text}
+
+CLINICAL NOTES:
+{clinical_notes}
+
+Extract EXACTLY this JSON structure (nothing else):
+{{
+  "symptomsDurationWeeks": <number of weeks patient has had symptoms, 0 if not mentioned>,
+  "therapyWeeks": <number of weeks of conservative therapy completed, 0 if not mentioned>,
+  "hasObjectiveFindings": <true if objective clinical findings are documented like tenderness/swelling/instability/locking, false otherwise>,
+  "isRheumatologist": <true if a rheumatologist or specialist is mentioned, false otherwise>,
+  "hasRadiographs": <true if X-rays or plain radiographs are mentioned as completed, false otherwise>,
+  "reasoning": "<brief explanation of what you found in the notes>"
+}}
+
+Respond ONLY with the JSON object, no other text.
+<end_of_turn>
+<start_of_turn>model
+"""
+
+                ollama_payload = json.dumps({
+                    "model": "gemma4:12b",
+                    "prompt": prompt,
+                    "stream": False,
+                    "raw": True,
+                    "options": {
+                        "temperature": 0.1,
+                        "num_predict": 400
+                    }
+                }).encode()
+                
+                req = urllib.request.Request(
+                    'http://localhost:11434/api/generate',
+                    data=ollama_payload,
+                    headers={'Content-Type': 'application/json'}
+                )
+                
+                resp = urllib.request.urlopen(req, timeout=60)
+                resp_data = json.loads(resp.read().decode())
+                raw_response = resp_data.get('response', '')
+                
+                # Parse the JSON from the LLM response
+                # Gemma 4 may include thought channels — strip them
+                json_text = raw_response.strip()
+                # Remove Gemma 4 thought channel markers
+                if '<|channel>' in json_text:
+                    # Take content after the last channel marker
+                    parts = json_text.split('<channel|>')
+                    json_text = parts[-1].strip() if len(parts) > 1 else json_text
+                
+                if '```json' in json_text:
+                    json_text = json_text.split('```json')[1].split('```')[0].strip()
+                elif '```' in json_text:
+                    json_text = json_text.split('```')[1].split('```')[0].strip()
+                
+                # Find the JSON object
+                start = json_text.find('{')
+                end = json_text.rfind('}') + 1
+                if start >= 0 and end > start:
+                    json_text = json_text[start:end]
+                
+                extracted = json.loads(json_text)
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "success",
+                    "model": "gemma4:12b",
+                    "extracted": extracted,
+                    "rawResponse": raw_response
+                }).encode())
+                
+            except urllib.error.URLError as e:
+                self.send_response(503)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "error": "Ollama not running or Gemma 4 model not loaded. Run: ollama pull gemma4:12b",
+                    "details": str(e)
+                }).encode())
+            except Exception as e:
+                import traceback
+                tb = traceback.format_exc()
+                print(f"Error in /ai-extract: {tb}")
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "error": f"AI extraction failed: {str(e)}",
+                    "rawResponse": raw_response if 'raw_response' in dir() else ""
+                }).encode())
+
+        # 4. Generate skill from natural language description
         elif self.path == '/generate-skill':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)

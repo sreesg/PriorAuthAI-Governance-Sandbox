@@ -176,6 +176,12 @@
           <button type="submit" class="btn-execute">
             <span class="btn-icon">⚡</span> Run Prior Auth Agent Review
           </button>
+          <div class="ai-toggle-row">
+            <label class="ai-toggle-label">
+              <input type="checkbox" id="ai-mode-toggle">
+              <span class="ai-toggle-text">🧠 Use ClinicalNLP Engine for semantic extraction</span>
+            </label>
+          </div>
         </form>
       </div>
     </section>
@@ -187,7 +193,29 @@
         <h2>🔍 Decision Review Outcome</h2>
         <div class="outcome-status-badge" id="outcome-badge">Awaiting Execution</div>
         <span id="npi-status-badge" class="badge"></span>
+        <span id="ai-model-badge" class="badge"></span>
         <div class="outcome-reason" id="outcome-reason">Click 'Run Prior Auth Agent' to start.</div>
+      </div>
+
+      <!-- AI Reasoning Panel (visible when AI mode active) -->
+      <div class="glass-card ai-reasoning-card" id="ai-reasoning-card" style="display:none;">
+        <div class="ai-card-header">
+          <h2>🧠 ClinicalNLP Engine — Semantic Reasoning</h2>
+          <span class="badge badge-purple" id="ai-status-badge">Idle</span>
+        </div>
+        <p class="subtitle">Semantic NLP extraction vs regex-based extraction comparison</p>
+        <div class="ai-comparison-grid" id="ai-comparison-grid">
+          <div class="ai-comp-col">
+            <div class="ai-comp-header regex-header">📐 Regex Extraction</div>
+            <div class="ai-comp-body" id="ai-comp-regex">—</div>
+          </div>
+          <div class="ai-comp-col">
+            <div class="ai-comp-header ai-header">🧠 ClinicalNLP Engine</div>
+            <div class="ai-comp-body" id="ai-comp-ai">—</div>
+          </div>
+        </div>
+        <div class="ai-reasoning-text" id="ai-reasoning-text"></div>
+        <div class="ai-insights-panel" id="ai-insights-panel" style="display:none;"></div>
       </div>
 
       <!-- Live trace timelines -->
