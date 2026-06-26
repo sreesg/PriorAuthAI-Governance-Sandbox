@@ -2197,3 +2197,7 @@ footer.app-footer {
   border-color: #10b981;
   background: rgba(16, 185, 129, 0.08);
 }
+
+/* Definition sections in concepts */
+.def-section { padding: 0.35rem 0.5rem !important; }
+.def-text { font-size: 0.65rem; color: var(--text-muted); line-height: 1.4; }

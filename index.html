@@ -324,26 +324,39 @@
       </div>
 
       <div class="concepts-main">
-        <!-- Left: Live narration panel -->
+        <!-- Left: Definitions + Live status -->
         <div class="concepts-narration-panel">
-          <div class="narr-section" id="narr-case">
-            <div class="narr-title">📋 Case Input</div>
-            <div class="narr-body">CPT 72148 (Lumbar MRI)<br>ICD-10 M54.5 (Low back pain)<br>Notes: "3 weeks pain, no PT, no neuro exam"</div>
+          <div class="narr-section def-section">
+            <div class="narr-title">🛠️ Skills</div>
+            <div class="def-text">Functions that DO work — extract, route, evaluate, generate.</div>
           </div>
-          <div class="narr-section" id="narr-event">
-            <div class="narr-title">⚡ Current Event</div>
-            <div class="narr-body" id="narr-event-body">Press Play to start</div>
+          <div class="narr-section def-section">
+            <div class="narr-title">⚙️ Rules</div>
+            <div class="def-text">Guardrails that CANNOT be skipped. Block, redact, or escalate.</div>
           </div>
-          <div class="narr-section" id="narr-agents">
-            <div class="narr-title">🤖 Agents</div>
-            <div class="narr-agents-row">
-              <div class="narr-agent" id="na-pa"><span>🤖</span> PA Agent <small id="na-pa-s">idle</small></div>
-              <div class="narr-agent" id="na-avi"><span>🤖</span> AVI <small id="na-avi-s">idle</small></div>
-            </div>
+          <div class="narr-section def-section">
+            <div class="narr-title">🪝 Hooks</div>
+            <div class="def-text">Wiring: "When stage X completes → enforce rule Y." Event-driven.</div>
+          </div>
+          <div class="narr-section def-section">
+            <div class="narr-title">📋 Policies</div>
+            <div class="def-text">CPT/ICD mappings + criteria thresholds. Loaded per-request.</div>
+          </div>
+          <div class="narr-section def-section">
+            <div class="narr-title">🔌 MCP</div>
+            <div class="def-text">Protocol: UI ↔ Agent ↔ LLM via /run-review, /avi, /build.</div>
+          </div>
+          <div class="narr-section" id="narr-event" style="border-color:#0ea5e9;">
+            <div class="narr-title" style="color:#0284c7;">⚡ Live</div>
+            <div class="narr-body" id="narr-event-body" style="font-size:0.68rem;">Press Play</div>
           </div>
           <div class="narr-section" id="narr-result">
-            <div class="narr-title">📤 Decision</div>
-            <div class="narr-body narr-result-body" id="narr-result-body">⏳ Pending</div>
+            <div class="narr-title">📤 Result</div>
+            <div class="narr-body narr-result-body" id="narr-result-body">⏳</div>
+          </div>
+          <div class="narr-agents-row">
+            <div class="narr-agent" id="na-pa"><span>🤖</span> PA <small id="na-pa-s">idle</small></div>
+            <div class="narr-agent" id="na-avi"><span>��</span> AVI <small id="na-avi-s">idle</small></div>
           </div>
         </div>
 
