@@ -28,7 +28,7 @@ GENERATED_SKILLS_FILE = os.path.join(DATA_DIR, "generated_skills.json")
 
 # ─── LLM Interface ──────────────────────────────────────────────────────────
 
-def call_llm(prompt, max_tokens=400, temperature=0.1):
+def call_llm(prompt, max_tokens=400, temperature=0):
     """Call local Gemma 4 12B via Ollama with proper chat template."""
     full_prompt = (
         f"<start_of_turn>user\n{prompt}\n"
@@ -156,7 +156,7 @@ Extract policies as a JSON array. Each policy must have:
 
 Return ONLY the JSON array of policies. If you find multiple procedures/policies, include all of them."""
 
-    response = call_llm(prompt, max_tokens=800, temperature=0.1)
+    response = call_llm(prompt, max_tokens=800, temperature=0)
     trace.append({"step": "llm_extract", "message": f"LLM returned {len(response)} chars"})
 
     try:
@@ -250,7 +250,7 @@ For each skill, provide:
 Return a JSON array of 3-5 skills. Focus on skills that validate the specific criteria in these policies."""
 
     trace.append({"step": "llm_skills", "message": "Asking ClinicalNLP to design skills for extracted policies..."})
-    response = call_llm(prompt, max_tokens=600, temperature=0.2)
+    response = call_llm(prompt, max_tokens=600, temperature=0)
     trace.append({"step": "llm_skills", "message": f"LLM returned {len(response)} chars"})
 
     try:
@@ -397,7 +397,7 @@ NOTES: {clinical_notes}
 Return ONLY this JSON:
 {{"symptomsDurationWeeks": <int>, "therapyWeeks": <int>, "hasObjectiveFindings": <bool>, "isRheumatologist": <bool>, "hasRadiographs": <bool>, "reasoning": "<brief>"}}"""
 
-    response = call_llm(prompt, max_tokens=200, temperature=0.1)
+    response = call_llm(prompt, max_tokens=200, temperature=0)
     try:
         return extract_json_from_response(response)
     except (ValueError, json.JSONDecodeError):
@@ -811,7 +811,7 @@ NOTES: {clinical_notes}
 Return JSON with these fields (use true/false for booleans, integers for weeks/months):
 {{"conservativeTherapyWeeks": <int>, "hasNeurologicalSymptoms": <bool>, "hasMechanicalSymptoms": <bool>, "hasImagingFindings": <bool>, "hasSpecialist": <bool>, "hasPriorImaging": <bool>, "hasPathology": <bool>, "severityScore": <int or null>, "failedMedications": [<list>], "reasoning": "<brief>"}}"""
 
-    response = call_llm(prompt, max_tokens=300, temperature=0.1)
+    response = call_llm(prompt, max_tokens=300, temperature=0)
     try:
         result = extract_json_from_response(response)
         if isinstance(result, list):
@@ -1005,7 +1005,7 @@ Output as a markdown rules declaration (like rules_declaration.md format):
 
 Be concise. Output ONLY the markdown rules."""
 
-    response = call_llm(prompt, max_tokens=400, temperature=0.1)
+    response = call_llm(prompt, max_tokens=400, temperature=0)
 
     # Save to per-policy rules file
     rules_file = os.path.join(POLICIES_DIR, f"{policy_id}_rules.md")
@@ -1029,7 +1029,7 @@ For each skill provide JSON:
 
 Return a JSON array of 2 skills only. Be very concise in descriptions (under 15 words each)."""
 
-    response = call_llm(prompt, max_tokens=500, temperature=0.2)
+    response = call_llm(prompt, max_tokens=500, temperature=0)
 
     try:
         skills = extract_json_from_response(response)
@@ -1066,7 +1066,7 @@ Return JSON array of 2 hooks:
 
 Be very concise."""
 
-    response = call_llm(prompt, max_tokens=300, temperature=0.2)
+    response = call_llm(prompt, max_tokens=300, temperature=0)
 
     try:
         hooks = extract_json_from_response(response)
@@ -1237,7 +1237,7 @@ Return JSON (keep findings SHORT - max 8 words each):
   "missingDocumentation": ["<missing items>"]
 }}"""
 
-    response = call_llm(prompt, max_tokens=700, temperature=0.1)
+    response = call_llm(prompt, max_tokens=700, temperature=0)
     
     try:
         result = extract_json_from_response(response)

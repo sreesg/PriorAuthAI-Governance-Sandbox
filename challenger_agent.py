@@ -159,7 +159,7 @@ Return JSON (be specific, cite notes):
                   "msg": f"Analyzing as {role.split(' looking')[0] if 'looking' in role else role.split(' seeking')[0]}...",
                   "status": "info"})
 
-    response = call_llm(prompt, max_tokens=350, temperature=0.3)
+    response = call_llm(prompt, max_tokens=350, temperature=0)
     
     try:
         result = extract_json_from_response(response)
