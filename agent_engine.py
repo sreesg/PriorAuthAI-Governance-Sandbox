@@ -833,46 +833,45 @@ def _evaluate_policy_criteria(evidence, policy, request):
         detail = ""
 
         if "conservative_treatment" in ctype:
-            weeks = evidence.get("conservativeTherapyWeeks", 0)
+            weeks = evidence.get("conservativeTherapyWeeks") or 0
             thresh_match = re.search(r'(\d+)', criterion.get("threshold", "6"))
             thresh = int(thresh_match.group(1)) if thresh_match else 6
-            met = weeks >= thresh
+            met = int(weeks) >= thresh
             detail = f"{weeks} weeks completed (need {thresh})"
 
         elif "neurological" in ctype:
-            met = evidence.get("hasNeurologicalSymptoms", False)
+            met = bool(evidence.get("hasNeurologicalSymptoms"))
             detail = "Present" if met else "Not documented"
 
         elif "mechanical" in ctype:
-            met = evidence.get("hasMechanicalSymptoms", False)
+            met = bool(evidence.get("hasMechanicalSymptoms"))
             detail = "Present" if met else "Not documented"
 
         elif "imaging_findings" in ctype or "prior_imaging" in ctype:
             if "no " in criterion.get("description", "").lower()[:20] or "within" in criterion.get("description", "").lower():
-                # "No MRI within 12 months" — passes when there IS no prior imaging
-                has_prior = evidence.get("hasPriorImaging", False)
-                met = True  # Default pass — absence of conflicting prior imaging is OK
+                has_prior = bool(evidence.get("hasPriorImaging"))
+                met = True
                 detail = "No conflicting prior imaging" if not has_prior else "Prior imaging exists (new symptoms documented)"
             else:
-                met = evidence.get("hasImagingFindings", False) or evidence.get("hasPriorImaging", False)
+                met = bool(evidence.get("hasImagingFindings")) or bool(evidence.get("hasPriorImaging"))
                 detail = "Imaging documented" if met else "No imaging documented"
 
         elif "diagnosis" in ctype or "severity" in ctype:
             score = evidence.get("severityScore")
-            has_path = evidence.get("hasPathology", False)
+            has_path = bool(evidence.get("hasPathology"))
             met = score is not None or has_path
             detail = f"Score: {score}" if score else ("Confirmed" if has_path else "Not confirmed")
 
         elif "specialist" in ctype or "provider" in ctype:
-            met = evidence.get("hasSpecialist", False)
+            met = bool(evidence.get("hasSpecialist"))
             detail = "Specialist confirmed" if met else "Specialist not documented"
 
         elif "clinical_indication" in ctype or "treatment_impact" in ctype:
-            met = evidence.get("hasPriorImaging", False) or evidence.get("hasPathology", False)
+            met = bool(evidence.get("hasPriorImaging")) or bool(evidence.get("hasPathology"))
             detail = "Clinical indication documented" if met else "Not documented"
 
         elif "step_therapy" in ctype:
-            meds = evidence.get("failedMedications", [])
+            meds = evidence.get("failedMedications") or []
             met = len(meds) > 0
             detail = f"Failed: {', '.join(meds[:3])}" if meds else "No failed therapies documented"
 
