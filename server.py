@@ -1346,23 +1346,7 @@ Respond ONLY with the JSON object, no other text.
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(e)}).encode())
 
-        # 7c. Agent: Get available policies
-        elif self.path == '/agent/policies':
-            try:
-                policies = agent_engine.load_all_policies() if AGENT_ENGINE_AVAILABLE else []
-                summary = [{"policyId": p["policyId"], "name": p["policyName"], "category": p["category"],
-                            "payer": p["payer"], "cptCodes": p["cptCodes"]} for p in policies]
-                self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                self.wfile.write(json.dumps(summary).encode())
-            except Exception as e:
-                self.send_response(500)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                self.wfile.write(json.dumps({"error": str(e)}).encode())
+        # 7c. (Moved to do_GET)
 
         # 8. Generate skill from natural language description
         elif self.path == '/generate-skill':
@@ -1519,7 +1503,7 @@ Respond ONLY with the JSON object, no other text.
             try:
                 policies = agent_engine.load_all_policies() if AGENT_ENGINE_AVAILABLE else []
                 summary = [{"policyId": p["policyId"], "name": p["policyName"], "category": p["category"],
-                            "payer": p["payer"], "cptCodes": p["cptCodes"]} for p in policies]
+                            "payer": p["payer"], "cptCodes": p["cptCodes"], "pdfFile": p.get("pdfFile", "")} for p in policies]
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Access-Control-Allow-Origin', '*')

@@ -4,14 +4,29 @@
   "payer": "Cigna",
   "effectiveDate": "2026-02-15",
   "category": "Surgery",
-  "cptCodes": ["29881", "29880", "29882", "29883"],
+  "cptCodes": [
+    "29881",
+    "29880",
+    "29882",
+    "29883"
+  ],
   "cptDescriptions": {
     "29881": "Arthroscopy, knee, meniscectomy including partial meniscectomy",
     "29880": "Arthroscopy, knee, meniscectomy with meniscus repair",
     "29882": "Arthroscopy, knee, meniscectomy medial AND lateral",
     "29883": "Arthroscopy, knee, meniscectomy medial AND lateral with repair"
   },
-  "allowedIcd10": ["M23.201", "M23.211", "M23.221", "M23.301", "M23.311", "S83.201A", "S83.211A", "M17.11", "M17.12"],
+  "allowedIcd10": [
+    "M23.201",
+    "M23.211",
+    "M23.221",
+    "M23.301",
+    "M23.311",
+    "S83.201A",
+    "S83.211A",
+    "M17.11",
+    "M17.12"
+  ],
   "icd10Descriptions": {
     "M23.201": "Derangement of unspecified lateral meniscus, right knee",
     "M23.211": "Derangement of anterior horn lateral meniscus, right knee",
@@ -67,12 +82,13 @@
       "required": true
     }
   ],
-  "urgentBypass": "Locked knee with inability to extend — authorize expedited review within 24 hours.",
+  "urgentBypass": "Locked knee with inability to extend \u2014 authorize expedited review within 24 hours.",
   "denialReasons": [
     "Insufficient conservative therapy (less than 6 weeks PT documented)",
-    "No mechanical symptoms — isolated pain without locking/catching",
+    "No mechanical symptoms \u2014 isolated pain without locking/catching",
     "No MRI or MRI negative for meniscal pathology",
     "Age >65 with primary osteoarthritis and no mechanical symptoms (arthroscopy not beneficial for degenerative disease)",
     "BMI >40 without documented weight management"
-  ]
+  ],
+  "pdfFile": "policies/policy_surgery_knee_arthroscopy.pdf"
 }

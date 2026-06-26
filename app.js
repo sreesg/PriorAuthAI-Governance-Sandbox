@@ -89,32 +89,45 @@ document.addEventListener('DOMContentLoaded', async () => {
       select.innerHTML = '<option>Failed to load policies</option>';
     }
     
-    // Dropdown change
-    select.addEventListener('change', () => showWorkspacePolicy(select.value));
+    // Dropdown change — update detail AND refresh artifacts
+    select.addEventListener('change', () => {
+      showWorkspacePolicy(select.value);
+      refreshActiveFileView();
+      auditConsole.textContent = `Selected: ${select.options[select.selectedIndex]?.text || select.value}\nClick Generate to build artifacts for this policy.`;
+    });
     
     // Generate All button
     document.getElementById('btn-gen-all').addEventListener('click', async () => {
       const policyId = select.value;
       if (!policyId) return;
       const btn = document.getElementById('btn-gen-all');
-      btn.disabled = true; btn.textContent = '⏳ Working...';
-      auditConsole.textContent = `🧠 AI model is generating rules, skills, and hooks for ${policyId}...\n\nThis may take 15-30 seconds as the ClinicalNLP Engine processes each artifact.\n`;
+      btn.disabled = true;
       
-      for (const action of ['rules', 'skills', 'hooks']) {
-        auditConsole.textContent += `\n⏳ Generating ${action}...\n`;
+      const actions = ['rules', 'skills', 'hooks'];
+      
+      for (let i = 0; i < actions.length; i++) {
+        const action = actions[i];
+        btn.textContent = `⏳ ${action} (${i+1}/${actions.length})`;
+        auditConsole.textContent += (i === 0 ? '' : '\n') + `⏳ Generating ${action} for ${policyId}...\n`;
+        
+        // Force DOM update before the fetch
+        await new Promise(r => setTimeout(r, 50));
+        
         try {
           const res = await fetch('/agent/build-for-policy', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ policyId, action })
           });
           const data = await res.json();
-          auditConsole.textContent += `✓ ${action.toUpperCase()}: ${data.auditLog || data.error || 'Done'}\n`;
+          auditConsole.textContent += `✓ ${action.toUpperCase()}: ${(data.auditLog || data.error || 'Done').split('\n')[0]}\n`;
         } catch(e) {
-          auditConsole.textContent += `✗ ${action.toUpperCase()}: Error — ${e.message}\n`;
+          auditConsole.textContent += `✗ ${action.toUpperCase()}: ${e.message}\n`;
         }
       }
-      auditConsole.textContent += `\n✅ All artifacts generated successfully for ${policyId}.`;
-      btn.disabled = false; btn.textContent = '🧠 Generate All';
+      
+      auditConsole.textContent += `\n✅ All artifacts generated for ${policyId}.`;
+      btn.disabled = false;
+      btn.textContent = '🧠 Generate All';
       await refreshActiveFileView();
       refreshSkillsPills();
       showToast(`All artifacts generated for ${policyId}`, 'success');
@@ -200,7 +213,32 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (pdfDownloadPanel) {
         pdfDownloadPanel.style.display = "block";
         const frame = document.getElementById('pdf-viewer-frame');
-        if (frame) frame.src = './real_payer_policy_uhc.pdf';
+        const note = document.getElementById('pdf-context-note');
+        
+        // Get the selected policy's PDF file
+        const policySelect = document.getElementById('policy-select');
+        const selectedPolicyId = policySelect ? policySelect.value : '';
+        
+        // Find the matching policy to get its PDF path
+        let pdfPath = './real_payer_policy_uhc.pdf';
+        let policyLabel = 'UHC General Policy';
+        
+        if (selectedPolicyId && workspacePolicies) {
+          // Fetch the full policy detail which includes pdfFile
+          fetch(`/agent/policy-detail?id=${selectedPolicyId}`).then(r => r.json()).then(p => {
+            if (p.pdfFile) {
+              frame.src = `./${p.pdfFile}`;
+              if (note) note.textContent = `📌 ${p.payer}: ${p.policyName} (${p.policyId})`;
+            }
+          }).catch(() => {});
+        }
+        
+        if (frame && !frame.src.includes('policy_')) {
+          frame.src = pdfPath;
+        }
+        if (note && !note.textContent) {
+          note.textContent = `📌 ${policyLabel}`;
+        }
       }
       return;
     }

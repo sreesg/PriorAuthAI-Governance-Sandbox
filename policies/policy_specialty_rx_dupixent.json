@@ -4,11 +4,17 @@
   "payer": "BCBS",
   "effectiveDate": "2026-01-15",
   "category": "Specialty Pharmacy",
-  "cptCodes": ["J0875"],
+  "cptCodes": [
+    "J0875"
+  ],
   "cptDescriptions": {
     "J0875": "Injection, dupilumab, 1 mg subcutaneous"
   },
-  "allowedIcd10": ["L20.9", "L20.89", "L20.81"],
+  "allowedIcd10": [
+    "L20.9",
+    "L20.89",
+    "L20.81"
+  ],
   "icd10Descriptions": {
     "L20.9": "Atopic dermatitis, unspecified",
     "L20.89": "Other atopic dermatitis",
@@ -73,12 +79,13 @@
       "No significant adverse effects requiring discontinuation"
     ]
   },
-  "urgentBypass": "Severe flare with erythroderma or hospitalization — expedited 24-hour review.",
+  "urgentBypass": "Severe flare with erythroderma or hospitalization \u2014 expedited 24-hour review.",
   "denialReasons": [
     "Step therapy not completed (topical steroids, calcineurin inhibitors, or systemic agents not tried)",
     "Mild atopic dermatitis (IGA < 3 and EASI < 16 and BSA < 10%)",
     "Prescriber is not dermatologist or allergist",
     "Patient under 6 years of age",
     "Active systemic infection or untreated latent TB"
-  ]
+  ],
+  "pdfFile": "policies/policy_specialty_rx_dupixent.pdf"
 }

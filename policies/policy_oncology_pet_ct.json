@@ -4,13 +4,27 @@
   "payer": "Aetna",
   "effectiveDate": "2026-03-01",
   "category": "Oncology",
-  "cptCodes": ["78816", "78815", "78814"],
+  "cptCodes": [
+    "78816",
+    "78815",
+    "78814"
+  ],
   "cptDescriptions": {
     "78816": "PET imaging for CT attenuation, whole body",
     "78815": "PET imaging for CT attenuation, limited area",
     "78814": "PET imaging with CT, limited area"
   },
-  "allowedIcd10": ["C34.90", "C34.91", "C34.92", "C50.911", "C50.912", "C18.9", "C20", "C83.30", "C85.90"],
+  "allowedIcd10": [
+    "C34.90",
+    "C34.91",
+    "C34.92",
+    "C50.911",
+    "C50.912",
+    "C18.9",
+    "C20",
+    "C83.30",
+    "C85.90"
+  ],
   "icd10Descriptions": {
     "C34.90": "Malignant neoplasm of unspecified bronchus/lung",
     "C34.91": "Malignant neoplasm of right bronchus/lung",
@@ -59,12 +73,13 @@
       "required": true
     }
   ],
-  "urgentBypass": "Suspected brain metastases with acute neurological decline — authorize emergent imaging.",
+  "urgentBypass": "Suspected brain metastases with acute neurological decline \u2014 authorize emergent imaging.",
   "denialReasons": [
     "No confirmed malignancy (screening not covered)",
     "Conventional imaging not attempted first",
     "Requesting provider is not managing oncologist",
     "Surveillance PET within 3 months of prior PET without clinical change",
     "Indication is routine surveillance with no symptoms of recurrence"
-  ]
+  ],
+  "pdfFile": "policies/policy_oncology_pet_ct.pdf"
 }

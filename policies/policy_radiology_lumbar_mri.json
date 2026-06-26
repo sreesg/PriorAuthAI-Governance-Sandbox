@@ -4,13 +4,26 @@
   "payer": "UnitedHealthcare",
   "effectiveDate": "2026-01-01",
   "category": "Radiology",
-  "cptCodes": ["72148", "72149", "72158"],
+  "cptCodes": [
+    "72148",
+    "72149",
+    "72158"
+  ],
   "cptDescriptions": {
     "72148": "MRI lumbar spine without contrast",
     "72149": "MRI lumbar spine with contrast",
     "72158": "MRI lumbar spine without contrast followed by with contrast"
   },
-  "allowedIcd10": ["M54.5", "M54.16", "M54.17", "M51.16", "M51.17", "G55", "M47.816", "M47.817"],
+  "allowedIcd10": [
+    "M54.5",
+    "M54.16",
+    "M54.17",
+    "M51.16",
+    "M51.17",
+    "G55",
+    "M47.816",
+    "M47.817"
+  ],
   "icd10Descriptions": {
     "M54.5": "Low back pain",
     "M54.16": "Radiculopathy, lumbar region",
@@ -57,5 +70,6 @@
     "No documented neurological findings on exam",
     "Recent MRI within 12 months without new symptoms",
     "Non-specific low back pain without radicular features"
-  ]
+  ],
+  "pdfFile": "policies/policy_radiology_lumbar_mri.pdf"
 }
