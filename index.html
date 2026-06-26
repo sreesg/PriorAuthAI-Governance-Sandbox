@@ -330,7 +330,7 @@
   <div id="view-concepts" class="view-panel" style="display:none;">
     <div class="concepts-page">
       <div class="concepts-top">
-        <h1 style="font-size:1.1rem;font-weight:800;">Multi-Agent PA Review: How 3 Agents Collaborate</h1>
+        <h1 style="font-size:1.1rem;font-weight:800;">Multi-Agent PA Review: Disagreement Case</h1>
         <button class="btn-play-small" id="btn-play-story">▶ Play</button>
       </div>
 
@@ -370,7 +370,7 @@
         </div>
 
         <!-- Center: Handoff Arrow -->
-        <div class="agent-handoff" id="agent-handoff">
+        <div class="agent-handoff">
           <div class="handoff-arrow" id="handoff-arrow">→</div>
           <div class="handoff-label" id="handoff-label">handoff</div>
         </div>
@@ -408,10 +408,20 @@
         </div>
       </div>
 
-      <!-- Narration + AVI -->
+      <!-- Narration + case data -->
       <div class="concepts-bottom-row">
-        <div class="concepts-narr" id="story-narration">Press Play to watch both agents process a case with conflicting evidence.</div>
-        <div class="concepts-avi-mini" id="concepts-avi">�� AVI: <span id="avi-concept-msg">ready to explain</span></div>
+        <div class="concepts-narr" id="story-narration">Case: Lumbar MRI (CPT 72148). Notes say "8wk pain, PT done, positive SLR, no prior MRI." PA approves — but is the evidence strong enough? Press Play.</div>
+        <div class="concepts-avi-mini" id="concepts-avi">🤖 AVI: <span id="avi-concept-msg">ready</span></div>
+      </div>
+
+      <!-- Definitions row -->
+      <div class="concepts-defs">
+        <div class="cdef"><strong>🛠️ Skills</strong> = functions that DO work (extract, route, evaluate)</div>
+        <div class="cdef"><strong>⚙️ Rules</strong> = guardrails that CANNOT be skipped (block, redact, escalate)</div>
+        <div class="cdef"><strong>🪝 Hooks</strong> = wiring: "when X happens → enforce rule Y"</div>
+        <div class="cdef"><strong>📋 Policies</strong> = CPT/ICD criteria loaded per-request</div>
+        <div class="cdef"><strong>🔌 MCP</strong> = protocol: UI ↔ Agent ↔ LLM (/run-review, /avi)</div>
+        <div class="cdef"><strong>🔁 Challenger</strong> = adversarial 2nd agent. Can override with 🚩 red flag</div>
       </div>
     </div>
   </div>

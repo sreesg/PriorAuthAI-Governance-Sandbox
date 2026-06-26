@@ -2398,3 +2398,22 @@ footer.app-footer {
   font-weight: 700;
   margin-bottom: 0.5rem;
 }
+
+/* Concepts definitions row */
+.concepts-defs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--card-border);
+  margin-top: 0.3rem;
+}
+
+.cdef {
+  font-size: 0.68rem;
+  color: #374151;
+}
+
+.cdef strong {
+  color: #1e293b;
+}
