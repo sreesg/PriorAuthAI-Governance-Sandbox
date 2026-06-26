@@ -496,6 +496,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Remove any note summary/quality popups
     document.querySelectorAll('.notes-summary-popup').forEach(el => el.remove());
+    
+    // Load policy-specific hooks dynamically
+    loadPolicyHooksForCase(req.cptCode);
+  }
+
+  async function loadPolicyHooksForCase(cptCode) {
+    const hooksRow = document.getElementById('policy-hooks-row');
+    const hooksContainer = document.getElementById('policy-hooks-container');
+    hooksContainer.innerHTML = '';
+    hooksRow.style.display = 'none';
+    
+    try {
+      // Find which policy matches this CPT
+      const policiesRes = await fetch('/agent/policies');
+      const policies = await policiesRes.json();
+      const matched = policies.find(p => p.cptCodes.includes(cptCode));
+      if (!matched) return;
+      
+      // Try loading generated hooks for this policy
+      const hooksRes = await fetch(`/policies/${matched.policyId}_hooks.json?t=${Date.now()}`);
+      if (!hooksRes.ok) return;
+      
+      const hooksData = await hooksRes.json();
+      const hooks = hooksData.hooks || [];
+      if (hooks.length === 0) return;
+      
+      hooksRow.style.display = 'flex';
+      hooks.forEach(h => {
+        const pill = document.createElement('div');
+        pill.className = 'rule-item';
+        pill.innerHTML = `<div class="rule-info"><h4>${h.hookName || h.stage || '?'}</h4></div>`;
+        pill.title = h.description || '';
+        hooksContainer.appendChild(pill);
+      });
+    } catch(_) {}
   }
 
   // 8. Compact Rules Checkbox toggles — inline pills
