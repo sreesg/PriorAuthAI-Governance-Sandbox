@@ -312,41 +312,138 @@
     </div>
   </div>
 
-  <!-- VIEW: Concepts (animated story) -->
+  <!-- VIEW: Concepts -->
   <div id="view-concepts" class="view-panel" style="display:none;">
-    <div class="story-container">
-      <div class="story-header">
-        <h1>Watch a PA Request Flow Through the System</h1>
-        <button class="btn-primary-action" id="btn-play-story" style="width:auto;padding:0.4rem 1.2rem;">▶ Play</button>
+    <div class="concepts-page">
+      <!-- Top row: title + play -->
+      <div class="concepts-top">
+        <div>
+          <h1 style="font-size:1.3rem;font-weight:800;">Agent Execution Model</h1>
+          <p style="font-size:0.78rem;color:var(--text-muted);">Skills do work. Hooks listen for events. Rules enforce constraints when hooks fire.</p>
+        </div>
+        <button class="btn-play-small" id="btn-play-story">▶ Play</button>
       </div>
 
-      <div class="story-canvas">
-        <!-- The request object that moves -->
-        <div class="story-request" id="story-req"><span>📋</span></div>
+      <!-- Main animation area -->
+      <div class="concepts-main">
+        <!-- Left: How it connects -->
+        <div class="concepts-explainer">
+          <div class="explainer-block">
+            <div class="exp-title">🛠️ Skills <span class="exp-role">= Workers</span></div>
+            <div class="exp-desc">Execute tasks. Read data, call LLM, produce outputs.</div>
+          </div>
+          <div class="explainer-block">
+            <div class="exp-title">🪝 Hooks <span class="exp-role">= Event Wiring</span></div>
+            <div class="exp-desc">Listen: "When stage X completes → trigger rule Y"</div>
+            <div class="exp-example">
+              <code>on_evidence_extracted</code> → fires <code>RULE-04</code>
+            </div>
+          </div>
+          <div class="explainer-block">
+            <div class="exp-title">⚙️ Rules <span class="exp-role">= Constraints</span></div>
+            <div class="exp-desc">Cannot be skipped. Block, modify, or escalate.</div>
+            <div class="exp-example">
+              <code>Conservatism</code>: if criteria unmet → escalate (never deny)
+            </div>
+          </div>
+          <div class="explainer-block">
+            <div class="exp-title">🤖 Agents <span class="exp-role">= Orchestrators</span></div>
+            <div class="exp-desc">PA Agent runs the pipeline. AVI explains decisions.</div>
+          </div>
+        </div>
 
-        <!-- 5 Stage panels -->
-        <div class="story-stage" id="ss-1" data-label="Intake" data-actors="🪝 on_request → ⚙️ PHI Redact"></div>
-        <div class="story-stage" id="ss-2" data-label="Route" data-actors="🛠️ PolicyRouter → ⚙️ Code Match"></div>
-        <div class="story-stage" id="ss-3" data-label="Extract" data-actors="🛠️ ExtractEvidence → 🧠 LLM"></div>
-        <div class="story-stage" id="ss-4" data-label="Evaluate" data-actors="🛠️ EvalCriteria → 🪝 on_criteria → ⚙️ Conservatism"></div>
-        <div class="story-stage" id="ss-5" data-label="Decide" data-actors="🛠️ GenNotice → 🪝 on_notice → ⚙️ Plain Lang"></div>
+        <!-- Right: Animated canvas -->
+        <div class="concepts-canvas" id="concepts-canvas">
+          <!-- Pipeline stages as a vertical flow -->
+          <div class="cv-flow">
+            <div class="cv-stage" id="cv-1">
+              <div class="cv-stage-name">Intake</div>
+              <div class="cv-actors">
+                <span class="cv-actor cv-skill">🛠️ Receive</span>
+              </div>
+              <div class="cv-hook-wire" id="cv-hw-1">
+                <span class="cv-hook-label">🪝 on_request</span>
+                <span class="cv-hook-arrow">→</span>
+                <span class="cv-rule-label">⚙️ PHI Redact</span>
+              </div>
+            </div>
 
-        <!-- AVI observing -->
-        <div class="story-avi-box" id="ss-avi"><span>🤖</span> AVI<div class="avi-status" id="avi-anim-status">observing</div></div>
+            <div class="cv-connector"></div>
 
-        <!-- Result -->
-        <div class="story-result-box" id="ss-result"><span id="ss-result-icon">⏳</span><span id="ss-result-text">Pending</span></div>
+            <div class="cv-stage" id="cv-2">
+              <div class="cv-stage-name">Route + Validate</div>
+              <div class="cv-actors">
+                <span class="cv-actor cv-skill">🛠️ PolicyRouter</span>
+              </div>
+              <div class="cv-hook-wire" id="cv-hw-2">
+                <span class="cv-hook-label">🪝 on_guidelines</span>
+                <span class="cv-hook-arrow">→</span>
+                <span class="cv-rule-label">⚙️ Code Match</span>
+              </div>
+            </div>
+
+            <div class="cv-connector"></div>
+
+            <div class="cv-stage" id="cv-3">
+              <div class="cv-stage-name">Extract Evidence</div>
+              <div class="cv-actors">
+                <span class="cv-actor cv-skill">🛠️ Extract</span>
+                <span class="cv-actor cv-llm">🧠 LLM</span>
+              </div>
+              <div class="cv-hook-wire" id="cv-hw-3">
+                <span class="cv-hook-label">🪝 on_evidence</span>
+                <span class="cv-hook-arrow">→</span>
+                <span class="cv-rule-label">validate quality</span>
+              </div>
+            </div>
+
+            <div class="cv-connector"></div>
+
+            <div class="cv-stage" id="cv-4">
+              <div class="cv-stage-name">Criteria Validation</div>
+              <div class="cv-actors">
+                <span class="cv-actor cv-skill">🛠️ EvalCriteria</span>
+                <span class="cv-actor cv-skill">✓✗ Check Thresholds</span>
+              </div>
+              <div class="cv-criteria-check" id="cv-criteria-check">symptom ≥6wk? therapy ≥6wk? findings?</div>
+              <div class="cv-hook-wire" id="cv-hw-4">
+                <span class="cv-hook-label">🪝 on_criteria</span>
+                <span class="cv-hook-arrow">→</span>
+                <span class="cv-rule-label">⚙️ Conservatism: unmet=escalate</span>
+              </div>
+            </div>
+
+            <div class="cv-connector"></div>
+
+            <div class="cv-stage" id="cv-5">
+              <div class="cv-stage-name">Generate Notice</div>
+              <div class="cv-actors">
+                <span class="cv-actor cv-skill">🛠️ GenNotice</span>
+              </div>
+              <div class="cv-hook-wire" id="cv-hw-5">
+                <span class="cv-hook-label">🪝 on_notice</span>
+                <span class="cv-hook-arrow">→</span>
+                <span class="cv-rule-label">⚙️ Plain Lang</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Agents sidebar -->
+          <div class="cv-agents">
+            <div class="cv-agent cv-pa-agent" id="cv-pa">🤖 PA Agent<div class="cv-agent-status" id="cv-pa-status">idle</div></div>
+            <div class="cv-agent cv-avi-agent" id="cv-avi">🤖 AVI<div class="cv-agent-status" id="cv-avi-status">idle</div></div>
+          </div>
+
+          <!-- Result -->
+          <div class="cv-result" id="cv-result">
+            <span id="cv-result-icon">⏳</span>
+            <span id="cv-result-text">Pending</span>
+          </div>
+        </div>
       </div>
 
-      <div class="story-narration" id="story-narration">Click Play to watch a prior authorization request flow through skills, rules, hooks, and both agents.</div>
-
-      <div class="story-legend">
-        <span><span class="legend-dot dot-skill"></span> Skill</span>
-        <span><span class="legend-dot dot-rule"></span> Rule</span>
-        <span><span class="legend-dot dot-hook"></span> Hook</span>
-        <span><span class="legend-dot dot-llm"></span> LLM</span>
-        <span><span class="legend-dot" style="background:#6366f1;"></span> MCP</span>
-      </div>
+      <!-- Narration -->
+      <div class="story-narration" id="story-narration">Press Play to watch a request flow through the pipeline. Notice how hooks wire rules to specific stages.</div>
     </div>
   </div>
 

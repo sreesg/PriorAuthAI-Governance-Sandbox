@@ -50,67 +50,106 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Replay demo animation (if present)
+  // Concept story animation
   const storyBtn = document.getElementById('btn-play-story');
   if (storyBtn) {
     storyBtn.addEventListener('click', playConceptStory);
   }
 
   async function playConceptStory() {
-    const req = document.getElementById('story-req');
     const narration = document.getElementById('story-narration');
-    const avi = document.getElementById('ss-avi');
-    const aviStatus = document.getElementById('avi-anim-status');
-    const result = document.getElementById('ss-result');
-    const resultIcon = document.getElementById('ss-result-icon');
-    const resultText = document.getElementById('ss-result-text');
+    const paAgent = document.getElementById('cv-pa');
+    const aviAgent = document.getElementById('cv-avi');
+    const paStatus = document.getElementById('cv-pa-status');
+    const aviStatus = document.getElementById('cv-avi-status');
+    const result = document.getElementById('cv-result');
+    const resultIcon = document.getElementById('cv-result-icon');
+    const resultText = document.getElementById('cv-result-text');
     const btn = document.getElementById('btn-play-story');
     
-    btn.disabled = true; btn.textContent = '⏸ Playing...';
+    if (!narration || !btn) return;
+    btn.disabled = true; btn.textContent = '\u23f8 Playing...';
     
-    // Reset all stages
-    document.querySelectorAll('.story-stage').forEach(s => { s.className = 'story-stage'; });
-    result.className = 'story-result-box';
-    resultIcon.textContent = '⏳'; resultText.textContent = 'Pending';
-    avi.classList.remove('active');
-    aviStatus.textContent = 'observing';
-    req.style.left = '3%'; req.style.top = '50%';
+    // Reset
+    document.querySelectorAll('.cv-stage').forEach(s => s.className = 'cv-stage');
+    document.querySelectorAll('.cv-hook-wire').forEach(h => h.classList.remove('fired'));
+    if (paAgent) paAgent.classList.remove('active');
+    if (aviAgent) aviAgent.classList.remove('active');
+    if (paStatus) paStatus.textContent = 'idle';
+    if (aviStatus) aviStatus.textContent = 'idle';
+    if (result) { result.className = 'cv-result'; resultIcon.textContent = '\u23f3'; resultText.textContent = 'Pending'; }
 
     const delay = ms => new Promise(r => setTimeout(r, ms));
-    const positions = ['12%', '29%', '46%', '63%', '80%'];
-    const narrations = [
-      '📥 Request arrives → Hook fires → PHI rule scrubs sensitive data',
-      '🛠️ PolicyRouter skill matches CPT code → Rule validates ICD-10 alignment',
-      '🧠 ExtractEvidence skill calls LLM → AI reads clinical notes semantically',
-      '🛠️ EvalCriteria checks thresholds → Hook triggers → Conservatism rule decides',
-      '🛠️ GenNotice drafts letter → Hook fires → Plain Language rule translates'
-    ];
 
-    for (let i = 0; i < 5; i++) {
-      // Move request
-      req.style.left = positions[i];
-      narration.textContent = narrations[i];
-      
-      // Activate stage
-      const stage = document.getElementById(`ss-${i+1}`);
-      stage.classList.add('active');
-      
-      // AVI reacts at stage 3
-      if (i === 2) { avi.classList.add('active'); aviStatus.textContent = 'analyzing context'; }
-      if (i === 4) { aviStatus.textContent = 'ready to explain'; }
-      
-      await delay(1500);
-      stage.classList.remove('active');
-      stage.classList.add('done');
-    }
+    // PA Agent activates
+    if (paAgent) { paAgent.classList.add('active'); paStatus.textContent = 'running pipeline'; }
+    narration.textContent = '\U0001f916 PA Agent starts. Receives the request...';
+    await delay(1200);
 
-    // Final result
-    await delay(500);
-    req.style.left = '92%'; req.style.top = '75%';
-    result.classList.add('approved');
-    resultIcon.textContent = '✅'; resultText.textContent = 'Approved';
-    narration.textContent = '✅ All criteria met. Both agents collaborated — PA Agent decided, AVI is ready to explain why.';
+    // Stage 1
+    const cv1 = document.getElementById('cv-1');
+    if (cv1) cv1.classList.add('active');
+    narration.textContent = '\U0001f4e5 Stage 1: Hook on_request fires \u2192 PHI Rule scrubs sensitive data.';
+    await delay(800);
+    const hw1 = document.getElementById('cv-hw-1');
+    if (hw1) hw1.classList.add('fired');
+    await delay(1000);
+    if (cv1) { cv1.classList.remove('active'); cv1.classList.add('done'); }
+
+    // Stage 2
+    const cv2 = document.getElementById('cv-2');
+    if (cv2) cv2.classList.add('active');
+    narration.textContent = '\U0001f6e0\ufe0f Stage 2: PolicyRouter skill matches policy. Hook fires \u2192 Code Match rule validates.';
+    await delay(800);
+    const hw2 = document.getElementById('cv-hw-2');
+    if (hw2) hw2.classList.add('fired');
+    await delay(1000);
+    if (cv2) { cv2.classList.remove('active'); cv2.classList.add('done'); }
+
+    // Stage 3
+    const cv3 = document.getElementById('cv-3');
+    if (cv3) cv3.classList.add('active');
+    narration.textContent = '\U0001f9e0 Stage 3: ExtractEvidence calls LLM. AI reads notes. Hook validates quality.';
+    await delay(800);
+    const hw3 = document.getElementById('cv-hw-3');
+    if (hw3) hw3.classList.add('fired');
+    if (aviAgent) { aviAgent.classList.add('active'); aviStatus.textContent = 'loading context'; }
+    await delay(1200);
+    if (cv3) { cv3.classList.remove('active'); cv3.classList.add('done'); }
+
+    // Stage 4
+    const cv4 = document.getElementById('cv-4');
+    if (cv4) cv4.classList.add('active');
+    narration.textContent = '\u2699\ufe0f Stage 4: Criteria validation — checking each threshold against policy requirements...';
+    const criteriaEl = document.getElementById('cv-criteria-check');
+    if (criteriaEl) criteriaEl.classList.add('checking');
+    await delay(800);
+    const hw4 = document.getElementById('cv-hw-4');
+    if (hw4) hw4.classList.add('fired');
+    if (paStatus) paStatus.textContent = 'evaluating';
+    await delay(600);
+    if (criteriaEl) { criteriaEl.classList.remove('checking'); criteriaEl.classList.add('passed'); criteriaEl.textContent = 'symptom \u2713 therapy \u2713 findings \u2713'; }
+    narration.textContent = '\u2705 All criteria thresholds met. Conservatism rule: no escalation needed.';
+    await delay(1000);
+    if (cv4) { cv4.classList.remove('active'); cv4.classList.add('done'); }
+
+    // Stage 5
+    const cv5 = document.getElementById('cv-5');
+    if (cv5) cv5.classList.add('active');
+    narration.textContent = '\U0001f4dd Stage 5: GenNotice drafts letter. Hook fires \u2192 Plain Language rule translates.';
+    await delay(800);
+    const hw5 = document.getElementById('cv-hw-5');
+    if (hw5) hw5.classList.add('fired');
+    await delay(1000);
+    if (cv5) { cv5.classList.remove('active'); cv5.classList.add('done'); }
+
+    // Decision
+    if (paStatus) paStatus.textContent = 'decision made';
+    if (aviStatus) aviStatus.textContent = 'ready to explain';
+    if (result) { result.classList.add('approved'); resultIcon.textContent = '\u2705'; resultText.textContent = 'Approved'; }
+    narration.textContent = '\u2705 All criteria met. PA Agent approved. AVI Agent ready to explain the reasoning.';
     
-    btn.disabled = false; btn.textContent = '▶ Play Again';
+    btn.disabled = false; btn.textContent = '\u25b6 Play Again';
   }
 
   // Helper for non-blocking notifications
