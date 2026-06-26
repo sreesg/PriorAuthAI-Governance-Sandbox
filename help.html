@@ -797,6 +797,144 @@
       </ul>
     </div>
 
+    <!-- CHALLENGER AGENT -->
+    <div class="help-section">
+      <h2>🔁 Challenger Agent — Autonomous Quality Review</h2>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        The Challenger Agent is a <strong style="color:var(--text-main);">separate autonomous agent</strong>
+        that independently reviews every decision made by the PA Review Agent — both approvals
+        AND escalations. It operates with its own skills, rules, and hooks.
+      </p>
+
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">Does the Challenger Ever Agree?</h3>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        <strong style="color:var(--text-main);">Yes.</strong> For cases where the evidence clearly supports
+        the decision (e.g., the Dupixent case with EASI score 28 and 3 documented failed medications),
+        the Challenger agrees with high confidence. It only challenges on borderline or weak-evidence cases.
+      </p>
+      <ul style="color:var(--text-muted); line-height:2; margin-top:0.5rem; padding-left:1.25rem;">
+        <li><strong style="color:#059669;">✅ AGREE</strong> — Documentation is thorough. Quality confirmed. No override.</li>
+        <li><strong style="color:#d97706;">⚠️ CONCERN</strong> — Minor gaps noted but not enough to override (confidence &lt; 7).</li>
+        <li><strong style="color:#b91c1c;">🚩 CHALLENGE</strong> — Formal override. Decision flagged for Medical Director review (confidence ≥ 7).</li>
+      </ul>
+
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">Why Two Agents? (If the First Should Get It Right)</h3>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        The two agents have <strong style="color:var(--text-main);">fundamentally different objectives by design</strong>:
+      </p>
+      <table style="width:100%; margin-top:0.75rem; border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(14,165,233,0.15);">
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;"></th>
+            <th style="text-align:left; padding:0.5rem; color:#0284c7; font-size:0.75rem;">🤖 PA Agent</th>
+            <th style="text-align:left; padding:0.5rem; color:#6d28d9; font-size:0.75rem;">🔁 Challenger Agent</th>
+          </tr>
+        </thead>
+        <tbody style="color:var(--text-main); font-size:0.8rem;">
+          <tr style="border-bottom:1px solid rgba(0,0,0,0.05);">
+            <td style="padding:0.5rem; font-weight:600;">Goal</td>
+            <td style="padding:0.5rem;">Make a decision efficiently</td>
+            <td style="padding:0.5rem;">Stress-test that decision</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(0,0,0,0.05);">
+            <td style="padding:0.5rem; font-weight:600;">Bias</td>
+            <td style="padding:0.5rem;">Conservative (RULE-02: never deny)</td>
+            <td style="padding:0.5rem;">Adversarial (look for problems)</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(0,0,0,0.05);">
+            <td style="padding:0.5rem; font-weight:600;">Perspective</td>
+            <td style="padding:0.5rem;">"Does evidence meet criteria?"</td>
+            <td style="padding:0.5rem;">"Is the evidence actually strong enough?"</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(0,0,0,0.05);">
+            <td style="padding:0.5rem; font-weight:600;">Scope</td>
+            <td style="padding:0.5rem;">Evaluates what's IN the notes</td>
+            <td style="padding:0.5rem;">Looks for what's MISSING or contradictory</td>
+          </tr>
+          <tr>
+            <td style="padding:0.5rem; font-weight:600;">Speed</td>
+            <td style="padding:0.5rem;">Fast, threshold-based</td>
+            <td style="padding:0.5rem;">Slower, reasoning-based</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p style="color:var(--text-muted); margin-top:1rem; line-height:1.7;">
+        The PA Agent isn't "wrong" — it correctly applies rules. But it uses pattern matching and
+        threshold checks. The Challenger uses <strong style="color:var(--text-main);">reasoning</strong>
+        to ask: "yes the keyword matched, but is the underlying evidence actually solid?"
+      </p>
+
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">Real-World Parallels</h3>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        This is the same proven pattern used in:
+      </p>
+      <ul style="color:var(--text-muted); line-height:2; margin-top:0.5rem; padding-left:1.25rem;">
+        <li><strong style="color:var(--text-main);">Audit + Primary Accounting</strong> — one does the work, one checks it</li>
+        <li><strong style="color:var(--text-main);">Maker/Checker in Banking</strong> — dual authorization for transactions</li>
+        <li><strong style="color:var(--text-main);">Red Team / Blue Team</strong> — adversarial security testing</li>
+        <li><strong style="color:var(--text-main);">Peer Review in Academia</strong> — independent validation of findings</li>
+      </ul>
+      <p style="color:var(--text-muted); margin-top:0.75rem; line-height:1.7;">
+        The first agent is optimized for <strong style="color:var(--text-main);">throughput</strong> (fast decisions).
+        The second is optimized for <strong style="color:var(--text-main);">accuracy</strong> (catching edge cases).
+        Together they are better than either alone.
+      </p>
+
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">Challenger Agent Architecture</h3>
+      <table style="width:100%; margin-top:0.75rem; border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(0,0,0,0.08);">
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">COMPONENT</th>
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">NAME</th>
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">PURPOSE</th>
+          </tr>
+        </thead>
+        <tbody style="color:var(--text-main); font-size:0.78rem;">
+          <tr style="border-bottom:1px solid rgba(0,0,0,0.04);">
+            <td style="padding:0.5rem;">🛠️ Skill</td>
+            <td style="padding:0.5rem;"><code style="color:#0284c7;">ReinterpretEvidenceSkill</code></td>
+            <td style="padding:0.5rem;">Re-reads clinical notes with fresh perspective looking for missed evidence</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(0,0,0,0.04);">
+            <td style="padding:0.5rem;">🛠️ Skill</td>
+            <td style="padding:0.5rem;"><code style="color:#0284c7;">AssessDocumentationGapsSkill</code></td>
+            <td style="padding:0.5rem;">Identifies what should be documented but isn't</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(0,0,0,0.04);">
+            <td style="padding:0.5rem;">🛠️ Skill</td>
+            <td style="padding:0.5rem;"><code style="color:#0284c7;">EvaluateDecisionStrengthSkill</code></td>
+            <td style="padding:0.5rem;">Rates how well-supported the PA decision is</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(0,0,0,0.04);">
+            <td style="padding:0.5rem;">⚙️ Rule</td>
+            <td style="padding:0.5rem;"><code style="color:#b45309;">RULE-C1: Cite Evidence</code></td>
+            <td style="padding:0.5rem;">Every challenge must quote specific text from the clinical notes</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(0,0,0,0.04);">
+            <td style="padding:0.5rem;">⚙️ Rule</td>
+            <td style="padding:0.5rem;"><code style="color:#b45309;">RULE-C2: No Rubber Stamp</code></td>
+            <td style="padding:0.5rem;">Must provide substantive analysis — never just "I agree"</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(0,0,0,0.04);">
+            <td style="padding:0.5rem;">⚙️ Rule</td>
+            <td style="padding:0.5rem;"><code style="color:#b45309;">RULE-C3: Confidence Threshold</code></td>
+            <td style="padding:0.5rem;">Only issue formal challenge (override) if confidence ≥ 7/10</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(0,0,0,0.04);">
+            <td style="padding:0.5rem;">🪝 Hook</td>
+            <td style="padding:0.5rem;"><code style="color:#047857;">on_pa_decision</code></td>
+            <td style="padding:0.5rem;">Fires for EVERY PA decision (both approvals and escalations)</td>
+          </tr>
+          <tr>
+            <td style="padding:0.5rem;">🪝 Hook</td>
+            <td style="padding:0.5rem;"><code style="color:#047857;">on_challenge_issued</code></td>
+            <td style="padding:0.5rem;">When formal challenge issued, routes to Medical Director queue</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
     <!-- QUICK START -->
     <div class="help-section">
       <h2>🚀 Quick Start Guide</h2>
