@@ -1170,26 +1170,20 @@ def read_evidence_bundle(bundle_path, cpt_code):
     prompt = f"""Read this PA evidence bundle and extract clinical information.
 
 DOCUMENT TEXT:
-{pdf_text[:4000]}
+{pdf_text[:3500]}
 
 {criteria_context}
 
-Return a JSON object with:
+Return JSON (keep findings SHORT - max 8 words each):
 {{
-  "clinicalSummary": "<2-3 sentence summary of the clinical situation for the notes field>",
-  "patientName": "<name>",
-  "memberId": "<member ID>",
-  "cptCode": "<CPT code>",
-  "icd10Code": "<ICD-10 code>",
-  "providerName": "<provider>",
-  "providerNpi": "<NPI>",
+  "clinicalSummary": "<2 sentence summary>",
   "criteriaFindings": [
-    {{"criterion": "<criterion ID or name>", "finding": "<what the document says>", "met": <true/false>}}
+    {{"criterion": "<ID>", "finding": "<short finding>", "met": <true/false>}}
   ],
-  "missingDocumentation": ["<list of things NOT documented that the policy requires>"]
+  "missingDocumentation": ["<missing items>"]
 }}"""
 
-    response = call_llm(prompt, max_tokens=500, temperature=0.1)
+    response = call_llm(prompt, max_tokens=700, temperature=0.1)
     
     try:
         result = extract_json_from_response(response)
