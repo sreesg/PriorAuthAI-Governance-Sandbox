@@ -42,6 +42,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   const inputNpi = document.getElementById('input-npi');
   const inputNotes = document.getElementById('input-notes');
 
+  // Tab navigation
+  document.querySelectorAll('.main-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const view = tab.getAttribute('data-view');
+      document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
+      document.getElementById(`view-${view}`).style.display = view === 'review' ? 'grid' : 'block';
+    });
+  });
+
   // Helper for non-blocking notifications
   function showToast(message, type = 'info') {
     const toast = document.createElement('div');

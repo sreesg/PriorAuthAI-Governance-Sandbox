@@ -31,9 +31,13 @@
     </div>
   </header>
 
-  <main class="dashboard-grid">
-    
-    <!-- COLUMN 1: Low-Code Clinical Editor (Left) -->
+  <nav class="main-tabs">
+    <button class="main-tab active" data-view="review">⚡ Agent Review</button>
+    <button class="main-tab" data-view="workspace">🏗️ Policy Workspace</button>
+  </nav>
+
+  <!-- VIEW: Policy Workspace -->
+  <div id="view-workspace" class="view-panel" style="display:none;">
     <section class="panel-column workspace-column">
       <div class="glass-card full-height">
         <div class="card-header">
@@ -101,9 +105,12 @@
         </div>
       </div>
     </section>
+  </div>
 
-    <!-- COLUMN 2: Case Workspace (Middle) -->
-    <section class="panel-column cases-column">
+  <!-- VIEW: Agent Review (default active) -->
+  <div id="view-review" class="view-panel">
+    <!-- Left column: Cases + Form -->
+    <div class="review-left">
       <!-- Preset selector -->
       <div class="glass-card presets-card">
         <h2>📁 Preset Clinical Cases</h2>
@@ -184,10 +191,10 @@
           </div>
         </form>
       </div>
-    </section>
+    </div>
 
-    <!-- COLUMN 3: Real-Time Execution Console & Letter (Right) -->
-    <section class="panel-column execution-column">
+    <!-- Right column: Results -->
+    <div class="review-right">
       <!-- Outcome Card -->
       <div class="glass-card outcome-card">
         <h2>🔍 Decision Review Outcome</h2>
@@ -294,9 +301,8 @@
           <pre id="letter-content" class="letter-content">Awaiting review execution to draft notice letter...</pre>
         </div>
       </div>
-    </section>
-
-  </main>
+    </div>
+  </div>
 
   <!-- AVI Chat Panel (floating) -->
   <div class="avi-chat-panel" id="avi-chat-panel" style="display:none;">
