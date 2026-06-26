@@ -185,7 +185,10 @@
           <div class="form-group">
             <label for="input-notes">Clinical Notes & Evidence</label>
             <textarea id="input-notes" rows="3" required></textarea>
-            <a id="evidence-bundle-link" href="#" target="_blank" style="display:none;font-size:0.7rem;color:#0284c7;margin-top:0.2rem;">📎 View Evidence Bundle (PDF)</a>
+            <div class="evidence-actions" id="evidence-actions" style="display:none;">
+              <button type="button" class="btn-play-small" id="btn-read-bundle">📎 Read Bundle with AI</button>
+              <a id="evidence-bundle-link" href="#" target="_blank" style="font-size:0.68rem;color:#0284c7;">View PDF</a>
+            </div>
           </div>
 
           <!-- Rules + Policy Hooks -->

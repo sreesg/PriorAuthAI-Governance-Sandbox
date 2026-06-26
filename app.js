@@ -606,13 +606,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Remove any note summary/quality popups
     document.querySelectorAll('.notes-summary-popup').forEach(el => el.remove());
     
-    // Show evidence bundle link
+    // Show evidence bundle actions
+    const evidenceActions = document.getElementById('evidence-actions');
     const bundleLink = document.getElementById('evidence-bundle-link');
-    if (bundleLink && caseObj.evidenceBundle) {
+    if (evidenceActions && caseObj.evidenceBundle) {
+      evidenceActions.style.display = 'flex';
       bundleLink.href = caseObj.evidenceBundle;
-      bundleLink.style.display = 'inline-block';
-    } else if (bundleLink) {
-      bundleLink.style.display = 'none';
+      // Store bundle path for the read button
+      evidenceActions.dataset.bundle = caseObj.evidenceBundle;
+      evidenceActions.dataset.cpt = req.cptCode;
+    } else if (evidenceActions) {
+      evidenceActions.style.display = 'none';
     }
     
     // Load policy-specific hooks dynamically
@@ -654,6 +658,63 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Hook loading error:', e);
     }
   }
+
+  // 7b. Read Evidence Bundle button handler
+  document.getElementById('btn-read-bundle')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-read-bundle');
+    const evidenceActions = document.getElementById('evidence-actions');
+    const bundlePath = evidenceActions?.dataset.bundle;
+    const cptCode = evidenceActions?.dataset.cpt;
+    
+    if (!bundlePath) return;
+    btn.disabled = true; btn.textContent = '🧠 Reading...';
+    
+    try {
+      const res = await fetch('/agent/read-bundle', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ bundlePath, cptCode })
+      });
+      const data = await res.json();
+      
+      if (data.extracted) {
+        const ex = data.extracted;
+        // Auto-populate form from extracted data
+        if (ex.clinicalSummary) inputNotes.value = ex.clinicalSummary;
+        
+        // Show validation results as a summary popup
+        let summaryHtml = '<strong>📎 AI Bundle Analysis:</strong><br>';
+        if (ex.criteriaFindings && ex.criteriaFindings.length > 0) {
+          ex.criteriaFindings.forEach(f => {
+            const icon = f.met ? '✓' : '✗';
+            const color = f.met ? '#059669' : '#dc2626';
+            summaryHtml += `<span style="color:${color}">${icon} ${f.criterion}: ${f.finding}</span><br>`;
+          });
+        }
+        if (ex.missingDocumentation && ex.missingDocumentation.length > 0) {
+          summaryHtml += `<br><strong style="color:#d97706;">Missing:</strong> ${ex.missingDocumentation.join(', ')}`;
+        }
+        if (ex.validationSummary) {
+          summaryHtml += `<br><strong>${ex.validationSummary}</strong>`;
+        }
+        
+        const popup = document.createElement('div');
+        popup.className = 'notes-summary-popup';
+        popup.innerHTML = summaryHtml;
+        const existing = inputNotes.parentElement.querySelector('.notes-summary-popup');
+        if (existing) existing.remove();
+        inputNotes.parentElement.insertBefore(popup, inputNotes);
+        
+        showToast('📎 Bundle read and validated by AI', 'success');
+      } else {
+        showToast(data.error || 'Failed to read bundle', 'error');
+      }
+    } catch(e) {
+      showToast(`Error: ${e.message}`, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = '📎 Read Bundle with AI';
+    }
+  });
 
   // 8. Compact Rules Checkbox toggles — inline pills
   function renderRulesToggles() {

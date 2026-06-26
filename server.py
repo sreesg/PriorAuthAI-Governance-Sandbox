@@ -1212,6 +1212,47 @@ Respond ONLY with the JSON object, no other text.
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(e)}).encode())
 
+        # 5a. Agent: Read evidence bundle and extract clinical data
+        elif self.path == '/agent/read-bundle':
+            if not AGENT_ENGINE_AVAILABLE:
+                self.send_response(503)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Agent engine not loaded"}).encode())
+                return
+            try:
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                params = json.loads(post_data.decode())
+                
+                bundle_path = params.get('bundlePath', '')
+                cpt_code = params.get('cptCode', '')
+                
+                if not bundle_path:
+                    self.send_response(400)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": "No bundle path provided"}).encode())
+                    return
+                
+                result = agent_engine.read_evidence_bundle(bundle_path, cpt_code)
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps(result).encode())
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+
         # 5b. Agent: Build rules/skills/hooks for a specific policy
         elif self.path == '/agent/build-for-policy':
             if not AGENT_ENGINE_AVAILABLE:

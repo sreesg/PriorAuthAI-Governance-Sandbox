@@ -1118,3 +1118,107 @@ Keep answers concise (3-5 sentences). Be direct and clinical. You ARE AVI."""
 
     response = call_llm(f"{system_prompt}\n\nUser question: {user_message}", max_tokens=200, temperature=0.3)
     return response
+
+
+# ─── Skill: Read Evidence Bundle ─────────────────────────────────────────────
+
+def read_evidence_bundle(bundle_path, cpt_code):
+    """
+    Generic skill that reads a PA evidence bundle PDF and extracts
+    structured clinical information using the LLM.
+    
+    This skill:
+    1. Reads the PDF text
+    2. Identifies the matched policy based on CPT code
+    3. Sends the text + policy criteria to the LLM
+    4. Returns structured evidence + auto-generated clinical summary
+    
+    Works across ALL use cases (radiology, oncology, surgery, specialty rx).
+    """
+    trace = []
+    ts = lambda: datetime.now().isoformat()
+    
+    trace.append({"ts": ts(), "type": "skill", "name": "ReadEvidenceBundleSkill",
+                  "msg": f"Reading PDF: {os.path.basename(bundle_path)}", "status": "info"})
+    
+    # Read the PDF
+    full_path = os.path.join(DATA_DIR, bundle_path)
+    if not os.path.exists(full_path):
+        trace.append({"ts": ts(), "type": "skill", "name": "ReadEvidenceBundleSkill",
+                      "msg": f"File not found: {bundle_path}", "status": "fail"})
+        return {"error": "Bundle not found", "trace": trace}
+    
+    pdf_text = read_pdf_text(full_path, max_pages=5)
+    trace.append({"ts": ts(), "type": "skill", "name": "ReadEvidenceBundleSkill",
+                  "msg": f"Extracted {len(pdf_text)} chars from PDF", "status": "success"})
+    
+    # Find the matching policy
+    policy = find_policy_for_cpt(cpt_code)
+    criteria_context = ""
+    if policy:
+        trace.append({"ts": ts(), "type": "skill", "name": "ReadEvidenceBundleSkill",
+                      "msg": f"Policy matched: {policy['policyId']} ({policy['policyName']})", "status": "success"})
+        criteria_context = "Policy criteria to validate against:\n" + "\n".join(
+            f"- {c['id']}: {c['description']} (threshold: {c.get('threshold', 'N/A')})"
+            for c in policy.get("criteria", [])
+        )
+    
+    # Use LLM to extract and validate
+    trace.append({"ts": ts(), "type": "skill", "name": "ReadEvidenceBundleSkill",
+                  "msg": "Sending to ClinicalNLP Engine for extraction + validation...", "status": "info"})
+    
+    prompt = f"""Read this PA evidence bundle and extract clinical information.
+
+DOCUMENT TEXT:
+{pdf_text[:4000]}
+
+{criteria_context}
+
+Return a JSON object with:
+{{
+  "clinicalSummary": "<2-3 sentence summary of the clinical situation for the notes field>",
+  "patientName": "<name>",
+  "memberId": "<member ID>",
+  "cptCode": "<CPT code>",
+  "icd10Code": "<ICD-10 code>",
+  "providerName": "<provider>",
+  "providerNpi": "<NPI>",
+  "criteriaFindings": [
+    {{"criterion": "<criterion ID or name>", "finding": "<what the document says>", "met": <true/false>}}
+  ],
+  "missingDocumentation": ["<list of things NOT documented that the policy requires>"]
+}}"""
+
+    response = call_llm(prompt, max_tokens=500, temperature=0.1)
+    
+    try:
+        result = extract_json_from_response(response)
+        if isinstance(result, list):
+            result = result[0] if result else {}
+        
+        trace.append({"ts": ts(), "type": "skill", "name": "ReadEvidenceBundleSkill",
+                      "msg": f"Extraction complete. Found {len(result.get('criteriaFindings', []))} criteria findings.",
+                      "status": "success"})
+        
+        # Add validation summary
+        findings = result.get("criteriaFindings", [])
+        met_count = sum(1 for f in findings if f.get("met"))
+        total = len(findings)
+        result["validationSummary"] = f"{met_count}/{total} criteria met"
+        
+        if result.get("missingDocumentation"):
+            trace.append({"ts": ts(), "type": "skill", "name": "ReadEvidenceBundleSkill",
+                          "msg": f"Missing: {', '.join(result['missingDocumentation'][:3])}",
+                          "status": "warning"})
+        
+        return {"status": "success", "extracted": result, "trace": trace}
+        
+    except (ValueError, json.JSONDecodeError) as e:
+        trace.append({"ts": ts(), "type": "skill", "name": "ReadEvidenceBundleSkill",
+                      "msg": f"Parse error: {str(e)[:100]}", "status": "fail"})
+        # Return raw text as clinical summary fallback
+        return {
+            "status": "partial",
+            "extracted": {"clinicalSummary": response[:300]},
+            "trace": trace
+        }
