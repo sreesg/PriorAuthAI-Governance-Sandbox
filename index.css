@@ -1910,7 +1910,7 @@ footer.app-footer {
   margin-bottom: 0.5rem;
 }
 
-/* Concepts Page */
+/* Concepts Page — Dual Agent Animation */
 .concepts-page {
   height: calc(100vh - 8rem);
   display: flex;
@@ -1922,19 +1922,132 @@ footer.app-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.6rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--card-border);
+  margin-bottom: 0.5rem;
 }
 
-.concepts-main {
+/* Dual agent layout */
+.concepts-dual-agent {
   flex: 1;
   display: grid;
-  grid-template-columns: 220px 1fr;
-  gap: 0.75rem;
+  grid-template-columns: 1fr 60px 1fr;
+  gap: 0.5rem;
   min-height: 0;
   overflow: hidden;
 }
+
+.agent-column {
+  border: 2px solid var(--card-border);
+  border-radius: 10px;
+  padding: 0.6rem;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  transition: border-color 0.4s, box-shadow 0.4s;
+}
+
+.agent-column.active { box-shadow: 0 0 15px rgba(14, 165, 233, 0.15); }
+#ac-pa.active { border-color: #0ea5e9; }
+#ac-ch.active { border-color: #8b5cf6; }
+
+.ac-header {
+  font-size: 0.82rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.ac-pa-header { color: #0284c7; }
+.ac-ch-header { color: #6d28d9; }
+.ac-header small { font-size: 0.6rem; font-weight: 500; color: var(--text-muted); margin-left: auto; }
+
+.ac-section { }
+.ac-label { font-size: 0.62rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.15rem; }
+.ac-items { display: flex; flex-wrap: wrap; gap: 0.2rem; }
+
+.ac-item {
+  font-size: 0.62rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  font-weight: 600;
+  transition: all 0.3s;
+  opacity: 0.5;
+}
+
+.ac-item.lit { opacity: 1; transform: scale(1.05); }
+
+.ac-skill { background: rgba(14, 165, 233, 0.06); color: #0284c7; border: 1px solid rgba(14, 165, 233, 0.15); }
+.ac-skill.lit { background: rgba(14, 165, 233, 0.15); border-color: #0ea5e9; box-shadow: 0 0 6px rgba(14, 165, 233, 0.2); }
+
+.ac-rule { background: rgba(245, 158, 11, 0.06); color: #b45309; border: 1px solid rgba(245, 158, 11, 0.15); }
+.ac-rule.lit { background: rgba(245, 158, 11, 0.15); border-color: #f59e0b; box-shadow: 0 0 6px rgba(245, 158, 11, 0.2); }
+
+.ac-hook { background: rgba(16, 185, 129, 0.06); color: #047857; border: 1px solid rgba(16, 185, 129, 0.15); }
+.ac-hook.lit { background: rgba(16, 185, 129, 0.15); border-color: #10b981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.2); }
+
+.ac-decision {
+  margin-top: auto;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--bg-secondary);
+  border: 1px solid var(--card-border);
+  text-align: center;
+  transition: all 0.4s;
+}
+.ac-decision.approved { background: rgba(16, 185, 129, 0.08); border-color: #10b981; color: #059669; }
+.ac-decision.escalated { background: rgba(245, 158, 11, 0.08); border-color: #f59e0b; color: #d97706; }
+.ac-decision.flagged { background: rgba(239, 68, 68, 0.08); border-color: #ef4444; color: #b91c1c; }
+.ac-decision.agree { background: rgba(16, 185, 129, 0.08); border-color: #10b981; color: #059669; }
+.ac-decision.challenge { background: rgba(239, 68, 68, 0.08); border-color: #ef4444; color: #b91c1c; }
+
+/* Handoff arrow */
+.agent-handoff {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+}
+
+.handoff-arrow {
+  font-size: 1.5rem;
+  color: var(--card-border);
+  transition: all 0.4s;
+}
+.handoff-arrow.active { color: #8b5cf6; transform: scale(1.3); }
+.handoff-label { font-size: 0.58rem; color: var(--text-muted); }
+
+/* Bottom narration + AVI */
+.concepts-bottom-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--card-border);
+  margin-top: 0.4rem;
+}
+
+.concepts-narr {
+  flex: 1;
+  font-size: 0.78rem;
+  color: var(--text-main);
+  font-weight: 500;
+}
+
+.concepts-avi-mini {
+  font-size: 0.7rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 6px;
+  color: #059669;
+  white-space: nowrap;
+}
+.concepts-avi-mini span { font-size: 0.65rem; color: var(--text-muted); }
 
 /* Left narration panel */
 .concepts-narration-panel {

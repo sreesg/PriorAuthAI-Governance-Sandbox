@@ -50,108 +50,121 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Replay demo animation (if present)
-  // Concept animation — uses real escalation case data
+  // Concept animation — dual agent with skills/hooks/rules lighting up
   const storyBtn = document.getElementById('btn-play-story');
   if (storyBtn) storyBtn.addEventListener('click', playConceptStory);
 
   async function playConceptStory() {
     const btn = document.getElementById('btn-play-story');
-    const eventBody = document.getElementById('narr-event-body');
-    const paAgent = document.getElementById('na-pa');
-    const aviAgent = document.getElementById('na-avi');
-    const paStatus = document.getElementById('na-pa-s');
-    const aviStatus = document.getElementById('na-avi-s');
-    const resultBody = document.getElementById('narr-result-body');
-    
-    if (!btn || !eventBody) return;
+    const narr = document.getElementById('story-narration');
+    const aviMsg = document.getElementById('avi-concept-msg');
+    if (!btn || !narr) return;
     btn.disabled = true; btn.textContent = '\u23f8 Playing';
-    
-    // Reset
-    document.querySelectorAll('.cp-stage').forEach(s => s.className = 'cp-stage');
-    document.querySelectorAll('.cp-output').forEach(o => { o.textContent = ''; o.className = 'cp-output'; });
-    document.querySelectorAll('.cp-criteria span').forEach(s => s.className = '');
-    if (paAgent) paAgent.classList.remove('active');
-    if (aviAgent) aviAgent.classList.remove('active');
-    if (paStatus) paStatus.textContent = 'idle';
-    if (aviStatus) aviStatus.textContent = 'idle';
-    if (resultBody) resultBody.textContent = '\u23f3 Pending';
-    document.getElementById('crit-a').textContent = 'Symptoms \u22656wk: ?';
-    document.getElementById('crit-b').textContent = 'Therapy \u22656wk: ?';
-    document.getElementById('crit-c').textContent = 'Neuro findings: ?';
+
+    // Reset all
+    document.querySelectorAll('.ac-item').forEach(el => el.classList.remove('lit'));
+    document.querySelectorAll('.agent-column').forEach(el => el.classList.remove('active'));
+    document.getElementById('pa-decision').className = 'ac-decision';
+    document.getElementById('pa-decision').textContent = 'Decision: \u2014';
+    document.getElementById('ch-decision').className = 'ac-decision';
+    document.getElementById('ch-decision').textContent = 'Verdict: \u2014';
+    document.getElementById('ac-pa-status').textContent = 'idle';
+    document.getElementById('ac-ch-status').textContent = 'idle';
+    document.getElementById('handoff-arrow').className = 'handoff-arrow';
+    if (aviMsg) aviMsg.textContent = 'watching';
 
     const delay = ms => new Promise(r => setTimeout(r, ms));
+    const light = id => document.getElementById(id)?.classList.add('lit');
+    const dim = id => document.getElementById(id)?.classList.remove('lit');
 
-    // Start
-    if (paAgent) { paAgent.classList.add('active'); paStatus.textContent = 'running'; }
-    eventBody.textContent = 'PA Agent received request. Starting pipeline...';
+    // === PA AGENT PHASE ===
+    document.getElementById('ac-pa').classList.add('active');
+    document.getElementById('ac-pa-status').textContent = 'running';
+    narr.textContent = '\U0001f916 PA Agent starts. Receiving PA request for Lumbar MRI (CPT 72148)...';
     await delay(1000);
 
-    // Stage 1
-    document.getElementById('cp-1').classList.add('active');
-    eventBody.textContent = '\U0001f6a8 Hook on_request fires \u2192 RULE-01 scrubs SSN/DOB from logs';
+    // Hook fires, rule activates
+    light('pa-h1'); narr.textContent = '\U0001fa9d Hook on_request fires \u2192 Rule PHI Redact activates. Scrubbing PHI...';
+    await delay(600); light('pa-r1');
+    await delay(800); dim('pa-h1'); dim('pa-r1');
+
+    // PolicyRouter skill
+    light('pa-s1'); narr.textContent = '\U0001f6e0\ufe0f Skill: PolicyRouter matches CPT 72148 \u2192 POL-RAD-501. Rule Code Match validates ICD.';
+    await delay(600); light('pa-r3');
+    await delay(800); dim('pa-s1'); dim('pa-r3');
+
+    // ExtractEvidence skill (calls LLM)
+    light('pa-s2'); narr.textContent = '\U0001f9e0 Skill: ExtractEvidence calls LLM. Finds: 8wk pain, PT done, positive SLR.';
+    await delay(1200); dim('pa-s2');
+
+    // EvalCriteria + Conservatism hook+rule
+    light('pa-s3'); narr.textContent = '\U0001f6e0\ufe0f Skill: EvalCriteria checks thresholds. All 4 criteria pass.';
+    await delay(600); light('pa-h2'); 
+    narr.textContent = '\U0001fa9d Hook on_criteria \u2192 Rule Conservatism: criteria met, no escalation needed.';
+    await delay(600); light('pa-r2');
+    await delay(800); dim('pa-s3'); dim('pa-h2'); dim('pa-r2');
+
+    // GenNotice
+    light('pa-s4'); light('pa-h3');
+    narr.textContent = '\U0001f6e0\ufe0f Skill: GenNotice drafts letter. Hook on_notice \u2192 Plain Language rule.';
+    await delay(800); dim('pa-s4'); dim('pa-h3');
+
+    // PA Decision
+    const paDec = document.getElementById('pa-decision');
+    paDec.textContent = 'Decision: APPROVED';
+    paDec.className = 'ac-decision approved';
+    document.getElementById('ac-pa-status').textContent = 'done';
+    narr.textContent = '\u2705 PA Agent approves. But wait \u2014 Challenger Agent must validate...';
     await delay(1200);
-    document.getElementById('cp-out-1').textContent = 'SSN: [REDACTED] DOB: [REDACTED]';
-    document.getElementById('cp-out-1').className = 'cp-output pass';
-    document.getElementById('cp-1').className = 'cp-stage done';
 
-    // Stage 2
-    document.getElementById('cp-2').classList.add('active');
-    eventBody.textContent = '\U0001f6e0\ufe0f PolicyRouter matches CPT 72148 \u2192 POL-RAD-501 (Lumbar MRI)';
+    // === HANDOFF ===
+    document.getElementById('ac-pa').classList.remove('active');
+    document.getElementById('handoff-arrow').classList.add('active');
+    document.getElementById('handoff-label').textContent = 'reviewing';
+    narr.textContent = '\u27a1\ufe0f Decision handed to Challenger Agent for independent quality review...';
+    await delay(1000);
+    document.getElementById('handoff-arrow').classList.remove('active');
+
+    // === CHALLENGER AGENT PHASE ===
+    document.getElementById('ac-ch').classList.add('active');
+    document.getElementById('ac-ch-status').textContent = 'reviewing';
+
+    // Hook fires
+    light('ch-h1'); narr.textContent = '\U0001fa9d Hook on_pa_decision fires. Challenger activated with adversarial prompt.';
+    await delay(800); dim('ch-h1');
+
+    // Skill: Reinterpret
+    light('ch-s1'); narr.textContent = '\U0001f6e0\ufe0f Skill: ReinterpretEvidence re-reads notes. Looking for weak evidence...';
+    await delay(1000); dim('ch-s1');
+
+    // Skill: AssessGaps
+    light('ch-s2'); narr.textContent = '\U0001f6e0\ufe0f Skill: AssessGaps checks documentation completeness.';
+    await delay(800); dim('ch-s2');
+
+    // Skill: EvalStrength + rules
+    light('ch-s3'); light('ch-r1'); light('ch-r2');
+    narr.textContent = '\U0001f6e0\ufe0f Skill: EvalStrength rates evidence. Rules: must cite text, must be substantive.';
+    await delay(1000); dim('ch-s3'); dim('ch-r1'); dim('ch-r2');
+
+    // Confidence check rule
+    light('ch-r3'); narr.textContent = '\u2699\ufe0f Rule: Confidence Threshold. Score: 4/10. Below 7 \u2192 No formal challenge.';
+    await delay(1000); dim('ch-r3');
+
+    // Challenger Decision
+    const chDec = document.getElementById('ch-decision');
+    chDec.textContent = 'Verdict: \u2705 AGREE (4/10)';
+    chDec.className = 'ac-decision agree';
+    document.getElementById('ac-ch-status').textContent = 'done';
+    light('ch-h2');
+    narr.textContent = '\u2705 Challenger AGREES. Documentation is strong. No override needed. Quality confirmed.';
+    await delay(600); dim('ch-h2');
+
+    // AVI
+    if (aviMsg) aviMsg.textContent = 'can explain both perspectives';
     await delay(800);
-    document.getElementById('cp-out-2').textContent = 'Matched: POL-RAD-501. ICD M54.5 valid.';
-    document.getElementById('cp-out-2').className = 'cp-output pass';
-    eventBody.textContent = '\U0001fa9d Hook on_guidelines \u2192 RULE-04 validates M54.5 is in allowed list \u2713';
-    await delay(1000);
-    document.getElementById('cp-2').className = 'cp-stage done';
 
-    // Stage 3
-    document.getElementById('cp-3').classList.add('active');
-    eventBody.textContent = '\U0001f9e0 ExtractEvidence calls ClinicalNLP (Gemma 4 12B) to read notes...';
-    await delay(1500);
-    document.getElementById('cp-out-3').textContent = 'therapy=0wk, symptoms=3wk, neuro=false, imaging=false';
-    document.getElementById('cp-out-3').className = 'cp-output';
-    if (aviAgent) { aviAgent.classList.add('active'); aviStatus.textContent = 'watching'; }
-    eventBody.textContent = 'AI extracted: only 3 weeks symptoms, NO physical therapy, NO neuro findings';
-    await delay(1000);
-    document.getElementById('cp-3').className = 'cp-stage done';
-
-    // Stage 4 — the key failure point
-    document.getElementById('cp-4').classList.add('active');
-    eventBody.textContent = '\u2699\ufe0f EvalCriteria checking policy thresholds...';
-    await delay(800);
-
-    // Check criteria one by one
-    document.getElementById('crit-a').textContent = 'Symptoms \u22656wk: 3wk \u2717';
-    document.getElementById('crit-a').classList.add('unmet');
-    await delay(600);
-    document.getElementById('crit-b').textContent = 'Therapy \u22656wk: 0wk \u2717';
-    document.getElementById('crit-b').classList.add('unmet');
-    await delay(600);
-    document.getElementById('crit-c').textContent = 'Neuro findings: none \u2717';
-    document.getElementById('crit-c').classList.add('unmet');
-    await delay(600);
-
-    eventBody.textContent = '\U0001fa9d Hook on_criteria fires \u2192 RULE-02 Conservatism: criteria UNMET \u2192 ESCALATE (never deny)';
-    document.getElementById('cp-out-4').textContent = '3/4 criteria FAILED. Conservatism rule: escalate to human.';
-    document.getElementById('cp-out-4').className = 'cp-output fail';
-    if (paStatus) paStatus.textContent = 'escalating';
-    await delay(1200);
-    document.getElementById('cp-4').className = 'cp-stage failed';
-
-    // Stage 5
-    document.getElementById('cp-5').classList.add('active');
-    eventBody.textContent = '\U0001f4dd GenNotice drafts escalation letter. RULE-05 translates acronyms.';
-    await delay(1000);
-    document.getElementById('cp-out-5').textContent = '"Your request has been escalated for Medical Director review."';
-    document.getElementById('cp-out-5').className = 'cp-output';
-    document.getElementById('cp-5').className = 'cp-stage done';
-
-    // Final
-    if (paStatus) paStatus.textContent = 'done';
-    if (aviStatus) aviStatus.textContent = 'can explain why';
-    if (resultBody) resultBody.textContent = '\u26a0\ufe0f ESCALATED — insufficient documentation';
-    resultBody.style.color = '#d97706';
-    eventBody.textContent = '\u2705 Pipeline complete. AVI can now explain: "Missing 6wk PT and neuro exam."';
+    narr.textContent = '\u2705 Final: APPROVED with quality confirmation. 3 agents collaborated: PA decided, Challenger validated, AVI ready to explain.';
+    document.getElementById('ac-ch').classList.remove('active');
     
     btn.disabled = false; btn.textContent = '\u25b6 Replay';
   }
