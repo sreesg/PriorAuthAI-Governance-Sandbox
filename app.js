@@ -665,13 +665,49 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Show AI evidence panel if available
       const aiReasoningCard = document.getElementById('ai-reasoning-card');
-      if (aiModeEnabled && outcome.evidence) {
+      if (aiModeEnabled && outcome.evidence && Object.keys(outcome.evidence).length > 0) {
         aiReasoningCard.style.display = 'block';
         const aiStatusBadge = document.getElementById('ai-status-badge');
         const aiReasoningText = document.getElementById('ai-reasoning-text');
+        const aiCompRegex = document.getElementById('ai-comp-regex');
+        const aiCompAi = document.getElementById('ai-comp-ai');
+        
         aiStatusBadge.textContent = 'Complete';
         aiStatusBadge.className = 'badge badge-success';
-        aiReasoningText.textContent = typeof outcome.evidence === 'string' ? outcome.evidence : JSON.stringify(outcome.evidence, null, 2);
+        
+        // Format AI evidence nicely
+        const ev = outcome.evidence;
+        let aiHtml = '';
+        aiHtml += `<span class="match">Therapy: ${ev.conservativeTherapyWeeks || 0} wks</span>\n`;
+        aiHtml += `<span class="${ev.hasNeurologicalSymptoms ? 'match' : ''}"'>Neurological: ${ev.hasNeurologicalSymptoms ? '✓ Yes' : '✗ No'}</span>\n`;
+        aiHtml += `<span class="${ev.hasMechanicalSymptoms ? 'match' : ''}">Mechanical: ${ev.hasMechanicalSymptoms ? '✓ Yes' : '✗ No'}</span>\n`;
+        aiHtml += `<span class="${ev.hasSpecialist ? 'match' : ''}">Specialist: ${ev.hasSpecialist ? '✓ Yes' : '✗ No'}</span>\n`;
+        aiHtml += `<span class="${ev.hasImagingFindings ? 'match' : ''}">Imaging: ${ev.hasImagingFindings ? '✓ Yes' : '✗ No'}</span>\n`;
+        if (ev.failedMedications && ev.failedMedications.length > 0) {
+          aiHtml += `<span class="match">Failed meds: ${ev.failedMedications.join(', ')}</span>\n`;
+        }
+        if (ev.severityScore) {
+          aiHtml += `<span class="match">Severity: ${ev.severityScore}</span>\n`;
+        }
+        aiCompAi.innerHTML = aiHtml;
+        
+        // Show what regex would have found (run locally for comparison)
+        const notes = request.clinicalNotes.toLowerCase();
+        let regexHtml = '';
+        const rxTherapy = (notes.match(/(\d+)\s*weeks?\s*(?:of\s+)?(?:pt|physical therapy|therapy)/)||[])[1] || '0';
+        regexHtml += `<span class="${rxTherapy == (ev.conservativeTherapyWeeks||0) ? 'match' : 'mismatch'}">Therapy: ${rxTherapy} wks</span>\n`;
+        const rxNeuro = /radiculopathy|numbness|tingling|weakness|radiating|straight leg/.test(notes);
+        regexHtml += `<span class="${rxNeuro === ev.hasNeurologicalSymptoms ? 'match' : 'mismatch'}">Neurological: ${rxNeuro ? '✓ Yes' : '✗ No'}</span>\n`;
+        const rxMech = /locking|catching|giving way|mechanical/.test(notes);
+        regexHtml += `<span class="${rxMech === ev.hasMechanicalSymptoms ? 'match' : 'mismatch'}">Mechanical: ${rxMech ? '✓ Yes' : '✗ No'}</span>\n`;
+        const rxSpec = /oncologist|dermatologist|orthopedic|board-certified|rheumatologist/.test(notes);
+        regexHtml += `<span class="${rxSpec === ev.hasSpecialist ? 'match' : 'mismatch'}">Specialist: ${rxSpec ? '✓ Yes' : '✗ No'}</span>\n`;
+        const rxImg = /mri shows|mri dated|ct shows|biopsy/.test(notes);
+        regexHtml += `<span class="${rxImg === ev.hasImagingFindings ? 'match' : 'mismatch'}">Imaging: ${rxImg ? '✓ Yes' : '✗ No'}</span>\n`;
+        aiCompRegex.innerHTML = regexHtml;
+        
+        // Show reasoning
+        aiReasoningText.textContent = ev.reasoning ? `💬 "${ev.reasoning}"` : '';
       } else {
         aiReasoningCard.style.display = 'none';
       }
