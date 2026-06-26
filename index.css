@@ -1933,6 +1933,7 @@ footer.app-footer {
   gap: 0.6rem;
   min-height: 0;
   overflow: hidden;
+  max-height: calc(100vh - 14rem);
 }
 
 /* Compact agent columns */
@@ -2481,4 +2482,16 @@ footer.app-footer {
 
 .cdef strong {
   color: #1e293b;
+}
+
+/* Agent explanation area */
+.ac-explain {
+  font-size: 0.62rem;
+  color: #374151;
+  line-height: 1.4;
+  padding: 0.25rem 0.3rem;
+  background: #f9fafb;
+  border-radius: 4px;
+  min-height: 1rem;
+  transition: all 0.3s;
 }
