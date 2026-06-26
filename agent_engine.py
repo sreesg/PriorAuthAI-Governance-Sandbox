@@ -73,7 +73,16 @@ def extract_json_from_response(text):
     elif "```" in text:
         text = text.split("```")[1].split("```")[0].strip()
     
-    # Try array first
+    # Try object FIRST (most common for our use case)
+    start = text.find("{")
+    end = text.rfind("}") + 1
+    if start >= 0 and end > start:
+        try:
+            return json.loads(text[start:end])
+        except json.JSONDecodeError:
+            pass
+    
+    # Then try array
     start = text.find("[")
     end = text.rfind("]") + 1
     if start >= 0 and end > start:
@@ -82,7 +91,6 @@ def extract_json_from_response(text):
         except json.JSONDecodeError:
             # Try to fix truncated array by closing it
             partial = text[start:]
-            # Find last complete object
             last_brace = partial.rfind("}")
             if last_brace > 0:
                 fixed = partial[:last_brace+1] + "]"
@@ -90,12 +98,6 @@ def extract_json_from_response(text):
                     return json.loads(fixed)
                 except json.JSONDecodeError:
                     pass
-    
-    # Try object
-    start = text.find("{")
-    end = text.rfind("}") + 1
-    if start >= 0 and end > start:
-        return json.loads(text[start:end])
     
     raise ValueError(f"No JSON found in: {text[:200]}")
 

@@ -589,7 +589,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (disc) disc.classList.remove('disc-active');
     });
     outcomeBadge.textContent = 'Processing...';
-    outcomeReason.textContent = 'Calling Python agent backend...';
+    outcomeReason.textContent = 'Calling AI agent...';
     letterContent.textContent = '';
     timeline.innerHTML = '<div class="timeline-empty-state">🤖 Agent processing...</div>';
     document.getElementById('flow-step-1').className = 'flow-step active';
