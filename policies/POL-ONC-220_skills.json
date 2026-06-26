@@ -1,0 +1,28 @@
+{
+  "policyId": "POL-ONC-220",
+  "generatedAt": "2026-06-26T12:04:58.577277",
+  "skills": [
+    {
+      "skillName": "ClinicalIndicationValidation",
+      "description": "Validates if the clinical scenario meets staging, restaging, or recurrence criteria.",
+      "inputs": [
+        "clinical_indication"
+      ],
+      "outputs": [
+        "is_valid_indication"
+      ],
+      "logic": "Check if 'clinical_indication' contains any of: 'staging', 'restaging', or 'recurrence'."
+    },
+    {
+      "skillName": "ProviderSpecialtyValidation",
+      "description": "Validates if the requesting physician is an oncologist, pulmonologist, or surgeon.",
+      "inputs": [
+        "physician_specialty"
+      ],
+      "outputs": [
+        "is_authorized_provider"
+      ],
+      "logic": "Verify 'physician_specialty' matches 'oncologist', 'pulmonologist', or 'surgeon'."
+    }
+  ]
+}

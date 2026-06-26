@@ -1,0 +1,18 @@
+{
+  "policyId": "POL-RX-880",
+  "generatedAt": "2026-06-26T12:01:27.381342",
+  "hooks": [
+    {
+      "hookName": "verify_clinical_thresholds",
+      "stage": "on_criteria_evaluated",
+      "description": "Validate severity scores and duration of prior failed therapies.",
+      "validates": "CRIT-1, CRIT-2, CRIT-3, CRIT-4"
+    },
+    {
+      "hookName": "validate_provider_and_patient_eligibility",
+      "stage": "on_criteria_evaluated",
+      "description": "Verify provider specialty, patient age, and safety screenings.",
+      "validates": "CRIT-5, CRIT-6, CRIT-7"
+    }
+  ]
+}

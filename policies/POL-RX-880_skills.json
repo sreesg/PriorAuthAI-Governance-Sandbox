@@ -1,0 +1,32 @@
+{
+  "policyId": "POL-RX-880",
+  "generatedAt": "2026-06-26T12:01:07.595449",
+  "skills": [
+    {
+      "skillName": "ClinicalSeverityValidation",
+      "description": "Validates diagnosis severity via IGA, EASI, or BSA scores.",
+      "inputs": [
+        "IGA_score",
+        "EASI_score",
+        "BSA_percentage"
+      ],
+      "outputs": [
+        "is_severe_atopic_dermatitis"
+      ],
+      "logic": "Return true if IGA >= 3 OR EASI >= 16 OR BSA >= 10%."
+    },
+    {
+      "skillName": "TreatmentFailureValidation",
+      "description": "Validates failure or contraindication of topical, calcineurin, and systemic therapies.",
+      "inputs": [
+        "topical_steroid_duration",
+        "calcineurin_inhibitor_duration",
+        "systemic_immunosuppressant_duration"
+      ],
+      "outputs": [
+        "treatment_history_met"
+      ],
+      "logic": "Verify 4 weeks of topical steroid, 4 weeks of calcineurin inhibitor, and 3 months of systemic immunosuppressant (or contraindication)."
+    }
+  ]
+}

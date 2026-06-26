@@ -1,0 +1,18 @@
+{
+  "policyId": "POL-SURG-340",
+  "generatedAt": "2026-06-26T11:59:41.716164",
+  "hooks": [
+    {
+      "hookName": "validate_clinical_thresholds",
+      "stage": "on_criteria_evaluated",
+      "description": "Verify duration of conservative treatment and mechanical symptom presence.",
+      "validates": "CRIT-1, CRIT-2"
+    },
+    {
+      "hookName": "validate_patient_eligibility",
+      "stage": "on_criteria_evaluated",
+      "description": "Verify age/BMI requirements and surgeon certification status.",
+      "validates": "CRIT-4, CRIT-5, CRIT-6"
+    }
+  ]
+}

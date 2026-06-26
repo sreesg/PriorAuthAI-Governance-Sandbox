@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   } catch (e) {
     console.error("Initial file view load failed:", e);
   }
-  refreshSkillsPills();
+  await refreshSkillsPills();
   loadPolicyWorkspace();
 
   // Load policies into the workspace dropdown and detail view
@@ -271,18 +271,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // 3. Render active registered skills pills in the UI
-  function refreshSkillsPills() {
+  // 3. Render active registered skills pills in the UI (from both JS agent and backend)
+  async function refreshSkillsPills() {
     activeSkillsPills.innerHTML = '';
-    const skillsList = Object.keys(agent.skills);
-    discoveredSkillsCount.textContent = `${skillsList.length} Active Skills`;
-
-    skillsList.forEach(name => {
-      const pill = document.createElement('span');
-      pill.className = 'skill-pill';
-      if (name === "VerifyNpiStatusSkill") {
-        pill.className = 'skill-pill new-injected';
+    
+    // Get JS agent skills
+    const jsSkills = Object.keys(agent.skills);
+    
+    // Get generated skills from all policy files
+    let backendSkills = [];
+    try {
+      const res = await fetch('/agent/policies');
+      const policies = await res.json();
+      for (const p of policies) {
+        try {
+          const sRes = await fetch(`/policies/${p.policyId}_skills.json?t=${Date.now()}`);
+          if (sRes.ok) {
+            const data = await sRes.json();
+            (data.skills || []).forEach(s => {
+              if (s.skillName && !backendSkills.includes(s.skillName)) {
+                backendSkills.push(s.skillName);
+              }
+            });
+          }
+        } catch(_) {}
       }
+    } catch(_) {}
+    
+    const allSkills = [...new Set([...jsSkills, ...backendSkills])];
+    discoveredSkillsCount.textContent = `${allSkills.length} Active Skills`;
+
+    allSkills.forEach(name => {
+      const pill = document.createElement('span');
+      pill.className = backendSkills.includes(name) ? 'skill-pill new-injected' : 'skill-pill';
       pill.textContent = name;
       activeSkillsPills.appendChild(pill);
     });
@@ -321,74 +342,81 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 6.6. (Removed — per-policy action buttons handle this now)
 
-  // 6.7. Natural Language Skill Creator
+  // 6.7. Natural Language Creator (Skill, Rule, or Hook)
   const nlSkillInput = document.getElementById('nl-skill-input');
   const btnCreateSkill = document.getElementById('btn-create-skill');
   const nlSkillStatus = document.getElementById('nl-skill-status');
 
   btnCreateSkill.addEventListener('click', async () => {
     const description = nlSkillInput.value.trim();
+    const entryType = document.getElementById('manual-entry-type').value; // skill, rule, or hook
+    
     if (!description) {
-      nlSkillStatus.textContent = "Please describe a skill in plain English.";
+      nlSkillStatus.textContent = "Please describe in plain English.";
       nlSkillStatus.className = "nl-skill-status error";
       return;
     }
 
+    // Get currently selected policy for context
+    const policySelect = document.getElementById('policy-select');
+    const policyId = policySelect ? policySelect.value : '';
+
     btnCreateSkill.disabled = true;
-    btnCreateSkill.textContent = "🧠 Generating...";
-    nlSkillStatus.textContent = "Parsing natural language and generating skill contract...";
+    btnCreateSkill.textContent = "⏳";
+    nlSkillStatus.textContent = `🧠 AI generating ${entryType} from description...`;
     nlSkillStatus.className = "nl-skill-status processing";
 
     try {
-      const res = await fetch('/generate-skill', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description })
-      });
-
-      if (res.ok) {
+      if (entryType === 'skill' && !policyId) {
+        // Use the old /generate-skill endpoint for standalone skills
+        const res = await fetch('/generate-skill', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ description })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          auditConsole.textContent = data.auditLogs.join('\n');
+          await agent.reloadSkills();
+          await refreshSkillsPills();
+          nlSkillStatus.textContent = `✓ Skill "${data.skillName}" registered.`;
+          nlSkillStatus.className = "nl-skill-status success";
+          nlSkillInput.value = '';
+          showToast(`Skill "${data.skillName}" created!`, "success");
+        } else {
+          const err = await res.json().catch(() => ({}));
+          nlSkillStatus.textContent = `Error: ${err.error || 'Failed'}`;
+          nlSkillStatus.className = "nl-skill-status error";
+        }
+      } else if (policyId) {
+        // Use /agent/build-for-policy with custom description context
+        const res = await fetch('/agent/build-for-policy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ policyId, action: entryType === 'hook' ? 'hooks' : entryType + 's', customDescription: description })
+        });
         const data = await res.json();
-
-        // Show audit output
-        auditConsole.textContent = data.auditLogs.join('\n');
-
-        // Reload skills into agent
-        await agent.reloadSkills();
-        refreshSkillsPills();
-
-        // Refresh editor if viewing skills_declaration.md
-        if (activeFile === 'skills_declaration.md' || activeFile === 'skills.js') {
-          await refreshActiveFileView();
+        if (res.ok) {
+          auditConsole.textContent = data.auditLog || 'Done';
+          nlSkillStatus.textContent = `✓ Custom ${entryType} added for ${policyId}`;
+          nlSkillStatus.className = "nl-skill-status success";
+          nlSkillInput.value = '';
+          await refreshSkillsPills();
+          showToast(`${entryType} added for ${policyId}`, 'success');
+        } else {
+          nlSkillStatus.textContent = `Error: ${data.error || 'Failed'}`;
+          nlSkillStatus.className = "nl-skill-status error";
         }
-
-        nlSkillStatus.textContent = `✓ Skill "${data.skillName}" registered.\n  Inputs: ${data.inputs.join(', ')}\n  Outputs: ${data.outputs.join(', ')}`;
-        nlSkillStatus.className = "nl-skill-status success";
-        nlSkillInput.value = '';
-        showToast(`Skill "${data.skillName}" created and compiled!`, "success");
       } else {
-        let errText = '';
-        try {
-          const errData = await res.json();
-          errText = errData.error || errData.message || JSON.stringify(errData);
-          if (errData.auditLogs) {
-            auditConsole.textContent = errData.auditLogs.join('\n');
-          }
-        } catch (_) {
-          errText = await res.text().catch(() => `HTTP ${res.status}`);
-        }
-        nlSkillStatus.textContent = `Error (${res.status}): ${errText}`;
+        nlSkillStatus.textContent = "Select a policy first, or use 'Skill' type for standalone skills.";
         nlSkillStatus.className = "nl-skill-status error";
-        auditConsole.textContent = `Skill generation error (${res.status}):\n${errText}`;
-        showToast(`Skill generation failed: ${errText}`, "error");
       }
     } catch (e) {
-      nlSkillStatus.textContent = `Network error: ${e.message}\nMake sure the server is running (python3 server.py)`;
+      nlSkillStatus.textContent = `Network error: ${e.message}`;
       nlSkillStatus.className = "nl-skill-status error";
-      auditConsole.textContent = `Network error: ${e.message}\nIs the server running? Try: python3 server.py`;
-      showToast(`Network error: ${e.message}`, "error");
     } finally {
       btnCreateSkill.disabled = false;
-      btnCreateSkill.textContent = "🧠 Generate & Register Skill";
+      btnCreateSkill.textContent = "🧠 Add";
     }
   });
 

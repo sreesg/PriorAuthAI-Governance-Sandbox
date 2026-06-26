@@ -1,0 +1,18 @@
+{
+  "policyId": "POL-RAD-501",
+  "generatedAt": "2026-06-26T12:03:49.812600",
+  "hooks": [
+    {
+      "hookName": "validate_conservative_therapy",
+      "stage": "on_criteria_evaluated",
+      "description": "Verify 6 weeks of documented conservative therapy failure.",
+      "validates": "CRIT-1"
+    },
+    {
+      "hookName": "verify_imaging_frequency",
+      "stage": "on_criteria_evaluated",
+      "description": "Ensure no MRI in same region within 12 months.",
+      "validates": "CRIT-4"
+    }
+  ]
+}

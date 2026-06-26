@@ -1,0 +1,18 @@
+{
+  "policyId": "POL-ONC-220",
+  "generatedAt": "2026-06-26T12:05:12.551056",
+  "hooks": [
+    {
+      "hookName": "validate_clinical_context",
+      "stage": "on_evidence_extracted",
+      "description": "Verify clinical indication and malignancy evidence from medical records.",
+      "validates": "CRIT-1, CRIT-2"
+    },
+    {
+      "hookName": "evaluate_medical_necessity",
+      "stage": "on_criteria_evaluated",
+      "description": "Confirm imaging insufficiency and impact on treatment plan.",
+      "validates": "CRIT-3, CRIT-5"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "policyId": "POL-SURG-340",
+  "generatedAt": "2026-06-26T11:59:25.084044",
+  "skills": [
+    {
+      "skillName": "ConservativeTreatmentValidation",
+      "description": "Validates duration of physical therapy, NSAIDs, and activity modification.",
+      "inputs": [
+        "physical_therapy_duration",
+        "nsaid_usage",
+        "activity_modification"
+      ],
+      "outputs": [
+        "is_conservative_treatment_met"
+      ],
+      "logic": "Check if physical therapy >= 6 weeks AND NSAID/activity modification are documented."
+    },
+    {
+      "skillName": "ClinicalAndImagingValidation",
+      "description": "Validates mechanical symptoms, MRI findings, and age-related criteria.",
+      "inputs": [
+        "mechanical_symptoms",
+        "mri_findings",
+        "patient_age",
+        "is_degenerative"
+      ],
+      "outputs": [
+        "clinical_imaging_met"
+      ],
+      "logic": "Verify (locking/catching) AND (MRI signal to surface) AND (Age < 65 OR not degenerative)."
+    }
+  ]
+}
