@@ -89,10 +89,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       select.innerHTML = '<option>Failed to load policies</option>';
     }
     
-    // Dropdown change — update detail AND refresh artifacts
+    // Dropdown change — update detail AND refresh artifacts for new policy
     select.addEventListener('change', () => {
       showWorkspacePolicy(select.value);
-      refreshActiveFileView();
+      // Re-trigger the active tab to load the correct policy file
+      const activeTabBtn = document.querySelector('.file-tabs .tab-btn.active');
+      if (activeTabBtn) activeTabBtn.click();
       auditConsole.textContent = `Selected: ${select.options[select.selectedIndex]?.text || select.value}\nClick Generate to build artifacts for this policy.`;
     });
     
@@ -291,7 +293,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.addEventListener('click', async () => {
       tabButtons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      activeFile = btn.getAttribute('data-file');
+      const fileAttr = btn.getAttribute('data-file');
+      
+      // For policy-specific files, prepend the selected policy ID
+      const policySelect = document.getElementById('policy-select');
+      const selectedPolicyId = policySelect ? policySelect.value : '';
+      
+      if (fileAttr === 'rules_declaration.md' && selectedPolicyId) {
+        activeFile = `policies/${selectedPolicyId}_rules.md`;
+      } else if (fileAttr === 'generated_skills.json' && selectedPolicyId) {
+        activeFile = `policies/${selectedPolicyId}_skills.json`;
+      } else if (fileAttr === 'rules.rego') {
+        // Try per-policy hooks as "rego" tab shows hooks
+        activeFile = selectedPolicyId ? `policies/${selectedPolicyId}_hooks.json` : 'rules.rego';
+      } else {
+        activeFile = fileAttr;
+      }
+      
       await refreshActiveFileView();
     });
   });

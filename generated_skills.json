@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-26T11:25:17.915100",
+  "generatedAt": "2026-06-26T11:39:41.298110",
   "skills": [
     {
       "skillName": "ConservativeTreatmentValidation",
@@ -77,6 +77,33 @@
         "has_met_treatment_failure_criteria"
       ],
       "logic": "TopicalSteroid >= 4 weeks AND CalcineurinInhibitor >= 4 weeks AND SystemicImmunosuppressant >= 3 months"
+    },
+    {
+      "skillName": "ClinicalSeverityValidation",
+      "description": "Validates severity scores and specialty provider credentials.",
+      "inputs": [
+        "IGA_Score",
+        "EASI_Score",
+        "BSA_Percentage",
+        "Provider_Specialty"
+      ],
+      "outputs": [
+        "is_clinically_eligible"
+      ],
+      "logic": "(IGA >= 3 OR EASI >= 16 OR BSA >= 10) AND (Provider_Specialty IN ['Dermatologist', 'Allergist', 'Immunologist'])"
+    },
+    {
+      "skillName": "TreatmentFailureValidation",
+      "description": "Validates failure of topical, calcineurin, and systemic therapies.",
+      "inputs": [
+        "Topical_Steroid_Duration",
+        "Calcineurin_Inhibitor_Duration",
+        "Systemic_Immunosuppressant_Duration"
+      ],
+      "outputs": [
+        "has_failed_prior_therapies"
+      ],
+      "logic": "Topical_Steroid_Duration >= 4 weeks AND Calcineurin_Inhibitor_Duration >= 4 weeks AND Systemic_Immunosuppressant_Duration >= 3 months"
     }
   ]
 }

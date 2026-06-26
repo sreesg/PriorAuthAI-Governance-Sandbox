@@ -1,0 +1,30 @@
+{
+  "policyId": "POL-RAD-501",
+  "generatedAt": "2026-06-26T11:52:08.755120",
+  "skills": [
+    {
+      "skillName": "ConservativeTherapyValidation",
+      "description": "Validates minimum 6 weeks of conservative therapy and documented failure.",
+      "inputs": [
+        "conservative_therapy_duration",
+        "failure_documented"
+      ],
+      "outputs": [
+        "is_eligible"
+      ],
+      "logic": "Check if duration >= 6 weeks AND failure_documented is true."
+    },
+    {
+      "skillName": "ClinicalIndicationValidation",
+      "description": "Validates presence of neurological symptoms and absence of red flags.",
+      "inputs": [
+        "neurological_symptoms",
+        "red_flags"
+      ],
+      "outputs": [
+        "is_eligible"
+      ],
+      "logic": "Check if neurological_symptoms is true AND red_flags are handled via emergency pathway."
+    }
+  ]
+}

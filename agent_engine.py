@@ -573,6 +573,21 @@ def find_policy_for_cpt(cpt_code):
     return None
 
 
+def _load_policy_artifact(policy_id, artifact_type):
+    """Load a generated artifact (skills, hooks, rules) for a specific policy."""
+    if artifact_type == 'rules':
+        filepath = os.path.join(POLICIES_DIR, f"{policy_id}_rules.md")
+        if os.path.exists(filepath):
+            with open(filepath, "r") as f:
+                return {"content": f.read()}
+    else:
+        filepath = os.path.join(POLICIES_DIR, f"{policy_id}_{artifact_type}.json")
+        if os.path.exists(filepath):
+            with open(filepath, "r") as f:
+                return json.load(f)
+    return None
+
+
 def load_preset_cases():
     """Load the preset cases from the policies directory."""
     cases_file = os.path.join(POLICIES_DIR, "preset_cases.json")
@@ -614,6 +629,24 @@ def run_multi_policy_review(request, use_ai_extraction=False):
         trace.append({"ts": ts(), "type": "skill", "name": "PolicyRouterSkill",
                       "msg": f"Category: {policy['category']}. {len(policy.get('criteria',[]))} criteria to evaluate.",
                       "status": "info"})
+        
+        # Load generated skills and hooks for this policy (if they exist)
+        policy_id = policy['policyId']
+        gen_skills = _load_policy_artifact(policy_id, 'skills')
+        gen_hooks = _load_policy_artifact(policy_id, 'hooks')
+        gen_rules = _load_policy_artifact(policy_id, 'rules')
+        
+        if gen_skills:
+            skill_names = [s.get('skillName', '?') for s in gen_skills.get('skills', [])]
+            trace.append({"ts": ts(), "type": "skill", "name": "SkillLoader",
+                          "msg": f"Loaded {len(skill_names)} generated skill(s): {', '.join(skill_names)}", "status": "success"})
+        if gen_hooks:
+            hook_names = [h.get('hookName', '?') for h in gen_hooks.get('hooks', [])]
+            trace.append({"ts": ts(), "type": "hook", "name": "HookLoader",
+                          "msg": f"Loaded {len(hook_names)} generated hook(s): {', '.join(hook_names)}", "status": "success"})
+        if gen_rules:
+            trace.append({"ts": ts(), "type": "rule", "name": "RulesLoader",
+                          "msg": f"Generated rules loaded for {policy_id}", "status": "success"})
     else:
         trace.append({"ts": ts(), "type": "skill", "name": "PolicyRouterSkill",
                       "msg": f"No policy found for CPT {cpt_code}. Using default thresholds.", "status": "warning"})
@@ -644,6 +677,8 @@ def run_multi_policy_review(request, use_ai_extraction=False):
         trace.append({"ts": ts(), "type": "skill", "name": "ExtractEvidence (Regex)",
                       "msg": "Using pattern matching for extraction.", "status": "info"})
         evidence = _regex_extract_full(clinical_notes, policy)
+        trace.append({"ts": ts(), "type": "skill", "name": "ExtractEvidence (Regex)",
+                      "msg": f"Extracted: therapy={evidence.get('conservativeTherapyWeeks',0)}wk, neuro={evidence.get('hasNeurologicalSymptoms')}, mech={evidence.get('hasMechanicalSymptoms')}, imaging={evidence.get('hasImagingFindings')}, specialist={evidence.get('hasSpecialist')}", "status": "success"})
 
     # ─── STAGE 4: Criteria Evaluation ─────────────────────────────────────
     trace.append({"ts": ts(), "type": "disclosure", "name": "Progressive Disclosure",
@@ -689,7 +724,12 @@ def run_multi_policy_review(request, use_ai_extraction=False):
         "criteriaMet": criteria_results,
         "policyUsed": policy.get("policyId", "default") if policy else "no_match",
         "policyName": policy.get("policyName", "") if policy else "Default",
-        "category": policy.get("category", "General") if policy else "General"
+        "category": policy.get("category", "General") if policy else "General",
+        "generatedArtifacts": {
+            "hasRules": gen_rules is not None if policy else False,
+            "hasSkills": gen_skills is not None if policy else False,
+            "hasHooks": gen_hooks is not None if policy else False,
+        } if policy else {}
     }
 
 
@@ -896,19 +936,12 @@ Be concise. Output ONLY the markdown rules."""
 
     response = call_llm(prompt, max_tokens=400, temperature=0.1)
 
-    # Save to rules file
-    rules_file = os.path.join(DATA_DIR, "rules_declaration.md")
-    with open(rules_file, "r") as f:
-        existing = f.read()
-
-    # Append if not already there
-    if policy_id not in existing:
-        with open(rules_file, "a") as f:
-            f.write(f"\n\n{response}\n")
-        audit = f"✓ Rules generated for {policy_id} and appended to rules_declaration.md\n\n{response}"
-    else:
-        audit = f"ℹ️ Rules for {policy_id} already exist in rules_declaration.md. No changes made.\n\nGenerated:\n{response}"
-
+    # Save to per-policy rules file
+    rules_file = os.path.join(POLICIES_DIR, f"{policy_id}_rules.md")
+    with open(rules_file, "w") as f:
+        f.write(f"# Rules: {policy_id} — {policy_name}\n\n{response}\n")
+    
+    audit = f"✓ Rules generated and saved to policies/{policy_id}_rules.md\n\n{response}"
     return {"status": "success", "action": "rules", "policyId": policy_id, "auditLog": audit}
 
 
@@ -931,20 +964,16 @@ Return a JSON array of 2 skills only. Be very concise in descriptions (under 15 
         skills = extract_json_from_response(response)
         if isinstance(skills, dict):
             skills = [skills]
-        # Save
-        skills_file = os.path.join(DATA_DIR, "generated_skills.json")
-        existing_skills = load_saved_skills()
-        existing_names = {s.get("skillName") for s in existing_skills}
-        new_skills = [s for s in skills if s.get("skillName") not in existing_names]
-        all_skills = existing_skills + new_skills
-        save_generated_skills(all_skills)
+        
+        # Save per-policy
+        skills_file = os.path.join(POLICIES_DIR, f"{policy_id}_skills.json")
+        with open(skills_file, "w") as f:
+            json.dump({"policyId": policy_id, "generatedAt": datetime.now().isoformat(), "skills": skills}, f, indent=2)
 
-        audit = f"✓ Generated {len(new_skills)} new skill(s) for {policy_id}:\n"
-        for s in new_skills:
+        audit = f"✓ Generated {len(skills)} skill(s) for {policy_id}:\n"
+        for s in skills:
             audit += f"  • {s.get('skillName', '?')}: {s.get('description', '')[:60]}\n"
-        if not new_skills:
-            audit += "  (All skills already exist)\n"
-        audit += f"\nTotal skills registered: {len(all_skills)}"
+        audit += f"\nSaved to policies/{policy_id}_skills.json"
     except (ValueError, json.JSONDecodeError):
         skills = []
         audit = f"⚠️ Could not parse skills from LLM response.\nRaw:\n{response[:300]}"
@@ -973,10 +1002,16 @@ Be very concise."""
         if isinstance(hooks, dict):
             hooks = [hooks]
         
+        # Save per-policy
+        hooks_file = os.path.join(POLICIES_DIR, f"{policy_id}_hooks.json")
+        with open(hooks_file, "w") as f:
+            json.dump({"policyId": policy_id, "generatedAt": datetime.now().isoformat(), "hooks": hooks}, f, indent=2)
+        
         audit = f"✓ Generated {len(hooks)} hook(s) for {policy_id}:\n"
         for h in hooks:
             audit += f"  🪝 {h.get('hookName', '?')} @ {h.get('stage', '?')}\n"
             audit += f"     → {h.get('description', '')[:60]}\n"
+        audit += f"\nSaved to policies/{policy_id}_hooks.json"
     except (ValueError, json.JSONDecodeError):
         hooks = []
         audit = f"⚠️ Could not parse hooks from LLM response.\nRaw:\n{response[:300]}"
