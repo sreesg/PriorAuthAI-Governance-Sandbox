@@ -721,6 +721,35 @@ def run_multi_policy_review(request, use_ai_extraction=False):
     trace.append({"ts": ts(), "type": "system", "name": "Agent Engine",
                   "msg": f"Pipeline complete. {len(trace)} events logged.", "status": "success"})
 
+    # ─── CHALLENGER AGENT: Autonomous second-opinion review ────────────────
+    trace.append({"ts": ts(), "type": "system", "name": "Agent Engine",
+                  "msg": "Handing off to Challenger Agent for independent review...", "status": "info"})
+    
+    try:
+        import challenger_agent
+        challenger_result = challenger_agent.review(
+            pa_decision=decision,
+            pa_reason=reason,
+            evidence=evidence,
+            criteria_met=criteria_results,
+            request=request,
+            policy=policy
+        )
+        # Merge challenger trace into main trace
+        for t in challenger_result.get("trace", []):
+            trace.append(t)
+    except Exception as e:
+        challenger_result = {
+            "verdict": "ERROR",
+            "confidence": 0,
+            "reasoning": f"Challenger agent error: {str(e)}",
+            "findings": [],
+            "recommendation": "Proceed with PA Agent decision.",
+            "formalChallenge": False
+        }
+        trace.append({"ts": ts(), "type": "system", "name": "Challenger Agent",
+                      "msg": f"Error: {str(e)}", "status": "fail"})
+
     return {
         "decision": decision,
         "reason": reason,
@@ -736,7 +765,15 @@ def run_multi_policy_review(request, use_ai_extraction=False):
             "hasRules": gen_rules is not None if policy else False,
             "hasSkills": gen_skills is not None if policy else False,
             "hasHooks": gen_hooks is not None if policy else False,
-        } if policy else {}
+        } if policy else {},
+        "challenger": {
+            "verdict": challenger_result.get("verdict", "AGREE"),
+            "confidence": challenger_result.get("confidence", 0),
+            "reasoning": challenger_result.get("reasoning", ""),
+            "findings": challenger_result.get("findings", []),
+            "recommendation": challenger_result.get("recommendation", ""),
+            "formalChallenge": challenger_result.get("formalChallenge", False)
+        }
     }
 
 
@@ -1216,3 +1253,4 @@ Return JSON (keep findings SHORT - max 8 words each):
             "extracted": {"clinicalSummary": response[:300]},
             "trace": trace
         }
+

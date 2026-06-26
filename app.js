@@ -596,6 +596,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Hide AI panels
     const aiCard = document.getElementById('ai-reasoning-card');
     if (aiCard) aiCard.style.display = 'none';
+    const challengerCard = document.getElementById('challenger-card');
+    if (challengerCard) challengerCard.style.display = 'none';
     const aiInsights = document.getElementById('ai-insights-panel');
     if (aiInsights) aiInsights.style.display = 'none';
     const aiModelBadge = document.getElementById('ai-model-badge');
@@ -928,6 +930,33 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       showToast(`Decision: ${outcome.decision}`, outcome.status === 'approved' ? 'success' : 'info');
+
+      // Render Challenger Agent result
+      const challengerCard = document.getElementById('challenger-card');
+      const challengerBody = document.getElementById('challenger-body');
+      const challengerBadge = document.getElementById('challenger-verdict-badge');
+      
+      if (outcome.challenger && outcome.challenger.verdict) {
+        challengerCard.style.display = 'block';
+        const ch = outcome.challenger;
+        const verdictClass = ch.verdict === 'AGREE' ? 'badge-agree' : ch.verdict === 'CHALLENGE' ? 'badge-challenge' : 'badge-concern';
+        const verdictIcon = ch.verdict === 'AGREE' ? '✓' : ch.verdict === 'CHALLENGE' ? '✗' : '⚠';
+        challengerBadge.textContent = `${verdictIcon} ${ch.verdict} (${ch.confidence}/10)`;
+        challengerBadge.className = `badge ${verdictClass}`;
+        
+        let bodyHtml = `<div class="challenger-reasoning">${ch.reasoning || ''}</div>`;
+        if (ch.findings && ch.findings.length > 0) {
+          bodyHtml += '<div class="challenger-findings">';
+          ch.findings.forEach(f => { bodyHtml += `<div class="challenger-finding">${f}</div>`; });
+          bodyHtml += '</div>';
+        }
+        if (ch.recommendation) {
+          bodyHtml += `<div style="margin-top:0.4rem;font-size:0.72rem;color:var(--text-muted);"><strong>Recommendation:</strong> ${ch.recommendation}</div>`;
+        }
+        challengerBody.innerHTML = bodyHtml;
+      } else {
+        challengerCard.style.display = 'none';
+      }
 
     } catch (e) {
       outcomeBadge.textContent = 'Error';

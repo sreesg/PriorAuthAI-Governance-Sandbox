@@ -2209,3 +2209,45 @@ footer.app-footer {
   gap: 0.75rem;
   margin-top: 0.3rem;
 }
+
+/* Challenger Agent Card */
+.challenger-card {
+  border-left-color: rgba(139, 92, 246, 0.4) !important;
+}
+
+.challenger-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.challenger-body {
+  font-size: 0.78rem;
+  color: var(--text-main);
+  line-height: 1.6;
+  margin-top: 0.4rem;
+}
+
+.challenger-body .challenger-reasoning {
+  margin-bottom: 0.4rem;
+}
+
+.challenger-body .challenger-findings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.3rem;
+}
+
+.challenger-finding {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.5rem;
+  background: var(--bg-secondary);
+  border-left: 2px solid #8b5cf6;
+  border-radius: 0 4px 4px 0;
+  color: var(--text-main);
+}
+
+.badge-agree { background: rgba(16, 185, 129, 0.08); color: #059669; border-color: rgba(16, 185, 129, 0.25); }
+.badge-challenge { background: rgba(239, 68, 68, 0.08); color: #dc2626; border-color: rgba(239, 68, 68, 0.25); }
+.badge-concern { background: rgba(245, 158, 11, 0.08); color: #d97706; border-color: rgba(245, 158, 11, 0.25); }
