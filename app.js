@@ -1,9 +1,7 @@
-import { PRESET_CASES } from './cases.js';
 import { PriorAuthAgent } from './agent.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   const agent = new PriorAuthAgent();
-  let activeCaseId = "case-1";
   let activeFile = "rules_declaration.md"; // Default editor active view
   let regoSourceText = "";
 
@@ -378,23 +376,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // 7. Preset Case loaders
-  function renderPresets() {
-    presetContainer.innerHTML = '';
-    PRESET_CASES.forEach(c => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = `case-btn ${c.id === activeCaseId ? 'active' : ''}`;
-      btn.innerHTML = `<h3>Case ${c.id.split('-')[1]}</h3>`;
+  // 7. Preset Case loaders (fetched from Python backend)
+  async function renderPresets() {
+    try {
+      const res = await fetch('/agent/cases');
+      const cases = await res.json();
+      presetContainer.innerHTML = '';
       
-      btn.addEventListener('click', () => {
-        activeCaseId = c.id;
-        document.querySelectorAll('.case-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        loadCaseToForm(c);
+      cases.forEach(c => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'case-btn';
+        btn.innerHTML = `<h3>${c.title.split('—')[0].trim()}</h3><p style="font-size:0.6rem;color:var(--text-muted);margin-top:2px;">${c.category}</p>`;
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.case-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          loadCaseToForm(c);
+        });
+        presetContainer.appendChild(btn);
       });
-      presetContainer.appendChild(btn);
-    });
+      
+      // Load first case by default
+      if (cases.length > 0) {
+        presetContainer.querySelector('.case-btn').classList.add('active');
+        loadCaseToForm(cases[0]);
+      }
+    } catch(e) {
+      console.error('Failed to load cases:', e);
+    }
   }
 
   function loadCaseToForm(caseObj) {
@@ -469,35 +478,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // 9. Render Timeline Trace Output
+  // 9. Render Timeline Trace Output (Python backend format: {ts, type, name, msg, status})
   function renderTrace(traceLog) {
     timeline.innerHTML = '';
-    traceCounter.textContent = `${traceLog.length} events logged`;
+    traceCounter.textContent = `${traceLog.length} events`;
 
-    if (traceLog.length === 0) {
-      timeline.innerHTML = `
-        <div class="timeline-empty-state">
-          <span class="timeline-empty-icon">🤖</span>
-          <p>Execution trace outputs will display here.</p>
-        </div>
-      `;
+    if (!traceLog || traceLog.length === 0) {
+      timeline.innerHTML = '<div class="timeline-empty-state"><span class="timeline-empty-icon">🤖</span><p>Trace outputs will display here.</p></div>';
       return;
     }
 
-    // Update the disclosure panel with the final progressive disclosure summary
-    updateDisclosurePanel(traceLog);
-
     traceLog.forEach(step => {
       const item = document.createElement('div');
-      // Special styling for Progressive Disclosure events
       const isDisclosure = step.name === 'Progressive Disclosure';
-      const isAiPowered = step.name.includes('ClinicalNLP') || step.name.includes('Gemma 4') || (step.details && step.details.model);
+      const isAiPowered = step.name && step.name.includes('ClinicalNLP');
       item.className = `timeline-item ${step.status}${isDisclosure ? ' disclosure' : ''}${isAiPowered ? ' ai-powered' : ''}`;
-      
+
       const badgeClass = isDisclosure ? 'type-disclosure' : `type-${step.type}`;
       const displayType = isDisclosure ? 'disclosure' : step.type;
-      const timestamp = new Date(step.timestamp);
-      const timeStr = timestamp.toLocaleTimeString() + '.' + String(timestamp.getMilliseconds()).padStart(3, '0');
+      const ts = step.ts ? new Date(step.ts) : new Date();
+      const timeStr = ts.toLocaleTimeString() + '.' + String(ts.getMilliseconds()).padStart(3, '0');
 
       item.innerHTML = `
         <div class="timeline-dot"></div>
@@ -505,84 +505,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           <span class="item-type-badge ${badgeClass}">${displayType}</span>
           <span class="item-time">${timeStr}</span>
         </div>
-        <div class="item-title">${step.name}</div>
-        <div class="item-msg">${step.message}</div>
-        ${step.details ? `
-          <div class="item-expand">
-            <pre>${escapeHtml(JSON.stringify(step.details, null, 2))}</pre>
-          </div>
-        ` : ''}
+        <div class="item-title">${step.name || ''}</div>
+        <div class="item-msg">${step.msg || step.message || ''}</div>
       `;
-
-      if (step.details) {
-        item.addEventListener('click', () => {
-          item.classList.toggle('expanded');
-        });
-      }
-
       timeline.appendChild(item);
     });
-  }
-
-  // Update the Progressive Disclosure status panel based on trace events
-  function updateDisclosurePanel(traceLog) {
-    const discPanel = document.getElementById('disclosure-panel');
-    const discBadge = document.getElementById('disclosure-stage-badge');
-    const discDisclosed = document.getElementById('disc-disclosed');
-    const discWithheld = document.getElementById('disc-withheld');
-    
-    const pdEvents = traceLog.filter(t => t.name === 'Progressive Disclosure');
-    
-    if (pdEvents.length === 0) {
-      discBadge.textContent = 'Idle';
-      discBadge.className = 'disclosure-badge';
-      discDisclosed.textContent = '—';
-      discWithheld.textContent = '—';
-      return;
-    }
-
-    // Get the final summary event
-    const finalEvent = pdEvents[pdEvents.length - 1];
-    const isComplete = finalEvent.message.includes('Pipeline complete');
-    
-    if (isComplete) {
-      discBadge.textContent = 'Complete';
-      discBadge.className = 'disclosure-badge complete';
-      discDisclosed.textContent = 'All 5 rules + guidelines + Rego policies';
-      discWithheld.textContent = 'None — fully disclosed';
-    } else {
-      // Show the last active stage
-      const lastStageEvent = pdEvents.filter(e => e.message.includes('Stage')).pop();
-      if (lastStageEvent) {
-        const stageMatch = lastStageEvent.message.match(/Stage (\d)/);
-        const stageNum = stageMatch ? stageMatch[1] : '?';
-        discBadge.textContent = `Stage ${stageNum}`;
-        discBadge.className = 'disclosure-badge active';
-        
-        // Build disclosed/withheld lists
-        const allRules = ['RULE-01', 'RULE-02', 'RULE-03', 'RULE-04', 'RULE-05'];
-        const disclosed = [];
-        const withheld = [];
-        
-        pdEvents.forEach(e => {
-          allRules.forEach(r => {
-            if (e.message.includes(r) && !disclosed.includes(r)) {
-              disclosed.push(r);
-            }
-          });
-          if (e.message.includes('Rego')) disclosed.push('Rego');
-          if (e.message.includes('Guidelines')) disclosed.push('Guidelines');
-        });
-        
-        allRules.forEach(r => {
-          if (!disclosed.includes(r)) withheld.push(r);
-        });
-        if (!disclosed.includes('Rego')) withheld.push('Rego Policy');
-        
-        discDisclosed.textContent = disclosed.join(', ') || '—';
-        discWithheld.textContent = withheld.join(', ') || 'None';
-      }
-    }
   }
 
   function escapeHtml(text) {
@@ -594,137 +521,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       .replace(/'/g, "&gt;");
   }
 
-  // Helper: Run regex extraction locally for comparison with AI
-  function runRegexExtraction(request) {
-    const notes = request.clinicalNotes.toLowerCase();
-    const cptCode = request.cptCode;
-    let symptomsDurationWeeks = 0, therapyWeeks = 0, hasObjectiveFindings = false, isRheumatologist = false, hasRadiographs = false;
-    
-    if (cptCode === "73721") {
-      const durationMatch = notes.match(/(\d+)\s*weeks?\s*of\s*(pain|symptom)/) || notes.match(/pain\s*for\s*(\d+)\s*weeks?/);
-      if (durationMatch) symptomsDurationWeeks = parseInt(durationMatch[1], 10);
-      else if (notes.includes("persistent knee pain")) symptomsDurationWeeks = 8;
-      
-      const therapyMatch = notes.match(/(\d+)\s*weeks?\s*of\s*(physical therapy|pt|therapy|ibuprofen|nsaids)/);
-      if (therapyMatch) therapyWeeks = parseInt(therapyMatch[1], 10);
-      else if (notes.includes("physical therapy")) therapyWeeks = 6;
-      
-      if (notes.includes("tenderness") || notes.includes("swelling") || notes.includes("instability") || notes.includes("locking")) hasObjectiveFindings = true;
-      if (notes.includes("radiograph") || notes.includes("x-ray")) hasRadiographs = true;
-    }
-    if (cptCode === "J0135") {
-      if (notes.includes("rheumatoid arthritis")) hasObjectiveFindings = true;
-      if (notes.includes("methotrexate") || notes.includes("dmard")) {
-        const m = notes.match(/(\d+)\s*months?/);
-        therapyWeeks = m ? parseInt(m[1], 10) * 4 : 12;
-      }
-      if (notes.includes("rheumatologist")) isRheumatologist = true;
-    }
-    return { symptomsDurationWeeks, therapyWeeks, hasObjectiveFindings, isRheumatologist, hasRadiographs };
-  }
-
-  // Helper: Render evidence as HTML with match/mismatch highlights and AI accuracy insights
-  function renderEvidenceComparison(data, other, mode) {
-    const fields = [
-      { key: 'symptomsDurationWeeks', label: 'Symptoms' , unit: 'wks' },
-      { key: 'therapyWeeks', label: 'Therapy', unit: 'wks' },
-      { key: 'hasObjectiveFindings', label: 'Findings' },
-      { key: 'isRheumatologist', label: 'Specialist' },
-      { key: 'hasRadiographs', label: 'X-rays' },
-    ];
-    
-    let html = '';
-    fields.forEach(f => {
-      const val = data[f.key];
-      const otherVal = other[f.key];
-      const matches = val === otherVal;
-      const displayVal = typeof val === 'boolean' ? (val ? '✓ Yes' : '✗ No') : `${val} ${f.unit || ''}`;
-      const cls = matches ? 'match' : 'mismatch';
-      const icon = matches ? '' : (mode === 'ai' ? ' ✦' : ' ⚠');
-      html += `<span class="${cls}">${f.label}: ${displayVal}${icon}</span>\n`;
-    });
-    return html;
-  }
-
-  // Helper: Generate AI accuracy insight callout explaining where regex fails
-  function generateAccuracyInsight(regexResult, aiResult, clinicalNotes) {
-    const insights = [];
-    const notesLower = clinicalNotes.toLowerCase();
-    
-    // Check therapy negation
-    if (regexResult.therapyWeeks > 0 && aiResult.therapyWeeks === 0) {
-      if (notesLower.includes('no physical therapy') || notesLower.includes('no pt') || notesLower.includes('not completed')) {
-        insights.push({
-          field: 'Therapy',
-          issue: 'Negation missed',
-          detail: `Regex matched "physical therapy" keyword → defaulted to ${regexResult.therapyWeeks} wks. But the text says "No physical therapy completed." The AI understands negation.`,
-          severity: 'high'
-        });
-      }
-    }
-    
-    // Check radiograph negation
-    if (regexResult.hasRadiographs && !aiResult.hasRadiographs) {
-      if (notesLower.includes('no plain radiographs') || notesLower.includes('no x-ray') || notesLower.includes('not performed')) {
-        insights.push({
-          field: 'X-rays',
-          issue: 'Negation missed',
-          detail: `Regex matched "radiograph" keyword → marked as done. But the text says "No plain radiographs performed." The AI reads the full sentence.`,
-          severity: 'high'
-        });
-      }
-    }
-    
-    // Check if AI found radiographs regex missed (positive case)
-    if (!regexResult.hasRadiographs && aiResult.hasRadiographs) {
-      insights.push({
-        field: 'X-rays',
-        issue: 'Paraphrase detection',
-        detail: `Regex didn't match the exact keywords "radiograph" or "x-ray." The AI understood a paraphrased reference to completed imaging.`,
-        severity: 'medium'
-      });
-    }
-    
-    // Check therapy duration differences (non-negation)
-    if (regexResult.therapyWeeks !== aiResult.therapyWeeks && regexResult.therapyWeeks > 0 && aiResult.therapyWeeks > 0) {
-      insights.push({
-        field: 'Therapy',
-        issue: 'Duration parsing',
-        detail: `Regex extracted ${regexResult.therapyWeeks} wks, AI extracted ${aiResult.therapyWeeks} wks. The AI may be interpreting context like "completed 6 weeks" vs "enrolled for 8 weeks" more accurately.`,
-        severity: 'medium'
-      });
-    }
-    
-    // Check symptom duration
-    if (regexResult.symptomsDurationWeeks !== aiResult.symptomsDurationWeeks) {
-      insights.push({
-        field: 'Symptoms',
-        issue: 'Duration interpretation',
-        detail: `Regex: ${regexResult.symptomsDurationWeeks} wks, AI: ${aiResult.symptomsDurationWeeks} wks. The AI may handle temporal references like "since last month" that regex can't parse.`,
-        severity: 'medium'
-      });
-    }
-    
-    return insights;
-  }
-
-  // Helper: Render accuracy insights as HTML
-  function renderAccuracyInsights(insights) {
-    if (insights.length === 0) {
-      return '<div class="ai-insight-match">✓ Regex and AI agree on all fields. Both extractions are consistent.</div>';
-    }
-    
-    let html = `<div class="ai-insight-header">⚡ AI Accuracy Advantages Found: ${insights.length}</div>`;
-    insights.forEach(insight => {
-      html += `<div class="ai-insight-item ${insight.severity}">`;
-      html += `<div class="ai-insight-field">${insight.field} — <span class="ai-insight-issue">${insight.issue}</span></div>`;
-      html += `<div class="ai-insight-detail">${insight.detail}</div>`;
-      html += `</div>`;
-    });
-    return html;
-  }
-
-  // 10. Pipeline execution submission — Animated Progressive Disclosure
+  // 10. Pipeline execution submission — calls Python backend
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -740,224 +537,113 @@ document.addEventListener('DOMContentLoaded', async () => {
       clinicalNotes: inputNotes.value.trim()
     };
 
-    // Reset all UI state
-    const steps = [1, 2, 3, 4, 5];
-    steps.forEach(s => {
+    // Reset UI
+    [1,2,3,4,5].forEach(s => {
       const el = document.getElementById(`flow-step-${s}`);
-      el.className = "flow-step";
-      el.querySelector('.flow-step-disclosure').className = 'flow-step-disclosure';
+      el.className = 'flow-step';
+      const disc = el.querySelector('.flow-step-disclosure');
+      if (disc) disc.classList.remove('disc-active');
     });
-
-    outcomeBadge.textContent = 'Reviewing...';
-    outcomeReason.textContent = 'Progressive disclosure in progress...';
+    outcomeBadge.textContent = 'Processing...';
+    outcomeReason.textContent = 'Calling Python agent backend...';
     letterContent.textContent = '';
-    timeline.innerHTML = '';
-
-    // Reset disclosure panel
-    const discBadge = document.getElementById('disclosure-stage-badge');
-    const discDisclosed = document.getElementById('disc-disclosed');
-    const discWithheld = document.getElementById('disc-withheld');
-    discBadge.textContent = 'Starting';
-    discBadge.className = 'disclosure-badge active';
-    discDisclosed.textContent = '—';
-    discWithheld.textContent = 'RULE-01, RULE-02, RULE-03, RULE-04, RULE-05, Rego, Guidelines';
-
-    // Disclosure animation data per stage
-    const disclosureStages = [
-      { stage: 1, label: 'Stage 1: Intake', disclosed: 'RULE-01 (PHI)', withheld: 'RULE-02, RULE-03, RULE-04, RULE-05, Rego, Guidelines' },
-      { stage: 2, label: 'Stage 2: Coverage', disclosed: 'RULE-01, RULE-04, Guidelines (CPT-specific)', withheld: 'RULE-02, RULE-03, RULE-05, Rego Policy' },
-      { stage: 3, label: 'Stage 3: Evidence', disclosed: 'RULE-01, RULE-04, Guidelines, Clinical Evidence', withheld: 'RULE-02, RULE-03, RULE-05, Rego Policy' },
-      { stage: 4, label: 'Stage 4: Evaluation', disclosed: 'RULE-01, RULE-02, RULE-04, Guidelines, Evidence, Rego Policy', withheld: 'RULE-03, RULE-05' },
-      { stage: 5, label: 'Stage 5: Notice', disclosed: 'All rules + policies disclosed', withheld: 'None' },
-    ];
-
-    // Animate stages progressively
-    await loadRegoSource();
-    
-    // Helper to delay
-    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-    // Stage 1 animation
+    timeline.innerHTML = '<div class="timeline-empty-state">🤖 Agent processing...</div>';
     document.getElementById('flow-step-1').className = 'flow-step active';
-    document.getElementById('flow-disc-1').classList.add('disc-active');
-    discBadge.textContent = 'Stage 1';
-    discDisclosed.textContent = disclosureStages[0].disclosed;
-    discWithheld.textContent = disclosureStages[0].withheld;
-    await delay(600);
 
-    // Stage 2 animation
-    document.getElementById('flow-step-1').className = 'flow-step passed';
-    document.getElementById('flow-step-2').className = 'flow-step active';
-    document.getElementById('flow-disc-2').classList.add('disc-active');
-    discBadge.textContent = 'Stage 2';
-    discDisclosed.textContent = disclosureStages[1].disclosed;
-    discWithheld.textContent = disclosureStages[1].withheld;
-    await delay(600);
-
-    // Stage 3 animation
-    document.getElementById('flow-step-2').className = 'flow-step passed';
-    document.getElementById('flow-step-3').className = 'flow-step active';
-    document.getElementById('flow-disc-3').classList.add('disc-active');
-    discBadge.textContent = 'Stage 3';
-    discDisclosed.textContent = disclosureStages[2].disclosed;
-    discWithheld.textContent = disclosureStages[2].withheld;
-    await delay(600);
-
-    // Stage 4 animation — Rego rules NOW disclosed
-    document.getElementById('flow-step-3').className = 'flow-step passed';
-    document.getElementById('flow-step-4').className = 'flow-step active';
-    document.getElementById('flow-disc-4').classList.add('disc-active');
-    discBadge.textContent = 'Stage 4';
-    discDisclosed.textContent = disclosureStages[3].disclosed;
-    discWithheld.textContent = disclosureStages[3].withheld;
-    await delay(600);
-
-    // Stage 5 animation — All disclosed
-    document.getElementById('flow-step-4').className = 'flow-step passed';
-    document.getElementById('flow-step-5').className = 'flow-step active';
-    document.getElementById('flow-disc-5').classList.add('disc-active');
-    discBadge.textContent = 'Stage 5';
-    discDisclosed.textContent = disclosureStages[4].disclosed;
-    discWithheld.textContent = disclosureStages[4].withheld;
-    await delay(400);
-
-    // Now actually run the agent (execution already happened logically during animation)
     const aiModeEnabled = document.getElementById('ai-mode-toggle').checked;
-    const aiReasoningCard = document.getElementById('ai-reasoning-card');
-    const aiStatusBadge = document.getElementById('ai-status-badge');
-    const aiModelBadge = document.getElementById('ai-model-badge');
-    const aiCompRegex = document.getElementById('ai-comp-regex');
-    const aiCompAi = document.getElementById('ai-comp-ai');
-    const aiReasoningText = document.getElementById('ai-reasoning-text');
-    let aiEvidence = null;
-    
-    if (aiModeEnabled) {
-      // Show AI panel and set loading state
-      aiReasoningCard.style.display = 'block';
-      aiStatusBadge.textContent = 'Processing...';
-      aiStatusBadge.className = 'badge badge-orange';
-      aiCompAi.innerHTML = '<span class="ai-loading">🧠 ClinicalNLP Engine is analyzing notes...</span>';
-      aiCompRegex.textContent = 'Waiting for AI comparison...';
-      aiReasoningText.textContent = '';
-      aiModelBadge.textContent = '🧠 ClinicalNLP';
-      aiModelBadge.className = 'badge badge-ai';
-      
-      // Call Gemma 4 12B via Ollama for real AI clinical extraction
-      try {
-        const aiRes = await fetch('/ai-extract', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            clinicalNotes: request.clinicalNotes,
-            cptCode: request.cptCode,
-            guidelinesText: `CPT ${request.cptCode}, ICD-10 ${request.icd10Code}`
-          })
-        });
-        if (aiRes.ok) {
-          const aiData = await aiRes.json();
-          aiEvidence = aiData.extracted;
-          aiStatusBadge.textContent = 'Complete';
-          aiStatusBadge.className = 'badge badge-success';
-          
-          // Run regex extraction too for comparison
-          const regexResult = runRegexExtraction(request);
-          
-          // Render comparison
-          aiCompRegex.innerHTML = renderEvidenceComparison(regexResult, aiEvidence, 'regex');
-          aiCompAi.innerHTML = renderEvidenceComparison(aiEvidence, regexResult, 'ai');
-          
-          // Generate and show accuracy insights
-          const insights = generateAccuracyInsight(regexResult, aiEvidence, request.clinicalNotes);
-          const insightsPanel = document.getElementById('ai-insights-panel');
-          insightsPanel.innerHTML = renderAccuracyInsights(insights);
-          insightsPanel.style.display = 'block';
-          
-          // Show AI reasoning
-          if (aiEvidence.reasoning) {
-            aiReasoningText.textContent = `💬 "${aiEvidence.reasoning}"`;
-          }
-          
-          showToast(`🧠 ClinicalNLP: semantic extraction complete`, "success");
-        } else {
-          const errData = await aiRes.json().catch(() => ({}));
-          aiStatusBadge.textContent = 'Offline';
-          aiStatusBadge.className = 'badge badge-fail';
-          aiCompAi.innerHTML = `<span style="color:var(--accent-red);">Model unavailable: ${errData.error || 'Ollama not running'}</span>`;
-          aiModelBadge.textContent = '⚠️ NLP Offline';
-          aiModelBadge.className = 'badge badge-fail';
-          showToast(`AI extraction unavailable: ${errData.error || 'Ollama offline'}`, "error");
-        }
-      } catch (e) {
-        aiStatusBadge.textContent = 'Error';
-        aiStatusBadge.className = 'badge badge-fail';
-        aiCompAi.innerHTML = `<span style="color:var(--accent-red);">Network error: ${e.message}</span>`;
-        showToast(`AI endpoint error: ${e.message}`, "error");
+
+    try {
+      const res = await fetch('/agent/run-review', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ request, useAI: aiModeEnabled })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
       }
-    } else {
-      aiReasoningCard.style.display = 'none';
-      aiModelBadge.textContent = '';
-      aiModelBadge.className = 'badge';
-    }
-    
-    const outcome = await agent.run(request, regoSourceText, aiEvidence);
-    
-    outcomeCard.className = `glass-card outcome-card ${outcome.status}`;
-    outcomeBadge.textContent = outcome.decision;
-    outcomeReason.textContent = outcome.reason;
-    letterContent.textContent = outcome.notice;
 
-    // Mark disclosure complete
-    discBadge.textContent = 'Complete';
-    discBadge.className = 'disclosure-badge complete';
-    discDisclosed.textContent = 'All 5 rules + guidelines + Rego policies';
-    discWithheld.textContent = 'None — fully disclosed';
+      const outcome = await res.json();
 
-    renderTrace(outcome.trace);
+      // Update outcome card
+      outcomeCard.className = `glass-card outcome-card ${outcome.status}`;
+      outcomeBadge.textContent = outcome.decision;
+      outcomeReason.textContent = `${outcome.policyName} (${outcome.category}) — ${outcome.reason}`;
+      letterContent.textContent = outcome.notice;
 
-    // Update NPI status badge
-    const npiBadge = document.getElementById('npi-status-badge');
-    if (outcome.trace.some(t => t.name === 'VerifyNpiStatusSkill' && t.status === 'fail')) {
-      npiBadge.textContent = 'NPI Invalid';
-      npiBadge.className = 'badge badge-fail';
-    } else if (outcome.trace.some(t => t.name === 'VerifyNpiStatusSkill' && t.status === 'success')) {
-      npiBadge.textContent = 'NPI Valid';
-      npiBadge.className = 'badge badge-success';
-    } else {
+      // Render trace
+      renderTrace(outcome.trace);
+
+      // Update pipeline flow from trace
+      const traceStages = outcome.trace.filter(t => t.name === 'Progressive Disclosure');
+      let maxStage = 0;
+      traceStages.forEach(t => {
+        const m = t.msg.match(/Stage (\d)/);
+        if (m) maxStage = Math.max(maxStage, parseInt(m[1]));
+      });
+      // Light up stages
+      for (let s = 1; s <= 5; s++) {
+        const el = document.getElementById(`flow-step-${s}`);
+        if (s <= maxStage) {
+          el.className = outcome.status === 'approved' || s < maxStage ? 'flow-step passed' : 'flow-step warning';
+        }
+      }
+      // If there were failed criteria, mark stage 4 as warning
+      if (outcome.status !== 'approved') {
+        document.getElementById('flow-step-4').className = 'flow-step warning';
+        document.getElementById('flow-step-5').className = 'flow-step warning';
+      }
+
+      // Update NPI badge
+      const npiBadge = document.getElementById('npi-status-badge');
       npiBadge.textContent = '';
       npiBadge.className = 'badge';
+
+      // AI model badge
+      const aiModelBadge = document.getElementById('ai-model-badge');
+      if (aiModeEnabled) {
+        aiModelBadge.textContent = '🧠 ClinicalNLP';
+        aiModelBadge.className = 'badge badge-ai';
+      } else {
+        aiModelBadge.textContent = '';
+        aiModelBadge.className = 'badge';
+      }
+
+      // Update disclosure panel
+      const discBadge = document.getElementById('disclosure-stage-badge');
+      const discDisclosed = document.getElementById('disc-disclosed');
+      const discWithheld = document.getElementById('disc-withheld');
+      discBadge.textContent = 'Complete';
+      discBadge.className = 'disclosure-badge complete';
+      discDisclosed.textContent = `Policy: ${outcome.policyUsed}`;
+      discWithheld.textContent = 'None — all disclosed';
+
+      // Show AI evidence panel if available
+      const aiReasoningCard = document.getElementById('ai-reasoning-card');
+      if (aiModeEnabled && outcome.evidence) {
+        aiReasoningCard.style.display = 'block';
+        const aiStatusBadge = document.getElementById('ai-status-badge');
+        const aiReasoningText = document.getElementById('ai-reasoning-text');
+        aiStatusBadge.textContent = 'Complete';
+        aiStatusBadge.className = 'badge badge-success';
+        aiReasoningText.textContent = typeof outcome.evidence === 'string' ? outcome.evidence : JSON.stringify(outcome.evidence, null, 2);
+      } else {
+        aiReasoningCard.style.display = 'none';
+      }
+
+      showToast(`Decision: ${outcome.decision}`, outcome.status === 'approved' ? 'success' : 'info');
+
+    } catch (e) {
+      outcomeBadge.textContent = 'Error';
+      outcomeReason.textContent = e.message;
+      showToast(`Agent error: ${e.message}`, 'error');
     }
-
-    // --- Final Gate Highlights (post-execution) ---
-    // Re-evaluate gates based on actual outcome
-    const hasCoverageError = outcome.trace.some(t => t.name === "VerifyCoverageSkill" && (t.status === "fail" || t.status === "warning")) ||
-                             outcome.trace.some(t => t.name === "VerifyNpiStatusSkill" && t.status === "fail");
-    const hasCodeMatchError = outcome.trace.some(t => t.name === "RULE-04 (Code Match)" && t.status === "fail");
-
-    if (hasCoverageError || hasCodeMatchError) {
-      document.getElementById('flow-step-2').className = "flow-step failed";
-      [3, 4, 5].forEach(s => document.getElementById(`flow-step-${s}`).className = "flow-step");
-      return;
-    }
-    document.getElementById('flow-step-2').className = "flow-step passed";
-
-    const hasOpaMismatch = outcome.trace.some(t => t.name === "EvaluateClinicalCriteriaSkill" && t.message.includes("Not Met")) ||
-                           outcome.trace.some(t => t.name === "rules.rego" && t.message.includes("approve -> FALSE"));
-    document.getElementById('flow-step-3').className = hasOpaMismatch ? "flow-step warning" : "flow-step passed";
-
-    if (outcome.decision === "Approved") {
-      document.getElementById('flow-step-4').className = "flow-step passed";
-    } else {
-      document.getElementById('flow-step-4').className = "flow-step warning";
-    }
-
-    const hasNoticeError = outcome.trace.some(t => t.type === "rule" && t.status === "fail" && (t.name.includes("RULE-03") || t.name.includes("RULE-05")));
-    document.getElementById('flow-step-5').className = hasNoticeError ? "flow-step failed" : "flow-step passed";
   });
 
   // Init UI
-  renderPresets();
+  await renderPresets();
   renderRulesToggles();
-  loadCaseToForm(PRESET_CASES[0]);
 
   // ═══════════════════════════════════════════════════════════════
   // AI FEATURES (All powered by ClinicalNLP Engine via /ai-chat)
