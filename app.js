@@ -940,11 +940,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         challengerCard.style.display = 'block';
         const ch = outcome.challenger;
         const verdictClass = ch.verdict === 'AGREE' ? 'badge-agree' : ch.verdict === 'CHALLENGE' ? 'badge-challenge' : 'badge-concern';
-        const verdictIcon = ch.verdict === 'AGREE' ? '✓' : ch.verdict === 'CHALLENGE' ? '✗' : '⚠';
+        const verdictIcon = ch.verdict === 'AGREE' ? '✓' : ch.verdict === 'CHALLENGE' ? '🚩' : '⚠';
         challengerBadge.textContent = `${verdictIcon} ${ch.verdict} (${ch.confidence}/10)`;
         challengerBadge.className = `badge ${verdictClass}`;
         
-        let bodyHtml = `<div class="challenger-reasoning">${ch.reasoning || ''}</div>`;
+        let bodyHtml = '';
+        
+        // Red flag banner if formal challenge
+        if (ch.formalChallenge) {
+          bodyHtml += `<div class="challenger-red-flag">🚩 FORMAL CHALLENGE — Decision overridden. Sent to Medical Director with findings below.</div>`;
+          // Also update the outcome card to show flagged status
+          outcomeCard.className = 'glass-card outcome-card escalated';
+          outcomeBadge.textContent = outcome.decision;
+        }
+        
+        bodyHtml += `<div class="challenger-reasoning">${ch.reasoning || ''}</div>`;
         if (ch.findings && ch.findings.length > 0) {
           bodyHtml += '<div class="challenger-findings">';
           ch.findings.forEach(f => { bodyHtml += `<div class="challenger-finding">${f}</div>`; });

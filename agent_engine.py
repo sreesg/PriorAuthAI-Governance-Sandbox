@@ -738,6 +738,23 @@ def run_multi_policy_review(request, use_ai_extraction=False):
         # Merge challenger trace into main trace
         for t in challenger_result.get("trace", []):
             trace.append(t)
+        
+        # RED FLAG: If challenger formally challenges, override decision
+        if challenger_result.get("formalChallenge"):
+            original_decision = decision
+            decision = "Flagged for Medical Director Review"
+            reason = f"Challenger Agent override (confidence {challenger_result['confidence']}/10): {challenger_result.get('reasoning', '')[:100]}"
+            trace.append({"ts": ts(), "type": "rule", "name": "RED FLAG",
+                          "msg": f"Challenger overrode '{original_decision}' → Flagged for Medical Director. Findings attached.",
+                          "status": "fail"})
+            # Regenerate notice with challenger notes
+            notice = _generate_notice(request, decision, reason, criteria_results)
+            notice += f"\n\n--- CHALLENGER AGENT FINDINGS ---\n"
+            notice += f"Verdict: {challenger_result['verdict']} (confidence: {challenger_result['confidence']}/10)\n"
+            notice += f"Reason: {challenger_result.get('reasoning', '')}\n"
+            for f in challenger_result.get("findings", []):
+                notice += f"• {f}\n"
+            notice += f"Recommendation: {challenger_result.get('recommendation', '')}\n"
     except Exception as e:
         challenger_result = {
             "verdict": "ERROR",
