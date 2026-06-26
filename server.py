@@ -1028,6 +1028,37 @@ Respond ONLY with the JSON object, no other text.
                     "rawResponse": raw_response if 'raw_response' in dir() else ""
                 }).encode())
 
+        # 3b. AVI Agent (backend-driven, context-aware)
+        elif self.path == '/agent/avi':
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            params = json.loads(post_data.decode())
+            
+            message = params.get('message', '')
+            ui_context = params.get('uiContext', None)
+            
+            if not message:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "No message"}).encode())
+                return
+            
+            try:
+                response = agent_engine.avi_respond(message, ui_context)
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"response": response}).encode())
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+
         # 4. General-purpose AI chat endpoint (AVI + all AI features)
         elif self.path == '/ai-chat':
             content_length = int(self.headers['Content-Length'])

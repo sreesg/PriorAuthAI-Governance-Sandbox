@@ -195,10 +195,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     editorTextarea.style.display = "none";
     if (pdfDownloadPanel) pdfDownloadPanel.style.display = "none";
     
-    // Handle PDF tab specially
-    const isPdf = activeFile.endsWith('.pdf');
-    if (isPdf) {
-      if (pdfDownloadPanel) pdfDownloadPanel.style.display = "flex";
+    // Handle PDF viewer tab
+    if (activeFile === 'view-pdf') {
+      if (pdfDownloadPanel) {
+        pdfDownloadPanel.style.display = "block";
+        const frame = document.getElementById('pdf-viewer-frame');
+        if (frame) frame.src = './real_payer_policy_uhc.pdf';
+      }
       return;
     }
 
@@ -206,7 +209,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       const res = await fetch(`./${activeFile}?update=${Date.now()}`);
       if (res.ok) {
         const text = await res.text();
-        // JSON files show in pre (read-only, formatted)
         if (activeFile.endsWith('.json') || activeFile.endsWith('.rego') || activeFile.endsWith('.js')) {
           codeViewerPre.style.display = "block";
           if (activeFile.endsWith('.json')) {
@@ -762,39 +764,7 @@ Clinical notes to score:\n${notes}`,
   const aviSend = document.getElementById('avi-send');
   const aviMessages = document.getElementById('avi-messages');
 
-  const AVI_SYSTEM_PROMPT = `You are AVI, a clinical intelligence assistant built into the PriorAuthAI Governance Console. You help users understand prior authorization cases, policies, and decisions.
-
-Your capabilities within this tool:
-1. Explain why a case was approved or escalated
-2. Identify what documentation is missing for approval
-3. Explain what specific rules (RULE-01 through RULE-05) do
-4. Describe how the 5-stage progressive disclosure pipeline works
-5. Help interpret CPT codes, ICD-10 codes, and clinical criteria
-6. Suggest what providers should include in clinical notes
-7. Explain the difference between regex and ClinicalNLP extraction
-
-IMPORTANT REFERENCE DATA (use ONLY this data for code lookups — do NOT guess or hallucinate code meanings):
-- CPT 73721 = MRI, any joint of lower extremity (knee), without contrast
-- CPT J0135 = Injection, adalimumab (Humira), 20mg subcutaneous
-- ICD-10 M25.561 = Pain in right knee
-- ICD-10 M25.562 = Pain in left knee
-- ICD-10 M25.569 = Pain in unspecified knee
-- ICD-10 S83.206A = Unspecified tear of lateral meniscus, initial encounter
-- ICD-10 M05.79 = Rheumatoid arthritis with rheumatoid factor, unspecified site
-- ICD-10 M06.9 = Rheumatoid arthritis, unspecified
-
-RULES in this system:
-- RULE-01 (PHI Redaction): Scrubs patient names/SSN/DOB from logs
-- RULE-02 (Clinical Conservatism): Never auto-deny; escalate uncertain cases to human
-- RULE-03 (Citation Compulsory): Every notice must cite the policy ID
-- RULE-04 (Code Match): Validates CPT/ICD format and guideline alignment
-- RULE-05 (Plain Language): Translates medical acronyms for patients
-
-POLICIES in this system:
-- POL-RAD-402: MRI Knee — requires 6+ weeks symptoms, 6+ weeks PT, objective findings, radiographs
-- POL-PHARM-809: Humira/Biologic — requires RA diagnosis, 12+ weeks DMARD failure, rheumatologist consult
-
-Keep answers concise (3-5 sentences max). Be direct and clinical. If you don't know something, say so — never fabricate medical code definitions. You ARE AVI, this tool's assistant.`;
+  const AVI_SYSTEM_PROMPT = ''; // Moved to Python backend (agent_engine.py)
 
   aviFab.addEventListener('click', () => {
     aviPanel.style.display = aviPanel.style.display === 'none' ? 'flex' : 'none';
@@ -802,18 +772,36 @@ Keep answers concise (3-5 sentences max). Be direct and clinical. If you don't k
   });
   aviClose.addEventListener('click', () => { aviPanel.style.display = 'none'; });
 
+  function getAviUiContext() {
+    // Determine which tab is active
+    const activeTabEl = document.querySelector('.main-tab.active');
+    const activeTab = activeTabEl ? activeTabEl.getAttribute('data-view') : 'review';
+    
+    const context = { activeTab };
+    
+    if (activeTab === 'workspace') {
+      const policySelect = document.getElementById('policy-select');
+      context.selectedPolicy = policySelect ? policySelect.value : '';
+      context.auditLog = auditConsole ? auditConsole.textContent.substring(0, 300) : '';
+    } else {
+      context.caseContext = `Patient: ${inputPatientName.value}, Member: ${inputMemberId.value}
+CPT: ${inputCpt.value}, ICD-10: ${inputIcd.value}, Provider: ${inputProvider.value}
+Notes: ${inputNotes.value.substring(0, 200)}
+Decision: ${outcomeBadge.textContent} — ${outcomeReason.textContent}`;
+    }
+    return context;
+  }
+
   async function sendAviMessage() {
     const msg = aviInput.value.trim();
     if (!msg) return;
     
-    // Show user message
     const userBubble = document.createElement('div');
     userBubble.className = 'avi-msg avi-user';
     userBubble.innerHTML = `<p>${escapeHtml(msg)}</p>`;
     aviMessages.appendChild(userBubble);
     aviInput.value = '';
     
-    // Show typing indicator
     const typing = document.createElement('div');
     typing.className = 'avi-msg avi-bot';
     typing.innerHTML = '<p class="avi-typing">AVI is thinking...</p>';
@@ -821,17 +809,30 @@ Keep answers concise (3-5 sentences max). Be direct and clinical. If you don't k
     aviMessages.scrollTop = aviMessages.scrollHeight;
     
     try {
-      const response = await callAI(msg, AVI_SYSTEM_PROMPT + '\n\nCURRENT CASE CONTEXT:\n' + getCurrentCaseContext());
+      const res = await fetch('/agent/avi', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ message: msg, uiContext: getAviUiContext() })
+      });
+      const data = await res.json();
       typing.remove();
-      const botBubble = document.createElement('div');
-      botBubble.className = 'avi-msg avi-bot';
-      botBubble.innerHTML = `<p>${response.replace(/\n/g, '<br>')}</p>`;
-      aviMessages.appendChild(botBubble);
+      
+      if (res.ok) {
+        const botBubble = document.createElement('div');
+        botBubble.className = 'avi-msg avi-bot';
+        botBubble.innerHTML = `<p>${(data.response || '').replace(/\n/g, '<br>')}</p>`;
+        aviMessages.appendChild(botBubble);
+      } else {
+        const errBubble = document.createElement('div');
+        errBubble.className = 'avi-msg avi-bot';
+        errBubble.innerHTML = `<p style="color:var(--accent-red);">Error: ${data.error || 'Unknown error'}</p>`;
+        aviMessages.appendChild(errBubble);
+      }
     } catch (e) {
       typing.remove();
       const errBubble = document.createElement('div');
       errBubble.className = 'avi-msg avi-bot';
-      errBubble.innerHTML = `<p style="color:var(--accent-red);">ClinicalNLP Engine offline: ${e.message}</p>`;
+      errBubble.innerHTML = `<p style="color:var(--accent-red);">Offline: ${e.message}</p>`;
       aviMessages.appendChild(errBubble);
     }
     aviMessages.scrollTop = aviMessages.scrollHeight;

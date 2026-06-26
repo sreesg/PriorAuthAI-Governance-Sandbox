@@ -982,3 +982,87 @@ Be very concise."""
         audit = f"⚠️ Could not parse hooks from LLM response.\nRaw:\n{response[:300]}"
 
     return {"status": "success", "action": "hooks", "policyId": policy_id, "hooks": hooks, "auditLog": audit}
+
+
+# ─── AVI Agent ───────────────────────────────────────────────────────────────
+
+def avi_respond(user_message, ui_context=None):
+    """
+    AVI — the conversational agent. Runs server-side with full access to:
+    - All loaded policies (reads from disk)
+    - Generated skills
+    - Current system state
+    - The user's current UI context (which tab, which case, decision state)
+    
+    This is a REAL agent — it assembles its own context based on what it needs.
+    """
+    # Build dynamic system context from actual system state
+    policies = load_all_policies()
+    skills = load_saved_skills()
+    
+    # Policy reference (built dynamically from actual files)
+    policy_ref = "POLICIES IN THIS SYSTEM:\n"
+    for p in policies:
+        criteria_summary = ", ".join(c.get("description", "")[:40] for c in p.get("criteria", [])[:3])
+        policy_ref += f"- {p['policyId']} ({p['policyName']}): Payer={p['payer']}, CPT={p.get('cptCodes',[])}, Criteria: {criteria_summary}\n"
+    
+    # CPT/ICD reference from actual policies
+    code_ref = "\nCPT/ICD-10 REFERENCE:\n"
+    for p in policies:
+        for cpt in p.get("cptCodes", []):
+            desc = p.get("cptDescriptions", {}).get(cpt, "")
+            if desc:
+                code_ref += f"- CPT {cpt} = {desc}\n"
+        for icd in p.get("allowedIcd10", [])[:4]:
+            desc = p.get("icd10Descriptions", {}).get(icd, "")
+            if desc:
+                code_ref += f"- ICD-10 {icd} = {desc}\n"
+    
+    # Skills reference
+    skills_ref = "\nGENERATED SKILLS:\n"
+    if skills:
+        for s in skills[:6]:
+            skills_ref += f"- {s.get('skillName', '?')}: {s.get('description', '')[:50]}\n"
+    else:
+        skills_ref += "- No skills generated yet. User should use Policy Workspace to generate.\n"
+    
+    # Determine which tab the user is on for context-sensitive responses
+    active_tab = "unknown"
+    tab_context = ""
+    if ui_context:
+        active_tab = ui_context.get("activeTab", "review")
+        if active_tab == "workspace":
+            selected_policy = ui_context.get("selectedPolicy", "")
+            tab_context = f"\nUSER IS ON: Policy Workspace tab. Selected policy: {selected_policy}. They may be asking about policy configuration, rules generation, or skill management."
+        else:
+            case_data = ui_context.get("caseContext", "")
+            tab_context = f"\nUSER IS ON: Agent Review tab.\n{case_data}"
+    
+    system_prompt = f"""You are AVI, the clinical intelligence assistant built into PriorAuthAI. You have real-time access to the system's loaded policies, skills, and state.
+
+YOUR CAPABILITIES:
+1. Explain decisions (why approved/escalated) based on actual policy criteria
+2. Identify missing documentation by comparing evidence against policy thresholds
+3. Explain rules: RULE-01 (PHI Redaction), RULE-02 (Clinical Conservatism), RULE-03 (Citation), RULE-04 (Code Match), RULE-05 (Plain Language)
+4. Explain the 5-stage progressive disclosure pipeline
+5. Interpret CPT/ICD-10 codes using the reference data below
+6. Guide users on Policy Workspace actions (generate rules/skills/hooks)
+7. Explain how ClinicalNLP Engine differs from regex extraction
+
+{policy_ref}
+{code_ref}
+{skills_ref}
+{tab_context}
+
+RULES:
+- RULE-01 (PHI Redaction): Scrubs names/SSN/DOB from trace logs
+- RULE-02 (Clinical Conservatism): Never auto-deny; escalate uncertain to human Medical Director
+- RULE-03 (Citation Compulsory): Every notice must cite the policy ID
+- RULE-04 (Code Match): Validates CPT/ICD format and alignment with policy
+- RULE-05 (Plain Language): Translates medical acronyms for patient correspondence
+
+IMPORTANT: Use ONLY the reference data above for code lookups. Never fabricate definitions.
+Keep answers concise (3-5 sentences). Be direct and clinical. You ARE AVI."""
+
+    response = call_llm(f"{system_prompt}\n\nUser question: {user_message}", max_tokens=200, temperature=0.3)
+    return response
