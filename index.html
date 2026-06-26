@@ -314,120 +314,105 @@
 
   <!-- VIEW: Concepts (animated explanations) -->
   <div id="view-concepts" class="view-panel" style="display:none;">
-    <div class="concepts-container">
-      <h1 class="concepts-title">How the Agent Works</h1>
-      <p class="concepts-subtitle">Watch data flow through the agentic pipeline in real time</p>
-
-      <!-- Main Animated Demo -->
-      <div class="concept-section">
-        <div class="live-demo">
-          <div class="demo-track">
-            <!-- The data packet that moves -->
-            <div class="data-packet" id="demo-packet">📋</div>
-            
-            <!-- Pipeline stations -->
-            <div class="demo-station station-1">
-              <div class="station-icon">📥</div>
-              <div class="station-label">Intake</div>
-              <div class="station-detail">PHI scrubbed</div>
-            </div>
-            <div class="demo-station station-2">
-              <div class="station-icon">🛠️</div>
-              <div class="station-label">Skills</div>
-              <div class="station-detail">Extract evidence</div>
-            </div>
-            <div class="demo-station station-3">
-              <div class="station-icon">⚙️</div>
-              <div class="station-label">Rules</div>
-              <div class="station-detail">Evaluate criteria</div>
-            </div>
-            <div class="demo-station station-4">
-              <div class="station-icon">🪝</div>
-              <div class="station-label">Hooks</div>
-              <div class="station-detail">Enforce guardrails</div>
-            </div>
-            <div class="demo-station station-5">
-              <div class="station-icon">✅</div>
-              <div class="station-label">Decision</div>
-              <div class="station-detail">Approve/Escalate</div>
-            </div>
-          </div>
-          <div class="demo-track-line"></div>
-        </div>
-        <button class="btn-primary-action" id="btn-replay-demo" style="margin-top:1rem;width:auto;padding:0.5rem 1.5rem;">▶ Replay Animation</button>
+    <div class="concepts-fullscreen">
+      <!-- Title -->
+      <div class="concepts-header-row">
+        <h1>PriorAuthAI Agent Architecture</h1>
+        <p>Two agents • Skills • Rules • Hooks • MCP — all working together</p>
       </div>
 
-      <!-- Concept Grid -->
-      <div class="concept-grid">
-        <!-- Skills -->
-        <div class="concept-section concept-mini">
-          <div class="concept-header"><span class="concept-badge">🛠️</span><h2>Skills</h2></div>
-          <p><strong>What the agent CAN DO.</strong> Each skill takes an input, performs work, and produces an output.</p>
-          <div class="skill-flow">
-            <div class="flow-node flow-input">Clinical Notes</div>
-            <div class="flow-process">
-              <div class="flow-gear">⚙️</div>
-              <span>ExtractEvidence</span>
+      <!-- Main Diagram -->
+      <div class="arch-diagram">
+        <!-- Left: PA Review Agent -->
+        <div class="agent-box agent-pa">
+          <div class="agent-title">🤖 PA Review Agent</div>
+          <div class="agent-desc">Evaluates prior auth requests</div>
+          <div class="agent-internals">
+            <div class="internal-row">
+              <div class="internal-item skill-item" id="c-skill-1">🛠️ PolicyRouter</div>
+              <div class="internal-item skill-item" id="c-skill-2">🛠️ ExtractEvidence</div>
             </div>
-            <div class="flow-node flow-output">Structured Facts</div>
+            <div class="internal-row">
+              <div class="internal-item skill-item" id="c-skill-3">🛠️ EvalCriteria</div>
+              <div class="internal-item skill-item" id="c-skill-4">🛠️ GenNotice</div>
+            </div>
+            <div class="internal-divider"></div>
+            <div class="internal-row">
+              <div class="internal-item rule-item" id="c-rule-1">⚙️ PHI Redact</div>
+              <div class="internal-item rule-item" id="c-rule-2">⚙️ Conservatism</div>
+              <div class="internal-item rule-item" id="c-rule-3">⚙️ Code Match</div>
+            </div>
+            <div class="internal-divider"></div>
+            <div class="internal-row">
+              <div class="internal-item hook-item" id="c-hook-1">🪝 on_intake</div>
+              <div class="internal-item hook-item" id="c-hook-2">🪝 on_evidence</div>
+              <div class="internal-item hook-item" id="c-hook-3">🪝 on_decision</div>
+            </div>
           </div>
-          <p class="mini-note">Generated per-policy by ClinicalNLP Engine from criteria definitions.</p>
         </div>
 
-        <!-- Rules -->
-        <div class="concept-section concept-mini">
-          <div class="concept-header"><span class="concept-badge">⚙️</span><h2>Rules</h2></div>
-          <p><strong>Governance guardrails.</strong> Immutable constraints the agent cannot override.</p>
-          <div class="rules-visual">
-            <div class="rule-shield">🛡️</div>
-            <div class="rule-list-mini">
-              <div class="rule-mini-item active-rule">PHI Redaction</div>
-              <div class="rule-mini-item active-rule">Clinical Conservatism</div>
-              <div class="rule-mini-item active-rule">Code Validation</div>
-              <div class="rule-mini-item active-rule">Citation Required</div>
-              <div class="rule-mini-item active-rule">Plain Language</div>
-            </div>
+        <!-- Center: Data Flow + MCP -->
+        <div class="arch-center">
+          <div class="mcp-tower">
+            <div class="mcp-label">MCP Server</div>
+            <div class="mcp-endpoint">/run-review</div>
+            <div class="mcp-endpoint">/build-for-policy</div>
+            <div class="mcp-endpoint">/agent/avi</div>
+            <div class="mcp-endpoint">/ai-extract</div>
           </div>
-          <p class="mini-note">Rules fire automatically at specific pipeline stages. Cannot be disabled by skills.</p>
+          <!-- Animated connections -->
+          <div class="conn-line conn-left"></div>
+          <div class="conn-line conn-right"></div>
+          <div class="conn-line conn-top"></div>
+          <div class="conn-line conn-bottom"></div>
+          <!-- Floating data particles -->
+          <div class="particle p1">📋</div>
+          <div class="particle p2">🧠</div>
+          <div class="particle p3">✅</div>
         </div>
 
-        <!-- Hooks -->
-        <div class="concept-section concept-mini">
-          <div class="concept-header"><span class="concept-badge">🪝</span><h2>Hooks</h2></div>
-          <p><strong>Event triggers.</strong> Connect rules to pipeline stages. Fire when conditions are met.</p>
-          <div class="hooks-visual">
-            <div class="hook-wire">
-              <div class="hook-event">Stage 2 complete</div>
-              <div class="hook-connector">→</div>
-              <div class="hook-action">Fire RULE-04</div>
+        <!-- Right: AVI Agent -->
+        <div class="agent-box agent-avi">
+          <div class="agent-title">🤖 AVI Agent</div>
+          <div class="agent-desc">Conversational assistant</div>
+          <div class="agent-internals">
+            <div class="internal-row">
+              <div class="internal-item skill-item">🛠️ LoadContext</div>
+              <div class="internal-item skill-item">🛠️ AnswerQuery</div>
             </div>
-            <div class="hook-wire">
-              <div class="hook-event">Criteria checked</div>
-              <div class="hook-connector">→</div>
-              <div class="hook-action">Fire RULE-02</div>
+            <div class="internal-divider"></div>
+            <div class="internal-row">
+              <div class="internal-item rule-item">⚙️ No Hallucinate</div>
+              <div class="internal-item rule-item">⚙️ Use References</div>
             </div>
-            <div class="hook-wire">
-              <div class="hook-event">Notice drafted</div>
-              <div class="hook-connector">→</div>
-              <div class="hook-action">Fire RULE-05</div>
+            <div class="internal-divider"></div>
+            <div class="internal-row">
+              <div class="internal-item hook-item">🪝 on_tab_change</div>
+              <div class="internal-item hook-item">🪝 on_case_load</div>
             </div>
           </div>
-          <p class="mini-note">Generated per-policy. Each policy type has unique hooks for its criteria.</p>
         </div>
 
-        <!-- MCP -->
-        <div class="concept-section concept-mini">
-          <div class="concept-header"><span class="concept-badge">🔌</span><h2>MCP</h2></div>
-          <p><strong>Model Context Protocol.</strong> How components communicate via structured tool contracts.</p>
-          <div class="mcp-visual">
-            <div class="mcp-box mcp-ui">UI</div>
-            <div class="mcp-conn">⇄</div>
-            <div class="mcp-box mcp-agent">Agent<br><small>/run-review<br>/build-for-policy<br>/avi</small></div>
-            <div class="mcp-conn">⇄</div>
-            <div class="mcp-box mcp-model">LLM<br><small>Gemma 4 12B</small></div>
-          </div>
-          <p class="mini-note">Each endpoint is a "Tool" with defined inputs/outputs. Agent decides which to call.</p>
+        <!-- Bottom: LLM -->
+        <div class="arch-llm">
+          <div class="llm-icon">🧠</div>
+          <div class="llm-label">Gemma 4 12B (Local)</div>
+          <div class="llm-desc">ClinicalNLP Engine • Ollama</div>
         </div>
+
+        <!-- Top: UI/User -->
+        <div class="arch-user">
+          <div class="user-icon">👤</div>
+          <div class="user-label">User / UI</div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="arch-legend">
+        <span class="legend-item"><span class="legend-dot dot-skill"></span> Skills = capabilities</span>
+        <span class="legend-item"><span class="legend-dot dot-rule"></span> Rules = guardrails</span>
+        <span class="legend-item"><span class="legend-dot dot-hook"></span> Hooks = event triggers</span>
+        <span class="legend-item"><span class="legend-dot dot-mcp"></span> MCP = communication protocol</span>
       </div>
     </div>
   </div>

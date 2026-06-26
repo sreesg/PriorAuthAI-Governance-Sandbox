@@ -49,16 +49,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // Replay demo animation
+  // Replay demo animation (if present)
   const replayBtn = document.getElementById('btn-replay-demo');
   if (replayBtn) {
     replayBtn.addEventListener('click', () => {
-      const packet = document.getElementById('demo-packet');
-      if (packet) {
-        packet.style.animation = 'none';
-        packet.offsetHeight; // force reflow
-        packet.style.animation = 'packetMove 4s ease-in-out infinite';
-      }
+      document.querySelectorAll('.internal-item').forEach(el => {
+        el.style.animation = 'none';
+        el.offsetHeight;
+        el.style.animation = '';
+      });
     });
   }
 
