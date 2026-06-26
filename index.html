@@ -111,83 +111,77 @@
   <div id="view-review" class="view-panel">
     <!-- Left column: Cases + Form -->
     <div class="review-left">
-      <!-- Preset selector -->
+      <!-- Preset selector + Run button row -->
       <div class="glass-card presets-card">
-        <h2>📁 Preset Clinical Cases</h2>
-        <div class="case-buttons-grid" id="preset-cases-container">
-          <!-- Preset buttons render here -->
+        <div class="presets-run-row">
+          <div class="presets-section">
+            <h2>📁 Cases</h2>
+            <div class="case-buttons-grid" id="preset-cases-container"></div>
+          </div>
+          <div class="run-section">
+            <button type="submit" form="pa-request-form" class="btn-execute">
+              <span class="btn-icon">⚡</span> Run Agent Review
+            </button>
+            <div class="ai-toggle-row">
+              <label class="ai-toggle-label">
+                <input type="checkbox" id="ai-mode-toggle">
+                <span class="ai-toggle-text">🧠 ClinicalNLP</span>
+              </label>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- Request Editor Form -->
       <div class="glass-card form-card">
-        <h2>✍️ Prior Authorization Request Details</h2>
         <form id="pa-request-form" class="request-form">
-          <div class="form-row-2">
+          <div class="form-row-4">
             <div class="form-group">
               <label for="input-member-id">Member ID</label>
               <input type="text" id="input-member-id" required>
             </div>
             <div class="form-group">
-              <label for="input-patient-name">Patient Name (PHI)</label>
+              <label for="input-patient-name">Patient Name</label>
               <input type="text" id="input-patient-name" required>
             </div>
-          </div>
-
-          <div class="form-row-2">
             <div class="form-group">
-              <label for="input-ssn">SSN (PHI)</label>
+              <label for="input-ssn">SSN</label>
               <input type="text" id="input-ssn" required>
             </div>
             <div class="form-group">
-              <label for="input-dob">DOB (PHI)</label>
+              <label for="input-dob">DOB</label>
               <input type="date" id="input-dob" required>
             </div>
           </div>
 
-          <div class="form-row-2">
+          <div class="form-row-4">
             <div class="form-group">
-              <label for="input-cpt">CPT Code (Procedure)</label>
+              <label for="input-cpt">CPT Code</label>
               <input type="text" id="input-cpt" required>
             </div>
             <div class="form-group">
-              <label for="input-icd10">ICD-10 Code (Diagnosis)</label>
+              <label for="input-icd10">ICD-10 Code</label>
               <input type="text" id="input-icd10" required>
             </div>
-          </div>
-
-          <div class="form-row-2">
             <div class="form-group">
-              <label for="input-provider-name">Provider Name</label>
+              <label for="input-provider-name">Provider</label>
               <input type="text" id="input-provider-name" required>
             </div>
             <div class="form-group">
-              <label for="input-npi">Provider NPI</label>
+              <label for="input-npi">NPI</label>
               <input type="text" id="input-npi" required>
             </div>
           </div>
 
           <div class="form-group">
             <label for="input-notes">Clinical Notes & Evidence</label>
-            <textarea id="input-notes" rows="6" required></textarea>
+            <textarea id="input-notes" rows="3" required></textarea>
           </div>
 
-          <!-- Rules Toggles -->
-          <div class="rules-checkboxes-compact">
-            <h3>⚙️ Active Guardrail Rules:</h3>
-            <div class="checkbox-grid" id="rules-checkbox-container">
-              <!-- Rules checkboxes render here -->
-            </div>
-          </div>
-
-          <button type="submit" class="btn-execute">
-            <span class="btn-icon">⚡</span> Run Prior Auth Agent Review
-          </button>
-          <div class="ai-toggle-row">
-            <label class="ai-toggle-label">
-              <input type="checkbox" id="ai-mode-toggle">
-              <span class="ai-toggle-text">🧠 Use ClinicalNLP Engine for semantic extraction</span>
-            </label>
+          <!-- Rules Toggles — inline -->
+          <div class="rules-inline">
+            <span class="rules-inline-label">⚙️ Rules:</span>
+            <div class="checkbox-grid-inline" id="rules-checkbox-container"></div>
           </div>
         </form>
       </div>

@@ -388,18 +388,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.notes-summary-popup').forEach(el => el.remove());
   }
 
-  // 8. Compact Rules Checkbox toggles
+  // 8. Compact Rules Checkbox toggles — inline pills
   function renderRulesToggles() {
     rulesContainer.innerHTML = '';
     Object.entries(agent.rules).forEach(([key, rule]) => {
       const item = document.createElement('div');
       item.className = 'rule-item';
+      // Show short name (e.g., "PHI" instead of "PHI Redaction Rule")
+      const shortName = rule.name.replace(' Rule', '').replace('Clinical ', '');
       item.innerHTML = `
         <div class="rule-checkbox-wrapper">
           <input type="checkbox" id="chk-${key}" ${rule.enabled ? 'checked' : ''}>
         </div>
         <div class="rule-info">
-          <h4>${rule.name}</h4>
+          <h4>${shortName}</h4>
         </div>
       `;
       const chk = item.querySelector('input');
