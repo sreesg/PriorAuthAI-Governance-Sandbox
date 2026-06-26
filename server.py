@@ -15,6 +15,15 @@ except ImportError:
     HEADROOM_AVAILABLE = False
     print("Headroom not installed. Running without context compression.")
 
+# Import the real Python agent engine
+try:
+    import agent_engine
+    AGENT_ENGINE_AVAILABLE = True
+    print("Agent Engine: LOADED (Python backend with LLM pipeline)")
+except ImportError as e:
+    AGENT_ENGINE_AVAILABLE = False
+    print(f"Agent Engine not available: {e}")
+
 # LLM Performance Configuration
 LLM_CONFIG = {
     "chat": {"num_predict": 150, "temperature": 0.3},       # AVI: short, fast answers
@@ -1126,7 +1135,127 @@ Respond ONLY with the JSON object, no other text.
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(e)}).encode())
 
-        # 5. Generate skill from natural language description
+        # 5. Agent: Extract policies from PDF
+        elif self.path == '/agent/extract-policy':
+            if not AGENT_ENGINE_AVAILABLE:
+                self.send_response(503)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Agent engine not loaded"}).encode())
+                return
+            try:
+                pdf_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'real_payer_policy_uhc.pdf')
+                result = agent_engine.extract_policies_from_pdf(pdf_path)
+                
+                # Save for reuse
+                agent_engine.save_extracted_policies(result["policies"])
+                
+                # Also compile to rules_declaration.md
+                md_content = agent_engine.compile_policies_to_rules(result["policies"])
+                with open('rules_declaration.md', 'w') as f:
+                    f.write(md_content)
+                
+                # Compile to rego
+                compiled_rego = compile_rego_from_md(md_content)
+                with open('rules.rego', 'w') as f:
+                    f.write(compiled_rego)
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "success",
+                    "policies": result["policies"],
+                    "trace": result["trace"],
+                    "mdGenerated": md_content[:500],
+                    "message": f"Extracted {len(result['policies'])} policies from PDF. Saved to rules_declaration.md and rules.rego."
+                }).encode())
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+        # 6. Agent: Generate skills for extracted policies
+        elif self.path == '/agent/generate-skills':
+            if not AGENT_ENGINE_AVAILABLE:
+                self.send_response(503)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Agent engine not loaded"}).encode())
+                return
+            try:
+                policies = agent_engine.load_saved_policies()
+                if not policies:
+                    self.send_response(400)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": "No policies extracted yet. Run PDF extraction first."}).encode())
+                    return
+                
+                result = agent_engine.generate_skills_for_policies(policies)
+                agent_engine.save_generated_skills(result["skills"])
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "success",
+                    "skills": result["skills"],
+                    "trace": result["trace"],
+                    "message": f"Generated {len(result['skills'])} skill definitions."
+                }).encode())
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+        # 7. Agent: Run full review pipeline (Python backend)
+        elif self.path == '/agent/run-review':
+            if not AGENT_ENGINE_AVAILABLE:
+                self.send_response(503)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Agent engine not loaded"}).encode())
+                return
+            try:
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                params = json.loads(post_data.decode())
+                
+                request_data = params.get('request', {})
+                use_ai = params.get('useAI', False)
+                
+                result = agent_engine.run_agent_review(request_data, use_ai_extraction=use_ai)
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps(result).encode())
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+        # 8. Generate skill from natural language description
         elif self.path == '/generate-skill':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)

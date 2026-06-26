@@ -250,7 +250,64 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // 6.5. Natural Language Skill Creator
+  // 6.5. AI Policy Extraction from PDF
+  document.getElementById('btn-extract-pdf').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-extract-pdf');
+    btn.disabled = true;
+    btn.textContent = '🧠 Reading PDF...';
+    auditConsole.textContent = 'ClinicalNLP Engine: Reading real_payer_policy_uhc.pdf and extracting policies...';
+    
+    try {
+      const res = await fetch('/agent/extract-policy', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}' });
+      const data = await res.json();
+      if (res.ok) {
+        let log = `✓ Extracted ${data.policies?.length || 0} policies from PDF\n\n`;
+        (data.trace || []).forEach(t => { log += `[${t.step}] ${t.message}\n`; });
+        log += `\nPolicies saved to rules_declaration.md and rules.rego`;
+        auditConsole.textContent = log;
+        await refreshActiveFileView();
+        showToast(`🧠 Extracted ${data.policies?.length || 0} policies from PDF`, 'success');
+      } else {
+        auditConsole.textContent = `Error: ${data.error}`;
+        showToast(`Extraction failed: ${data.error}`, 'error');
+      }
+    } catch (e) {
+      auditConsole.textContent = `Network error: ${e.message}`;
+      showToast(`Error: ${e.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🧠 Extract Rules from PDF (AI)';
+    }
+  });
+
+  // 6.6. AI Skill Generation from Policies
+  document.getElementById('btn-gen-skills').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-gen-skills');
+    btn.disabled = true;
+    btn.textContent = '🛠️ Generating...';
+    auditConsole.textContent = 'ClinicalNLP Engine: Designing skills for extracted policies...';
+    
+    try {
+      const res = await fetch('/agent/generate-skills', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}' });
+      const data = await res.json();
+      if (res.ok) {
+        let log = `✓ Generated ${data.skills?.length || 0} skill definitions\n\n`;
+        (data.skills || []).forEach(s => { log += `• ${s.skillName}: ${s.description}\n`; });
+        auditConsole.textContent = log;
+        showToast(`🛠️ Generated ${data.skills?.length || 0} skills`, 'success');
+      } else {
+        auditConsole.textContent = `Error: ${data.error}`;
+        showToast(`Skill generation failed: ${data.error}`, 'error');
+      }
+    } catch (e) {
+      auditConsole.textContent = `Network error: ${e.message}`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🛠️ Generate Skills (AI)';
+    }
+  });
+
+  // 6.7. Natural Language Skill Creator
   const nlSkillInput = document.getElementById('nl-skill-input');
   const btnCreateSkill = document.getElementById('btn-create-skill');
   const nlSkillStatus = document.getElementById('nl-skill-status');

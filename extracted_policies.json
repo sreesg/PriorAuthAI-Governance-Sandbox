@@ -1,0 +1,19 @@
+{
+  "extractedAt": "2026-06-26T09:44:17.033019",
+  "policies": [
+    {
+      "policyId": "CSRAD007OH.E",
+      "policyName": "Adult Musculoskeletal Imaging Guidelines (For Ohio Only)",
+      "cptCodes": [],
+      "icd10Codes": [],
+      "criteria": [
+        {
+          "id": "CRIT-1",
+          "description": "Medical necessity for unproven services or those with coverage/quantity limits evaluated via Ohio Administrative Code 5160-1-01.",
+          "type": "imaging_required",
+          "threshold": "Ohio Administrative Code 5160-1-01"
+        }
+      ]
+    }
+  ]
+}
