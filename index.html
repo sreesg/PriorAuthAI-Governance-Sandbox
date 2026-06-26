@@ -38,79 +38,94 @@
 
   <!-- VIEW: Policy Workspace -->
   <div id="view-workspace" class="view-panel" style="display:none;">
-    <section class="panel-column workspace-column">
-      <div class="glass-card full-height">
-        <div class="card-header">
-          <h2>📂 Clinical Policy Workspace</h2>
-          <p class="subtitle">Edit declarations or review OPA/JS output compilation</p>
-        </div>
-
-        <!-- File Tabs Selector -->
-        <div class="file-tabs">
-          <button class="tab-btn active" data-file="rules_declaration.md">📄 rules_declaration.md</button>
-          <button class="tab-btn" data-file="skills_declaration.md">📄 skills_declaration.md</button>
-          <button class="tab-btn" data-file="rules.rego">⚙️ rules.rego</button>
-          <button class="tab-btn" data-file="skills.js">🛠️ skills.js</button>
-          <button class="tab-btn" data-file="real_payer_policy_uhc.pdf">📄 Policy PDF</button>
-        </div>
-
-        <!-- Editable Code Editor Area -->
-        <div class="editor-workspace-container">
-          <textarea id="editor-textarea" class="editor-textarea" style="display: block;"></textarea>
-          <pre id="code-viewer-pre" style="display: none;"><code id="code-viewer">Loading file source...</code></pre>
-          
-          <div id="pdf-download-panel" style="display: none;" class="pdf-panel">
-            <div class="pdf-icon">📄</div>
-            <h3>UHC Policy Document</h3>
-            <p>Reference real payer clinical policy.</p>
-            <a href="./real_payer_policy_uhc.pdf" target="_blank" class="btn-pdf-download">
-              📥 Open UHC Policy PDF
-            </a>
+    <div class="workspace-layout">
+      <!-- Left: Policy Selector + Details -->
+      <div class="workspace-left">
+        <div class="glass-card">
+          <h2>📋 Active Policies</h2>
+          <p class="subtitle">Select a policy to view criteria, edit rules, or generate skills</p>
+          <div class="policy-list" id="policy-list">
+            <!-- Populated dynamically -->
           </div>
         </div>
 
-        <!-- Save & Compile Control Bar -->
-        <div class="editor-controls">
-          <button id="btn-save-compile" class="btn-primary-action">
-            💾 Save & Compile Policies
-          </button>
-          <button id="btn-extract-pdf" class="btn-primary-action" style="background:#10b981;">
-            🧠 Extract Rules from PDF (AI)
-          </button>
-          <button id="btn-gen-skills" class="btn-tertiary">
-            🛠️ Generate Skills (AI)
-          </button>
-          <button id="btn-reset-workspace" class="btn-tertiary">
-            🔄 Reset
-          </button>
+        <!-- Selected Policy Detail -->
+        <div class="glass-card" id="policy-detail-card">
+          <div class="policy-detail-header" id="policy-detail-header">
+            <h2 id="policy-detail-title">Select a policy above</h2>
+            <span class="badge badge-blue" id="policy-detail-payer"></span>
+          </div>
+          <div id="policy-detail-body">
+            <p class="subtitle">Click a policy to see its criteria, CPT codes, and ICD-10 mappings.</p>
+          </div>
         </div>
 
-        <!-- SkillJuror Audit Console -->
-        <div class="skill-injector-card">
-          <h3>⚖️ SkillJuror Audit Trail</h3>
-          <p class="card-para-small">Security sandboxing, PHI compliance logs, and API contract evaluation results.</p>
-          
+        <!-- AI Actions for Selected Policy -->
+        <div class="glass-card">
+          <h2>🧠 AI Policy Actions</h2>
+          <div class="editor-controls" style="margin:0;">
+            <button id="btn-extract-pdf" class="btn-primary-action" style="background:#10b981;">
+              📄 Extract from PDF (AI)
+            </button>
+            <button id="btn-gen-skills" class="btn-primary-action">
+              🛠️ Generate Skills (AI)
+            </button>
+          </div>
+          <p class="card-para-small" style="margin-top:0.5rem;">Extract reads the UHC PDF with ClinicalNLP Engine. Generate Skills creates validation functions from selected policy criteria.</p>
+        </div>
+      </div>
+
+      <!-- Right: File Editor + Audit Console -->
+      <div class="workspace-right">
+        <div class="glass-card">
+          <h2>📂 File Editor</h2>
+          <!-- File Tabs Selector -->
+          <div class="file-tabs">
+            <button class="tab-btn active" data-file="rules_declaration.md">📄 rules_declaration.md</button>
+            <button class="tab-btn" data-file="skills_declaration.md">📄 skills_declaration.md</button>
+            <button class="tab-btn" data-file="rules.rego">⚙️ rules.rego</button>
+            <button class="tab-btn" data-file="skills.js">🛠️ skills.js</button>
+            <button class="tab-btn" data-file="real_payer_policy_uhc.pdf">📄 PDF</button>
+          </div>
+
+          <div class="editor-workspace-container">
+            <textarea id="editor-textarea" class="editor-textarea" style="display: block;"></textarea>
+            <pre id="code-viewer-pre" style="display: none;"><code id="code-viewer">Loading file source...</code></pre>
+            <div id="pdf-download-panel" style="display: none;" class="pdf-panel">
+              <div class="pdf-icon">📄</div>
+              <h3>UHC Policy Document</h3>
+              <p>Real payer clinical policy (160 pages)</p>
+              <a href="./real_payer_policy_uhc.pdf" target="_blank" class="btn-pdf-download">📥 Open PDF</a>
+            </div>
+          </div>
+
+          <div class="editor-controls">
+            <button id="btn-save-compile" class="btn-primary-action">💾 Save & Compile</button>
+            <button id="btn-reset-workspace" class="btn-tertiary">🔄 Reset</button>
+          </div>
+        </div>
+
+        <!-- Audit Console + Skill Creator -->
+        <div class="glass-card">
+          <h2>⚖️ Audit Console</h2>
           <div class="audit-console-wrapper">
-            <pre class="audit-console" id="audit-console">Awaiting workspace compile triggers...</pre>
+            <pre class="audit-console" id="audit-console">Awaiting workspace actions...</pre>
           </div>
 
-          <!-- Natural Language Skill Creator -->
           <div class="nl-skill-creator">
             <h4>➕ Create Skill from Plain English</h4>
-            <textarea id="nl-skill-input" class="nl-skill-textarea" rows="3" placeholder="Describe a new skill in plain English, e.g.: 'Check if the patient's age is over 65 and flag for senior review if true'"></textarea>
-            <button id="btn-create-skill" class="btn-secondary" type="button">🧠 Generate & Register Skill</button>
+            <textarea id="nl-skill-input" class="nl-skill-textarea" rows="2" placeholder="e.g.: 'Check if patient age is over 65 and flag for senior review'"></textarea>
+            <button id="btn-create-skill" class="btn-secondary" type="button">🧠 Generate Skill</button>
             <div id="nl-skill-status" class="nl-skill-status"></div>
           </div>
 
           <div class="active-skills-list-wrapper">
-            <h4>Discovered Active Skills:</h4>
-            <div class="skills-pills-container" id="active-skills-pills">
-              <!-- Dynamically populated skills pills -->
-            </div>
+            <h4>Active Skills:</h4>
+            <div class="skills-pills-container" id="active-skills-pills"></div>
           </div>
         </div>
       </div>
-    </section>
+    </div>
   </div>
 
   <!-- VIEW: Agent Review (default active) -->

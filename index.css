@@ -1645,3 +1645,134 @@ footer.app-footer {
   color: var(--text-muted);
   animation: disc-unlock 0.3s ease-out;
 }
+
+/* Workspace Layout */
+.workspace-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.workspace-left, .workspace-right {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Policy List */
+.policy-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.policy-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  background: var(--bg-secondary);
+}
+
+.policy-item:hover {
+  border-color: #0ea5e9;
+  background: rgba(14, 165, 233, 0.03);
+}
+
+.policy-item.active {
+  border-color: #0ea5e9;
+  background: rgba(14, 165, 233, 0.06);
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.1);
+}
+
+.policy-item-icon {
+  font-size: 1.3rem;
+}
+
+.policy-item-info {
+  flex: 1;
+}
+
+.policy-item-info h4 {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0.1rem;
+}
+
+.policy-item-info p {
+  font-size: 0.67rem;
+  color: var(--text-muted);
+}
+
+.policy-item-badge {
+  font-size: 0.6rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 50px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--card-border);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Policy Detail */
+.policy-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.policy-criteria-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.policy-criteria-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  font-size: 0.72rem;
+  color: var(--text-main);
+  line-height: 1.4;
+}
+
+.policy-criteria-item .crit-id {
+  font-weight: 700;
+  color: #0ea5e9;
+  white-space: nowrap;
+  font-size: 0.65rem;
+}
+
+.policy-codes-row {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.policy-code-chip {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  padding: 0.15rem 0.4rem;
+  background: rgba(14, 165, 233, 0.06);
+  border: 1px solid rgba(14, 165, 233, 0.2);
+  border-radius: 4px;
+  color: #0284c7;
+}
+
+@media (max-width: 900px) {
+  .workspace-layout {
+    grid-template-columns: 1fr;
+  }
+}

@@ -76,6 +76,83 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error("Initial file view load failed:", e);
   }
   refreshSkillsPills();
+  loadPolicyList();
+
+  // Load and display all policies in the workspace
+  async function loadPolicyList() {
+    const policyList = document.getElementById('policy-list');
+    try {
+      const res = await fetch('/agent/policies');
+      const policies = await res.json();
+      policyList.innerHTML = '';
+      
+      const categoryIcons = { 'Radiology': '🩻', 'Oncology': '🔬', 'Surgery': '🔪', 'Specialty Pharmacy': '💊' };
+      
+      policies.forEach((p, i) => {
+        const item = document.createElement('div');
+        item.className = 'policy-item' + (i === 0 ? ' active' : '');
+        item.innerHTML = `
+          <span class="policy-item-icon">${categoryIcons[p.category] || '📋'}</span>
+          <div class="policy-item-info">
+            <h4>${p.name}</h4>
+            <p>CPT: ${p.cptCodes.join(', ')} • ${p.payer}</p>
+          </div>
+          <span class="policy-item-badge">${p.category}</span>
+        `;
+        item.addEventListener('click', () => {
+          document.querySelectorAll('.policy-item').forEach(el => el.classList.remove('active'));
+          item.classList.add('active');
+          showPolicyDetail(p);
+        });
+        policyList.appendChild(item);
+      });
+      
+      if (policies.length > 0) showPolicyDetail(policies[0]);
+    } catch (e) {
+      policyList.innerHTML = '<p style="color:var(--text-muted);font-size:0.75rem;">Failed to load policies.</p>';
+    }
+  }
+
+  function showPolicyDetail(policy) {
+    const detailTitle = document.getElementById('policy-detail-title');
+    const detailPayer = document.getElementById('policy-detail-payer');
+    const detailBody = document.getElementById('policy-detail-body');
+    
+    detailTitle.textContent = `${policy.policyId}: ${policy.name}`;
+    detailPayer.textContent = policy.payer;
+    
+    // Fetch full policy detail from the file
+    fetch(`/agent/policy-detail?id=${policy.policyId}`).then(r => r.json()).then(full => {
+      let html = '';
+      html += '<div style="margin-bottom:0.4rem;"><strong style="font-size:0.7rem;color:var(--text-muted);">CPT CODES:</strong></div>';
+      html += '<div class="policy-codes-row">';
+      (full.cptCodes || []).forEach(c => {
+        const desc = full.cptDescriptions ? full.cptDescriptions[c] || '' : '';
+        html += `<span class="policy-code-chip" title="${desc}">${c}</span>`;
+      });
+      html += '</div>';
+      
+      if (full.allowedIcd10 && full.allowedIcd10.length > 0) {
+        html += '<div style="margin:0.4rem 0;"><strong style="font-size:0.7rem;color:var(--text-muted);">ICD-10 CODES:</strong></div>';
+        html += '<div class="policy-codes-row">';
+        full.allowedIcd10.slice(0, 8).forEach(c => { html += `<span class="policy-code-chip">${c}</span>`; });
+        html += '</div>';
+      }
+      
+      if (full.criteria && full.criteria.length > 0) {
+        html += '<div style="margin:0.4rem 0;"><strong style="font-size:0.7rem;color:var(--text-muted);">CRITERIA (' + full.criteria.length + '):</strong></div>';
+        html += '<div class="policy-criteria-list">';
+        full.criteria.forEach(c => {
+          html += `<div class="policy-criteria-item"><span class="crit-id">${c.id}</span><span>${c.description}</span></div>`;
+        });
+        html += '</div>';
+      }
+      
+      detailBody.innerHTML = html;
+    }).catch(() => {
+      detailBody.innerHTML = `<p style="font-size:0.75rem;">CPT: ${policy.cptCodes.join(', ')}</p>`;
+    });
+  }
 
   // 1. Fetch OPA rules.rego source code
   async function loadRegoSource() {
@@ -252,7 +329,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-extract-pdf').addEventListener('click', async () => {
     const btn = document.getElementById('btn-extract-pdf');
     btn.disabled = true;
-    btn.textContent = '🧠 Reading PDF...';
+    btn.textContent = '📄 Extracting...';
     auditConsole.textContent = 'ClinicalNLP Engine: Reading real_payer_policy_uhc.pdf and extracting policies...';
     
     try {
@@ -274,7 +351,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       showToast(`Error: ${e.message}`, 'error');
     } finally {
       btn.disabled = false;
-      btn.textContent = '🧠 Extract Rules from PDF (AI)';
+      btn.textContent = '📄 Extract from PDF (AI)';
     }
   });
 

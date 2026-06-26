@@ -1470,6 +1470,35 @@ Respond ONLY with the JSON object, no other text.
                 self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(e)}).encode())
+        elif self.path.startswith('/agent/policy-detail'):
+            try:
+                # Parse query param: ?id=POL-RAD-501
+                from urllib.parse import urlparse, parse_qs
+                parsed = urlparse(self.path)
+                params = parse_qs(parsed.query)
+                policy_id = params.get('id', [''])[0]
+                
+                all_policies = agent_engine.load_all_policies() if AGENT_ENGINE_AVAILABLE else []
+                policy = next((p for p in all_policies if p['policyId'] == policy_id), None)
+                
+                if policy:
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps(policy).encode())
+                else:
+                    self.send_response(404)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": f"Policy {policy_id} not found"}).encode())
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
         else:
             # Fall through to static file serving
             super().do_GET()
