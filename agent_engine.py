@@ -754,6 +754,15 @@ def _regex_extract_full(clinical_notes, policy):
     meds = re.findall(r'failed?\s+(?:trials?\s+of\s+)?(\w+)', notes)
     evidence["failedMedications"] = meds
 
+    # Severity scores (EASI, IGA, BSA)
+    evidence["severityScore"] = None
+    easi_match = re.search(r'easi\s*(?:score\s*)?(\d+)', notes)
+    if easi_match:
+        evidence["severityScore"] = int(easi_match.group(1))
+    iga_match = re.search(r'iga\s*(\d+)', notes)
+    if iga_match and not evidence["severityScore"]:
+        evidence["severityScore"] = int(iga_match.group(1))
+
     return evidence
 
 
@@ -791,8 +800,10 @@ def _evaluate_policy_criteria(evidence, policy, request):
             detail = "Imaging documented" if met else "No imaging documented"
 
         elif "diagnosis" in ctype or "severity" in ctype:
-            met = evidence.get("hasPathology", False) or evidence.get("severityScore") is not None
-            detail = "Confirmed" if met else "Not confirmed"
+            score = evidence.get("severityScore")
+            has_path = evidence.get("hasPathology", False)
+            met = score is not None or has_path
+            detail = f"Score: {score}" if score else ("Confirmed" if has_path else "Not confirmed")
 
         elif "specialist" in ctype or "provider" in ctype:
             met = evidence.get("hasSpecialist", False)

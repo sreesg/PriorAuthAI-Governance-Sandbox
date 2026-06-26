@@ -43,7 +43,7 @@
       <div class="workspace-left">
         <div class="glass-card">
           <h2>📋 Active Policies</h2>
-          <p class="subtitle">Select a policy to view criteria, edit rules, or generate skills</p>
+          <p class="subtitle">Click ⚙️🛠️🪝 to generate rules, skills, or hooks per policy</p>
           <div class="policy-list" id="policy-list">
             <!-- Populated dynamically -->
           </div>
@@ -59,33 +59,20 @@
             <p class="subtitle">Click a policy to see its criteria, CPT codes, and ICD-10 mappings.</p>
           </div>
         </div>
-
-        <!-- AI Actions for Selected Policy -->
-        <div class="glass-card">
-          <h2>🧠 AI Policy Actions</h2>
-          <div class="editor-controls" style="margin:0;">
-            <button id="btn-extract-pdf" class="btn-primary-action" style="background:#10b981;">
-              📄 Extract from PDF (AI)
-            </button>
-            <button id="btn-gen-skills" class="btn-primary-action">
-              🛠️ Generate Skills (AI)
-            </button>
-          </div>
-          <p class="card-para-small" style="margin-top:0.5rem;">Extract reads the UHC PDF with ClinicalNLP Engine. Generate Skills creates validation functions from selected policy criteria.</p>
-        </div>
       </div>
 
       <!-- Right: File Editor + Audit Console -->
       <div class="workspace-right">
         <div class="glass-card">
-          <h2>📂 File Editor</h2>
+          <h2>📂 Generated Artifacts</h2>
+          <p class="subtitle">View rules, skills, and compiled output generated from policies</p>
           <!-- File Tabs Selector -->
           <div class="file-tabs">
-            <button class="tab-btn active" data-file="rules_declaration.md">📄 rules_declaration.md</button>
-            <button class="tab-btn" data-file="skills_declaration.md">📄 skills_declaration.md</button>
-            <button class="tab-btn" data-file="rules.rego">⚙️ rules.rego</button>
+            <button class="tab-btn active" data-file="rules_declaration.md">📄 Rules</button>
+            <button class="tab-btn" data-file="skills_declaration.md">📄 Skills Decl</button>
+            <button class="tab-btn" data-file="generated_skills.json">🛠️ Skills JSON</button>
+            <button class="tab-btn" data-file="rules.rego">⚙️ Rego</button>
             <button class="tab-btn" data-file="skills.js">🛠️ skills.js</button>
-            <button class="tab-btn" data-file="real_payer_policy_uhc.pdf">📄 PDF</button>
           </div>
 
           <div class="editor-workspace-container">
