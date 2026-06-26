@@ -330,98 +330,64 @@
   <div id="view-concepts" class="view-panel" style="display:none;">
     <div class="concepts-page">
       <div class="concepts-top">
-        <h1 style="font-size:1.1rem;font-weight:800;">Multi-Agent PA Review: Disagreement Case</h1>
+        <h1 style="font-size:1rem;font-weight:800;">Agent Execution: Lumbar MRI Approval Challenged</h1>
         <button class="btn-play-small" id="btn-play-story">▶ Play</button>
       </div>
 
-      <div class="concepts-dual-agent">
-        <!-- PA Agent Column -->
-        <div class="agent-column" id="ac-pa">
-          <div class="ac-header ac-pa-header">
-            <span>🤖</span> PA Review Agent
-            <small id="ac-pa-status">idle</small>
-          </div>
-          <div class="ac-section">
-            <div class="ac-label">Skills</div>
-            <div class="ac-items">
-              <span class="ac-item ac-skill" id="pa-s1">PolicyRouter</span>
-              <span class="ac-item ac-skill" id="pa-s2">ExtractEvidence</span>
-              <span class="ac-item ac-skill" id="pa-s3">EvalCriteria</span>
-              <span class="ac-item ac-skill" id="pa-s4">GenNotice</span>
-            </div>
-          </div>
-          <div class="ac-section">
-            <div class="ac-label">Rules</div>
-            <div class="ac-items">
-              <span class="ac-item ac-rule" id="pa-r1">PHI Redact</span>
-              <span class="ac-item ac-rule" id="pa-r2">Conservatism</span>
-              <span class="ac-item ac-rule" id="pa-r3">Code Match</span>
-            </div>
-          </div>
-          <div class="ac-section">
-            <div class="ac-label">Hooks</div>
-            <div class="ac-items">
-              <span class="ac-item ac-hook" id="pa-h1">on_request</span>
-              <span class="ac-item ac-hook" id="pa-h2">on_criteria</span>
-              <span class="ac-item ac-hook" id="pa-h3">on_notice</span>
-            </div>
-          </div>
-          <div class="ac-decision" id="pa-decision">Decision: —</div>
+      <div class="concepts-three-col">
+        <!-- Col 1: PA Agent (compact) -->
+        <div class="agent-col" id="ac-pa">
+          <div class="agc-title agc-pa">🤖 PA Agent <small id="ac-pa-status">idle</small></div>
+          <div class="agc-row"><span class="agc-lbl">S</span><span class="ac-item ac-skill" id="pa-s1">PolicyRouter</span><span class="ac-item ac-skill" id="pa-s2">Extract</span><span class="ac-item ac-skill" id="pa-s3">Eval</span><span class="ac-item ac-skill" id="pa-s4">Notice</span></div>
+          <div class="agc-row"><span class="agc-lbl">R</span><span class="ac-item ac-rule" id="pa-r1">PHI</span><span class="ac-item ac-rule" id="pa-r2">Conserv</span><span class="ac-item ac-rule" id="pa-r3">CodeMatch</span></div>
+          <div class="agc-row"><span class="agc-lbl">H</span><span class="ac-item ac-hook" id="pa-h1">on_req</span><span class="ac-item ac-hook" id="pa-h2">on_crit</span><span class="ac-item ac-hook" id="pa-h3">on_notice</span></div>
+          <div class="ac-decision" id="pa-decision">—</div>
         </div>
 
-        <!-- Center: Handoff Arrow -->
-        <div class="agent-handoff">
-          <div class="handoff-arrow" id="handoff-arrow">→</div>
-          <div class="handoff-label" id="handoff-label">handoff</div>
+        <!-- Col 2: Center — live data + explanations -->
+        <div class="concepts-center">
+          <!-- Case data -->
+          <div class="cc-card">
+            <div class="cc-title">📋 Live Case Data</div>
+            <div class="cc-data" id="cc-case-data">CPT: 72148 (Lumbar MRI) | ICD: M54.16<br>Policy: POL-RAD-501 | Payer: UHC<br>Notes: "8wk pain, PT done, positive SLR, no prior MRI"</div>
+          </div>
+          <!-- Criteria -->
+          <div class="cc-card">
+            <div class="cc-title">✓✗ Criteria (POL-RAD-501)</div>
+            <div class="cc-data" id="cc-criteria"><span id="cc-c1">① Therapy ≥6wk: ?</span><span id="cc-c2">② Neuro symptoms: ?</span><span id="cc-c3">③ Red flags: ?</span><span id="cc-c4">④ No prior MRI: ?</span></div>
+          </div>
+          <!-- What's happening -->
+          <div class="cc-card cc-narr-card">
+            <div class="cc-title">⚡ Current Step</div>
+            <div class="cc-data cc-narr" id="story-narration">Press Play to watch both agents process this case.</div>
+          </div>
+          <!-- Terms -->
+          <div class="cc-card cc-terms">
+            <div class="cc-title">📖 Key Terms</div>
+            <div class="cc-terms-grid">
+              <span><b>Skill</b> = does work</span>
+              <span><b>Rule</b> = guardrail</span>
+              <span><b>Hook</b> = event→rule wiring</span>
+              <span><b>MCP</b> = agent protocol</span>
+              <span><b>Policy</b> = criteria source</span>
+              <span><b>Challenger</b> = 2nd opinion</span>
+            </div>
+          </div>
         </div>
 
-        <!-- Challenger Agent Column -->
-        <div class="agent-column" id="ac-ch">
-          <div class="ac-header ac-ch-header">
-            <span>🔁</span> Challenger Agent
-            <small id="ac-ch-status">idle</small>
-          </div>
-          <div class="ac-section">
-            <div class="ac-label">Skills</div>
-            <div class="ac-items">
-              <span class="ac-item ac-skill" id="ch-s1">ReinterpretEvidence</span>
-              <span class="ac-item ac-skill" id="ch-s2">AssessGaps</span>
-              <span class="ac-item ac-skill" id="ch-s3">EvalStrength</span>
-            </div>
-          </div>
-          <div class="ac-section">
-            <div class="ac-label">Rules</div>
-            <div class="ac-items">
-              <span class="ac-item ac-rule" id="ch-r1">Cite Evidence</span>
-              <span class="ac-item ac-rule" id="ch-r2">No Rubber Stamp</span>
-              <span class="ac-item ac-rule" id="ch-r3">Confidence ≥7</span>
-            </div>
-          </div>
-          <div class="ac-section">
-            <div class="ac-label">Hooks</div>
-            <div class="ac-items">
-              <span class="ac-item ac-hook" id="ch-h1">on_pa_decision</span>
-              <span class="ac-item ac-hook" id="ch-h2">on_challenge</span>
-            </div>
-          </div>
-          <div class="ac-decision" id="ch-decision">Verdict: —</div>
+        <!-- Col 3: Challenger Agent (compact) -->
+        <div class="agent-col" id="ac-ch">
+          <div class="agc-title agc-ch">�� Challenger <small id="ac-ch-status">idle</small></div>
+          <div class="agc-row"><span class="agc-lbl">S</span><span class="ac-item ac-skill" id="ch-s1">Reinterpret</span><span class="ac-item ac-skill" id="ch-s2">Gaps</span><span class="ac-item ac-skill" id="ch-s3">Strength</span></div>
+          <div class="agc-row"><span class="agc-lbl">R</span><span class="ac-item ac-rule" id="ch-r1">CiteEvid</span><span class="ac-item ac-rule" id="ch-r2">NoStamp</span><span class="ac-item ac-rule" id="ch-r3">Conf≥7</span></div>
+          <div class="agc-row"><span class="agc-lbl">H</span><span class="ac-item ac-hook" id="ch-h1">on_pa_dec</span><span class="ac-item ac-hook" id="ch-h2">on_challenge</span></div>
+          <div class="ac-decision" id="ch-decision">—</div>
         </div>
       </div>
 
-      <!-- Narration + case data -->
-      <div class="concepts-bottom-row">
-        <div class="concepts-narr" id="story-narration">Case: Lumbar MRI (CPT 72148). Notes say "8wk pain, PT done, positive SLR, no prior MRI." PA approves — but is the evidence strong enough? Press Play.</div>
-        <div class="concepts-avi-mini" id="concepts-avi">🤖 AVI: <span id="avi-concept-msg">ready</span></div>
-      </div>
-
-      <!-- Definitions row -->
-      <div class="concepts-defs">
-        <div class="cdef"><strong>🛠️ Skills</strong> = functions that DO work (extract, route, evaluate)</div>
-        <div class="cdef"><strong>⚙️ Rules</strong> = guardrails that CANNOT be skipped (block, redact, escalate)</div>
-        <div class="cdef"><strong>🪝 Hooks</strong> = wiring: "when X happens → enforce rule Y"</div>
-        <div class="cdef"><strong>📋 Policies</strong> = CPT/ICD criteria loaded per-request</div>
-        <div class="cdef"><strong>🔌 MCP</strong> = protocol: UI ↔ Agent ↔ LLM (/run-review, /avi)</div>
-        <div class="cdef"><strong>🔁 Challenger</strong> = adversarial 2nd agent. Can override with 🚩 red flag</div>
+      <!-- AVI -->
+      <div class="concepts-avi-bar">
+        🤖 AVI: <span id="avi-concept-msg">ready to explain both agents' reasoning</span>
       </div>
     </div>
   </div>

@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Replay demo animation (if present)
-  // Concept animation — disagreement case showing red flag
+  // Concept animation — 3-column with live data updates
   const storyBtn = document.getElementById('btn-play-story');
   if (storyBtn) storyBtn.addEventListener('click', playConceptStory);
 
@@ -59,18 +59,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     const narr = document.getElementById('story-narration');
     const aviMsg = document.getElementById('avi-concept-msg');
     if (!btn || !narr) return;
-    btn.disabled = true; btn.textContent = '\u23f8 Playing';
+    btn.disabled = true; btn.textContent = '\u23f8';
 
     // Reset
     document.querySelectorAll('.ac-item').forEach(el => el.classList.remove('lit'));
-    document.querySelectorAll('.agent-column').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.agent-col').forEach(el => el.classList.remove('active'));
     const paDec = document.getElementById('pa-decision');
     const chDec = document.getElementById('ch-decision');
-    paDec.className = 'ac-decision'; paDec.textContent = 'Decision: \u2014';
-    chDec.className = 'ac-decision'; chDec.textContent = 'Verdict: \u2014';
+    if (paDec) { paDec.className = 'ac-decision'; paDec.textContent = '\u2014'; }
+    if (chDec) { chDec.className = 'ac-decision'; chDec.textContent = '\u2014'; }
     document.getElementById('ac-pa-status').textContent = 'idle';
     document.getElementById('ac-ch-status').textContent = 'idle';
-    document.getElementById('handoff-arrow').className = 'handoff-arrow';
+    // Reset criteria
+    ['cc-c1','cc-c2','cc-c3','cc-c4'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.className = ''; el.textContent = el.textContent.replace(/[\u2713\u2717].*/, '?'); }
+    });
+    document.getElementById('cc-c1').textContent = '\u2460 Therapy \u22656wk: ?';
+    document.getElementById('cc-c2').textContent = '\u2461 Neuro symptoms: ?';
+    document.getElementById('cc-c3').textContent = '\u2462 Red flags: ?';
+    document.getElementById('cc-c4').textContent = '\u2463 No prior MRI: ?';
     if (aviMsg) aviMsg.textContent = 'watching';
 
     const delay = ms => new Promise(r => setTimeout(r, ms));
@@ -80,82 +88,82 @@ document.addEventListener('DOMContentLoaded', async () => {
     // === PA AGENT ===
     document.getElementById('ac-pa').classList.add('active');
     document.getElementById('ac-pa-status').textContent = 'running';
-    narr.textContent = '\U0001f4cb Case: Lumbar MRI, CPT 72148. Notes: "8wk pain, PT done, positive SLR, no prior MRI."';
-    await delay(1200);
-
+    narr.textContent = 'PA Agent starts. Hook on_request fires \u2192 PHI rule scrubs SSN/DOB.';
     light('pa-h1'); light('pa-r1');
-    narr.textContent = '\U0001fa9d on_request \u2192 \u2699\ufe0f PHI Redact: SSN/DOB scrubbed from trace logs.';
-    await delay(900); dim('pa-h1'); dim('pa-r1');
+    await delay(1000); dim('pa-h1'); dim('pa-r1');
 
     light('pa-s1'); light('pa-r3');
-    narr.textContent = '\U0001f6e0\ufe0f PolicyRouter \u2192 POL-RAD-501. \u2699\ufe0f Code Match: M54.16 valid for lumbar MRI.';
-    await delay(900); dim('pa-s1'); dim('pa-r3');
+    narr.textContent = 'Skill PolicyRouter: CPT 72148 \u2192 POL-RAD-501. Rule CodeMatch: M54.16 valid.';
+    await delay(1000); dim('pa-s1'); dim('pa-r3');
 
     light('pa-s2');
-    narr.textContent = '\U0001f6e0\ufe0f ExtractEvidence (calls LLM): therapy=8wk, neuro=true, findings=true.';
+    narr.textContent = 'Skill Extract calls LLM. Finds: therapy=8wk, neuro=true, SLR+, no prior MRI.';
     await delay(1000); dim('pa-s2');
 
-    light('pa-s3'); light('pa-h2'); light('pa-r2');
-    narr.textContent = '\U0001f6e0\ufe0f EvalCriteria: all 4 thresholds pass. \U0001fa9d on_criteria \u2192 \u2699\ufe0f Conservatism: no escalation.';
-    await delay(1000); dim('pa-s3'); dim('pa-h2'); dim('pa-r2');
+    // Update criteria
+    light('pa-s3');
+    narr.textContent = 'Skill Eval checks each criterion against policy thresholds...';
+    await delay(500);
+    document.getElementById('cc-c1').textContent = '\u2460 Therapy \u22656wk: 8wk \u2713'; document.getElementById('cc-c1').classList.add('met');
+    await delay(400);
+    document.getElementById('cc-c2').textContent = '\u2461 Neuro symptoms: positive SLR \u2713'; document.getElementById('cc-c2').classList.add('met');
+    await delay(400);
+    document.getElementById('cc-c3').textContent = '\u2462 Red flags: none \u2713'; document.getElementById('cc-c3').classList.add('met');
+    await delay(400);
+    document.getElementById('cc-c4').textContent = '\u2463 No prior MRI: pass \u2713'; document.getElementById('cc-c4').classList.add('met');
+    await delay(400);
+
+    light('pa-h2'); light('pa-r2');
+    narr.textContent = 'Hook on_criteria \u2192 Rule Conservatism: all criteria met, no escalation needed.';
+    await delay(800); dim('pa-s3'); dim('pa-h2'); dim('pa-r2');
 
     light('pa-s4'); light('pa-h3');
-    narr.textContent = '\U0001f6e0\ufe0f GenNotice drafts approval letter. \U0001fa9d on_notice \u2192 Plain Language applied.';
-    await delay(800); dim('pa-s4'); dim('pa-h3');
+    narr.textContent = 'Skill GenNotice + Hook on_notice: approval letter drafted.';
+    await delay(700); dim('pa-s4'); dim('pa-h3');
 
-    paDec.textContent = 'Decision: APPROVED \u2705';
-    paDec.className = 'ac-decision approved';
-    document.getElementById('ac-pa-status').textContent = 'approved';
+    paDec.textContent = 'APPROVED'; paDec.className = 'ac-decision approved';
+    document.getElementById('ac-pa-status').textContent = 'done';
     document.getElementById('ac-pa').classList.remove('active');
-    narr.textContent = '\u2705 PA Agent approved. Now handing off to Challenger for quality review...';
-    await delay(1200);
+    narr.textContent = '\u2705 PA approved. Handing to Challenger for quality review...';
+    await delay(1000);
 
-    // === HANDOFF ===
-    document.getElementById('handoff-arrow').classList.add('active');
-    document.getElementById('handoff-label').textContent = 'decision passed';
-    await delay(800);
-    document.getElementById('handoff-arrow').classList.remove('active');
-
-    // === CHALLENGER AGENT ===
+    // === CHALLENGER ===
     document.getElementById('ac-ch').classList.add('active');
     document.getElementById('ac-ch-status').textContent = 'reviewing';
 
     light('ch-h1');
-    narr.textContent = '\U0001fa9d on_pa_decision fires. Challenger receives: "Approved" + all evidence + criteria results.';
-    await delay(900); dim('ch-h1');
+    narr.textContent = 'Hook on_pa_decision fires. Challenger receives all evidence + PA criteria results.';
+    await delay(800); dim('ch-h1');
 
     light('ch-s1');
-    narr.textContent = '\U0001f6e0\ufe0f ReinterpretEvidence: Re-reading notes... "no prior MRI" \u2014 but CRIT-4 was marked as MET. Why?';
-    await delay(1200); dim('ch-s1');
+    narr.textContent = 'Skill Reinterpret: Notes say "no prior MRI" but CRIT-4 was marked MET. Contradiction?';
+    await delay(1000); dim('ch-s1');
+    // Mark CRIT-4 as questioned
+    document.getElementById('cc-c4').textContent = '\u2463 No prior MRI: \u26a0\ufe0f weak evidence'; 
+    document.getElementById('cc-c4').className = 'unmet';
 
     light('ch-s2'); light('ch-r1');
-    narr.textContent = '\U0001f6e0\ufe0f AssessGaps + \u2699\ufe0f Cite Evidence: Notes say "no prior MRI" yet agent claims prior imaging exists. Contradiction.';
-    await delay(1200); dim('ch-s2'); dim('ch-r1');
+    narr.textContent = 'Skill AssessGaps + Rule CiteEvidence: "no prior MRI" actually supports criterion, but phrasing is ambiguous.';
+    await delay(1000); dim('ch-s2'); dim('ch-r1');
 
     light('ch-s3'); light('ch-r2');
-    narr.textContent = '\U0001f6e0\ufe0f EvalStrength: Approval rests on weak evidence for CRIT-4. \u2699\ufe0f No Rubber Stamp: substantive finding.';
-    await delay(1200); dim('ch-s3'); dim('ch-r2');
+    narr.textContent = 'Skill EvalStrength + Rule NoStamp: PA logic assumed pass. Evidence borderline.';
+    await delay(1000); dim('ch-s3'); dim('ch-r2');
 
     light('ch-r3');
-    narr.textContent = '\u2699\ufe0f Confidence Threshold: Score 8/10. \u2265 7 \u2192 FORMAL CHALLENGE authorized.';
-    await delay(1000); dim('ch-r3');
+    narr.textContent = 'Rule Conf\u22657: confidence=8 \u2265 7 \u2192 FORMAL CHALLENGE authorized. Override decision.';
+    await delay(800); dim('ch-r3');
 
     light('ch-h2');
-    narr.textContent = '\U0001fa9d on_challenge fires \u2192 \U0001f6a9 RED FLAG. Decision OVERRIDDEN. Routed to Medical Director.';
+    narr.textContent = '\U0001f6a9 Hook on_challenge \u2192 RED FLAG. Decision overridden \u2192 Medical Director.';
     await delay(600); dim('ch-h2');
 
-    chDec.textContent = 'Verdict: \U0001f6a9 CHALLENGE (8/10)';
-    chDec.className = 'ac-decision challenge';
+    chDec.textContent = '\U0001f6a9 CHALLENGE 8/10'; chDec.className = 'ac-decision challenge';
+    paDec.textContent = '\U0001f6a9 FLAGGED'; paDec.className = 'ac-decision flagged';
     document.getElementById('ac-ch-status').textContent = 'overridden';
-
-    // Update PA decision to show override
-    paDec.textContent = 'Decision: \U0001f6a9 FLAGGED';
-    paDec.className = 'ac-decision flagged';
-    if (aviMsg) aviMsg.textContent = 'explaining disagreement';
-    await delay(1000);
-
     document.getElementById('ac-ch').classList.remove('active');
-    narr.textContent = '\U0001f6a9 RESULT: Approval overridden. Medical Director review required. AVI explains: "CRIT-4 evidence contradicts the notes."';
+    if (aviMsg) aviMsg.textContent = 'explains: CRIT-4 evidence is ambiguous';
+    narr.textContent = '\U0001f6a9 Final: PA approval overridden. Sent to Medical Director. AVI explains the disagreement to user.';
     
     btn.disabled = false; btn.textContent = '\u25b6 Replay';
   }
