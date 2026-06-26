@@ -315,135 +315,105 @@
   <!-- VIEW: Concepts -->
   <div id="view-concepts" class="view-panel" style="display:none;">
     <div class="concepts-page">
-      <!-- Top row: title + play -->
       <div class="concepts-top">
         <div>
-          <h1 style="font-size:1.3rem;font-weight:800;">Agent Execution Model</h1>
-          <p style="font-size:0.78rem;color:var(--text-muted);">Skills do work. Hooks listen for events. Rules enforce constraints when hooks fire.</p>
+          <h1 style="font-size:1.2rem;font-weight:800;margin-bottom:0.1rem;">Live Case: Lumbar MRI — Escalated</h1>
+          <p style="font-size:0.72rem;color:var(--text-muted);">Patient: Sarah Martinez, 38yo • CPT 72148 • 3 weeks pain • No PT • No imaging</p>
         </div>
         <button class="btn-play-small" id="btn-play-story">▶ Play</button>
       </div>
 
-      <!-- Main animation area -->
       <div class="concepts-main">
-        <!-- Left: How it connects -->
-        <div class="concepts-explainer">
-          <div class="explainer-block">
-            <div class="exp-title">🛠️ Skills <span class="exp-role">= Workers</span></div>
-            <div class="exp-desc">Execute tasks. Read data, call LLM, produce outputs.</div>
+        <!-- Left: Live narration panel -->
+        <div class="concepts-narration-panel">
+          <div class="narr-section" id="narr-case">
+            <div class="narr-title">📋 Case Input</div>
+            <div class="narr-body">CPT 72148 (Lumbar MRI)<br>ICD-10 M54.5 (Low back pain)<br>Notes: "3 weeks pain, no PT, no neuro exam"</div>
           </div>
-          <div class="explainer-block">
-            <div class="exp-title">🪝 Hooks <span class="exp-role">= Event Wiring</span></div>
-            <div class="exp-desc">Listen: "When stage X completes → trigger rule Y"</div>
-            <div class="exp-example">
-              <code>on_evidence_extracted</code> → fires <code>RULE-04</code>
+          <div class="narr-section" id="narr-event">
+            <div class="narr-title">⚡ Current Event</div>
+            <div class="narr-body" id="narr-event-body">Press Play to start</div>
+          </div>
+          <div class="narr-section" id="narr-agents">
+            <div class="narr-title">🤖 Agents</div>
+            <div class="narr-agents-row">
+              <div class="narr-agent" id="na-pa"><span>🤖</span> PA Agent <small id="na-pa-s">idle</small></div>
+              <div class="narr-agent" id="na-avi"><span>🤖</span> AVI <small id="na-avi-s">idle</small></div>
             </div>
           </div>
-          <div class="explainer-block">
-            <div class="exp-title">⚙️ Rules <span class="exp-role">= Constraints</span></div>
-            <div class="exp-desc">Cannot be skipped. Block, modify, or escalate.</div>
-            <div class="exp-example">
-              <code>Conservatism</code>: if criteria unmet → escalate (never deny)
-            </div>
-          </div>
-          <div class="explainer-block">
-            <div class="exp-title">🤖 Agents <span class="exp-role">= Orchestrators</span></div>
-            <div class="exp-desc">PA Agent runs the pipeline. AVI explains decisions.</div>
+          <div class="narr-section" id="narr-result">
+            <div class="narr-title">📤 Decision</div>
+            <div class="narr-body narr-result-body" id="narr-result-body">⏳ Pending</div>
           </div>
         </div>
 
-        <!-- Right: Animated canvas -->
-        <div class="concepts-canvas" id="concepts-canvas">
-          <!-- Pipeline stages as a vertical flow -->
-          <div class="cv-flow">
-            <div class="cv-stage" id="cv-1">
-              <div class="cv-stage-name">Intake</div>
-              <div class="cv-actors">
-                <span class="cv-actor cv-skill">🛠️ Receive</span>
+        <!-- Right: Pipeline visualization -->
+        <div class="concepts-pipeline">
+          <div class="cp-stage" id="cp-1">
+            <div class="cp-num">1</div>
+            <div class="cp-content">
+              <div class="cp-name">Intake + PHI</div>
+              <div class="cp-detail">
+                <span class="cp-chip cp-hook">🪝 on_request</span>
+                <span class="cp-chip cp-rule">⚙️ RULE-01 PHI Redact</span>
               </div>
-              <div class="cv-hook-wire" id="cv-hw-1">
-                <span class="cv-hook-label">🪝 on_request</span>
-                <span class="cv-hook-arrow">→</span>
-                <span class="cv-rule-label">⚙️ PHI Redact</span>
-              </div>
-            </div>
-
-            <div class="cv-connector"></div>
-
-            <div class="cv-stage" id="cv-2">
-              <div class="cv-stage-name">Route + Validate</div>
-              <div class="cv-actors">
-                <span class="cv-actor cv-skill">🛠️ PolicyRouter</span>
-              </div>
-              <div class="cv-hook-wire" id="cv-hw-2">
-                <span class="cv-hook-label">🪝 on_guidelines</span>
-                <span class="cv-hook-arrow">→</span>
-                <span class="cv-rule-label">⚙️ Code Match</span>
-              </div>
-            </div>
-
-            <div class="cv-connector"></div>
-
-            <div class="cv-stage" id="cv-3">
-              <div class="cv-stage-name">Extract Evidence</div>
-              <div class="cv-actors">
-                <span class="cv-actor cv-skill">🛠️ Extract</span>
-                <span class="cv-actor cv-llm">🧠 LLM</span>
-              </div>
-              <div class="cv-hook-wire" id="cv-hw-3">
-                <span class="cv-hook-label">🪝 on_evidence</span>
-                <span class="cv-hook-arrow">→</span>
-                <span class="cv-rule-label">validate quality</span>
-              </div>
-            </div>
-
-            <div class="cv-connector"></div>
-
-            <div class="cv-stage" id="cv-4">
-              <div class="cv-stage-name">Criteria Validation</div>
-              <div class="cv-actors">
-                <span class="cv-actor cv-skill">🛠️ EvalCriteria</span>
-                <span class="cv-actor cv-skill">✓✗ Check Thresholds</span>
-              </div>
-              <div class="cv-criteria-check" id="cv-criteria-check">symptom ≥6wk? therapy ≥6wk? findings?</div>
-              <div class="cv-hook-wire" id="cv-hw-4">
-                <span class="cv-hook-label">🪝 on_criteria</span>
-                <span class="cv-hook-arrow">→</span>
-                <span class="cv-rule-label">⚙️ Conservatism: unmet=escalate</span>
-              </div>
-            </div>
-
-            <div class="cv-connector"></div>
-
-            <div class="cv-stage" id="cv-5">
-              <div class="cv-stage-name">Generate Notice</div>
-              <div class="cv-actors">
-                <span class="cv-actor cv-skill">🛠️ GenNotice</span>
-              </div>
-              <div class="cv-hook-wire" id="cv-hw-5">
-                <span class="cv-hook-label">🪝 on_notice</span>
-                <span class="cv-hook-arrow">→</span>
-                <span class="cv-rule-label">⚙️ Plain Lang</span>
-              </div>
+              <div class="cp-output" id="cp-out-1"></div>
             </div>
           </div>
-
-          <!-- Agents sidebar -->
-          <div class="cv-agents">
-            <div class="cv-agent cv-pa-agent" id="cv-pa">🤖 PA Agent<div class="cv-agent-status" id="cv-pa-status">idle</div></div>
-            <div class="cv-agent cv-avi-agent" id="cv-avi">🤖 AVI<div class="cv-agent-status" id="cv-avi-status">idle</div></div>
+          <div class="cp-stage" id="cp-2">
+            <div class="cp-num">2</div>
+            <div class="cp-content">
+              <div class="cp-name">Policy Route + Validate</div>
+              <div class="cp-detail">
+                <span class="cp-chip cp-skill">🛠️ PolicyRouter</span>
+                <span class="cp-chip cp-hook">🪝 on_guidelines</span>
+                <span class="cp-chip cp-rule">⚙️ RULE-04 Code Match</span>
+              </div>
+              <div class="cp-output" id="cp-out-2"></div>
+            </div>
           </div>
-
-          <!-- Result -->
-          <div class="cv-result" id="cv-result">
-            <span id="cv-result-icon">⏳</span>
-            <span id="cv-result-text">Pending</span>
+          <div class="cp-stage" id="cp-3">
+            <div class="cp-num">3</div>
+            <div class="cp-content">
+              <div class="cp-name">Evidence Extraction</div>
+              <div class="cp-detail">
+                <span class="cp-chip cp-skill">🛠️ ExtractEvidence</span>
+                <span class="cp-chip cp-llm">🧠 ClinicalNLP</span>
+              </div>
+              <div class="cp-output" id="cp-out-3"></div>
+            </div>
+          </div>
+          <div class="cp-stage" id="cp-4">
+            <div class="cp-num">4</div>
+            <div class="cp-content">
+              <div class="cp-name">Criteria Validation</div>
+              <div class="cp-detail">
+                <span class="cp-chip cp-skill">🛠️ EvalCriteria</span>
+                <span class="cp-chip cp-hook">🪝 on_criteria</span>
+                <span class="cp-chip cp-rule">⚙️ RULE-02 Conservatism</span>
+              </div>
+              <div class="cp-criteria" id="cp-criteria">
+                <span id="crit-a">Symptoms ≥6wk: ?</span>
+                <span id="crit-b">Therapy ≥6wk: ?</span>
+                <span id="crit-c">Neuro findings: ?</span>
+              </div>
+              <div class="cp-output" id="cp-out-4"></div>
+            </div>
+          </div>
+          <div class="cp-stage" id="cp-5">
+            <div class="cp-num">5</div>
+            <div class="cp-content">
+              <div class="cp-name">Decision + Notice</div>
+              <div class="cp-detail">
+                <span class="cp-chip cp-skill">🛠️ GenNotice</span>
+                <span class="cp-chip cp-hook">🪝 on_notice</span>
+                <span class="cp-chip cp-rule">⚙️ RULE-05 Plain Lang</span>
+              </div>
+              <div class="cp-output" id="cp-out-5"></div>
+            </div>
           </div>
         </div>
       </div>
-
-      <!-- Narration -->
-      <div class="story-narration" id="story-narration">Press Play to watch a request flow through the pipeline. Notice how hooks wire rules to specific stages.</div>
     </div>
   </div>
 
