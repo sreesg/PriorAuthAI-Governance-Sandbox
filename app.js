@@ -2,8 +2,7 @@ import { PriorAuthAgent } from './agent.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   const agent = new PriorAuthAgent();
-  let activeFile = "rules_declaration.md"; // Default editor active view
-  let regoSourceText = "";
+  let activeFile = "rules_declaration.md";
 
   // Elements
   const presetContainer = document.getElementById('preset-cases-container');
@@ -22,12 +21,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const codeViewerPre = document.getElementById('code-viewer-pre');
   const editorTextarea = document.getElementById('editor-textarea');
   const pdfDownloadPanel = document.getElementById('pdf-download-panel');
-  const btnSaveCompile = document.getElementById('btn-save-compile');
-  const btnResetWorkspace = document.getElementById('btn-reset-workspace');
   const activeSkillsPills = document.getElementById('active-skills-pills');
   const discoveredSkillsCount = document.getElementById('discovered-skills-count');
   const auditConsole = document.getElementById('audit-console');
-  const jurorStatusBadge = document.getElementById('juror-status-badge');
 
   // Input Fields
   const inputMemberId = document.getElementById('input-member-id');
@@ -64,194 +60,159 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 3000);
   }
 
-  // Load and cache rules.rego initially for execution
-  try {
-    await loadRegoSource();
-  } catch (e) {
-    console.error("Initial rules.rego load failed:", e);
-  }
+  // Load initial workspace file view
   try {
     await refreshActiveFileView();
   } catch (e) {
     console.error("Initial file view load failed:", e);
   }
   refreshSkillsPills();
-  loadPolicyList();
+  loadPolicyWorkspace();
 
-  // Load and display all policies in the workspace
-  async function loadPolicyList() {
-    const policyList = document.getElementById('policy-list');
+  // Load policies into the workspace dropdown and detail view
+  let workspacePolicies = [];
+  
+  async function loadPolicyWorkspace() {
+    const select = document.getElementById('policy-select');
     try {
       const res = await fetch('/agent/policies');
-      const policies = await res.json();
-      policyList.innerHTML = '';
-      
-      const categoryIcons = { 'Radiology': '🩻', 'Oncology': '🔬', 'Surgery': '🔪', 'Specialty Pharmacy': '💊' };
-      
-      policies.forEach((p, i) => {
-        const item = document.createElement('div');
-        item.className = 'policy-item' + (i === 0 ? ' active' : '');
-        item.innerHTML = `
-          <span class="policy-item-icon">${categoryIcons[p.category] || '📋'}</span>
-          <div class="policy-item-info">
-            <h4>${p.name}</h4>
-            <p>CPT: ${p.cptCodes.join(', ')} • ${p.payer}</p>
-          </div>
-          <span class="policy-item-badge">${p.category}</span>
-          <div class="policy-item-actions">
-            <button class="btn-policy-action" data-policy-id="${p.policyId}" data-action="rules" title="Generate rules for this policy">⚙️</button>
-            <button class="btn-policy-action" data-policy-id="${p.policyId}" data-action="skills" title="Generate skills for this policy">🛠️</button>
-            <button class="btn-policy-action" data-policy-id="${p.policyId}" data-action="hooks" title="Generate hooks for this policy">🪝</button>
-          </div>
-        `;
-        item.addEventListener('click', (e) => {
-          if (e.target.closest('.btn-policy-action')) return; // Don't select when clicking action buttons
-          document.querySelectorAll('.policy-item').forEach(el => el.classList.remove('active'));
-          item.classList.add('active');
-          showPolicyDetail(p);
-        });
-        policyList.appendChild(item);
+      workspacePolicies = await res.json();
+      select.innerHTML = '';
+      workspacePolicies.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.policyId;
+        opt.textContent = `${p.name} (${p.category}) — ${p.cptCodes.join(', ')}`;
+        select.appendChild(opt);
       });
-      
-      // Attach action button handlers
-      document.querySelectorAll('.btn-policy-action').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const policyId = btn.getAttribute('data-policy-id');
-          const action = btn.getAttribute('data-action');
-          btn.disabled = true;
-          const origText = btn.textContent;
-          btn.textContent = '⏳';
-          
-          try {
-            const res = await fetch('/agent/build-for-policy', {
-              method: 'POST',
-              headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({ policyId, action })
-            });
-            const data = await res.json();
-            if (res.ok) {
-              auditConsole.textContent = data.auditLog || `✓ ${action} generated for ${policyId}`;
-              showToast(`${action} generated for ${policyId}`, 'success');
-              if (action === 'skills') refreshSkillsPills();
-              await refreshActiveFileView(); // Refresh editor to show new content
-            } else {
-              auditConsole.textContent = `Error: ${data.error}`;
-              showToast(`Failed: ${data.error}`, 'error');
-            }
-          } catch(err) {
-            auditConsole.textContent = `Network error: ${err.message}`;
-          } finally {
-            btn.disabled = false;
-            btn.textContent = origText;
-          }
-        });
-      });
-      
-      if (policies.length > 0) showPolicyDetail(policies[0]);
+      if (workspacePolicies.length > 0) showWorkspacePolicy(workspacePolicies[0].policyId);
     } catch (e) {
-      policyList.innerHTML = '<p style="color:var(--text-muted);font-size:0.75rem;">Failed to load policies.</p>';
+      select.innerHTML = '<option>Failed to load policies</option>';
     }
+    
+    // Dropdown change
+    select.addEventListener('change', () => showWorkspacePolicy(select.value));
+    
+    // Generate All button
+    document.getElementById('btn-gen-all').addEventListener('click', async () => {
+      const policyId = select.value;
+      if (!policyId) return;
+      const btn = document.getElementById('btn-gen-all');
+      btn.disabled = true; btn.textContent = '🧠 Generating...';
+      auditConsole.textContent = `Generating rules, skills, and hooks for ${policyId}...\n`;
+      
+      for (const action of ['rules', 'skills', 'hooks']) {
+        try {
+          const res = await fetch('/agent/build-for-policy', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ policyId, action })
+          });
+          const data = await res.json();
+          auditConsole.textContent += `\n[${action.toUpperCase()}] ${data.auditLog || data.error || 'Done'}\n`;
+        } catch(e) {
+          auditConsole.textContent += `\n[${action.toUpperCase()}] Error: ${e.message}\n`;
+        }
+      }
+      btn.disabled = false; btn.textContent = '🧠 Generate All';
+      await refreshActiveFileView();
+      refreshSkillsPills();
+      showToast(`All artifacts generated for ${policyId}`, 'success');
+    });
+    
+    // Individual generate buttons
+    ['rules', 'skills', 'hooks'].forEach(action => {
+      const btnId = action === 'skills' ? 'btn-gen-skills-ws' : `btn-gen-${action}`;
+      document.getElementById(btnId).addEventListener('click', async () => {
+        const policyId = select.value;
+        if (!policyId) return;
+        const btn = document.getElementById(btnId);
+        btn.disabled = true;
+        try {
+          const res = await fetch('/agent/build-for-policy', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ policyId, action })
+          });
+          const data = await res.json();
+          auditConsole.textContent = data.auditLog || data.error || 'Done';
+          if (action === 'skills') refreshSkillsPills();
+          await refreshActiveFileView();
+          showToast(`${action} generated for ${policyId}`, 'success');
+        } catch(e) {
+          auditConsole.textContent = `Error: ${e.message}`;
+        } finally { btn.disabled = false; }
+      });
+    });
   }
 
-  function showPolicyDetail(policy) {
-    const detailTitle = document.getElementById('policy-detail-title');
-    const detailPayer = document.getElementById('policy-detail-payer');
-    const detailBody = document.getElementById('policy-detail-body');
+  function showWorkspacePolicy(policyId) {
+    const title = document.getElementById('ws-policy-title');
+    const payer = document.getElementById('ws-policy-payer');
+    const body = document.getElementById('ws-policy-body');
     
-    detailTitle.textContent = `${policy.policyId}: ${policy.name}`;
-    detailPayer.textContent = policy.payer;
-    
-    // Fetch full policy detail from the file
-    fetch(`/agent/policy-detail?id=${policy.policyId}`).then(r => r.json()).then(full => {
+    fetch(`/agent/policy-detail?id=${policyId}`).then(r => r.json()).then(p => {
+      title.textContent = `${p.policyId}: ${p.policyName}`;
+      payer.textContent = `${p.payer} • ${p.category}`;
+      
       let html = '';
-      html += '<div style="margin-bottom:0.4rem;"><strong style="font-size:0.7rem;color:var(--text-muted);">CPT CODES:</strong></div>';
+      html += '<div style="margin-bottom:0.5rem;"><strong style="font-size:0.72rem;color:var(--text-muted);">CPT CODES:</strong></div>';
       html += '<div class="policy-codes-row">';
-      (full.cptCodes || []).forEach(c => {
-        const desc = full.cptDescriptions ? full.cptDescriptions[c] || '' : '';
+      (p.cptCodes || []).forEach(c => {
+        const desc = p.cptDescriptions ? (p.cptDescriptions[c] || '') : '';
         html += `<span class="policy-code-chip" title="${desc}">${c}</span>`;
       });
       html += '</div>';
       
-      if (full.allowedIcd10 && full.allowedIcd10.length > 0) {
-        html += '<div style="margin:0.4rem 0;"><strong style="font-size:0.7rem;color:var(--text-muted);">ICD-10 CODES:</strong></div>';
+      if (p.allowedIcd10 && p.allowedIcd10.length > 0) {
+        html += '<div style="margin:0.5rem 0 0.3rem;"><strong style="font-size:0.72rem;color:var(--text-muted);">ICD-10:</strong></div>';
         html += '<div class="policy-codes-row">';
-        full.allowedIcd10.slice(0, 8).forEach(c => { html += `<span class="policy-code-chip">${c}</span>`; });
+        p.allowedIcd10.slice(0, 8).forEach(c => { html += `<span class="policy-code-chip">${c}</span>`; });
+        if (p.allowedIcd10.length > 8) html += `<span class="policy-code-chip">+${p.allowedIcd10.length - 8}</span>`;
         html += '</div>';
       }
       
-      if (full.criteria && full.criteria.length > 0) {
-        html += '<div style="margin:0.4rem 0;"><strong style="font-size:0.7rem;color:var(--text-muted);">CRITERIA (' + full.criteria.length + '):</strong></div>';
+      if (p.criteria && p.criteria.length > 0) {
+        html += `<div style="margin:0.5rem 0 0.3rem;"><strong style="font-size:0.72rem;color:var(--text-muted);">CRITERIA (${p.criteria.length}):</strong></div>`;
         html += '<div class="policy-criteria-list">';
-        full.criteria.forEach(c => {
+        p.criteria.forEach(c => {
           html += `<div class="policy-criteria-item"><span class="crit-id">${c.id}</span><span>${c.description}</span></div>`;
         });
         html += '</div>';
       }
       
-      detailBody.innerHTML = html;
-    }).catch(() => {
-      detailBody.innerHTML = `<p style="font-size:0.75rem;">CPT: ${policy.cptCodes.join(', ')}</p>`;
-    });
+      body.innerHTML = html;
+    }).catch(() => { body.innerHTML = '<p>Error loading policy detail.</p>'; });
   }
 
-  // 1. Fetch OPA rules.rego source code
-  async function loadRegoSource() {
-    try {
-      const res = await fetch(`./rules.rego?update=${Date.now()}`);
-      if (res.ok) {
-        regoSourceText = await res.text();
-      }
-    } catch (e) {
-      console.error("Failed to load rules.rego source:", e);
-      regoSourceText = "";
-    }
-  }
+  // 1. (loadRegoSource removed — agent review handled by Python backend)
 
   // 2. Fetch and display file content in Workspace Editor / Pre previewer
   async function refreshActiveFileView() {
     codeViewerPre.style.display = "none";
     editorTextarea.style.display = "none";
-    pdfDownloadPanel.style.display = "none";
+    if (pdfDownloadPanel) pdfDownloadPanel.style.display = "none";
     
     // Handle PDF tab specially
     const isPdf = activeFile.endsWith('.pdf');
     if (isPdf) {
-      pdfDownloadPanel.style.display = "flex";
-      btnSaveCompile.disabled = true;
-      btnSaveCompile.classList.add('disabled');
-      btnSaveCompile.textContent = "🔒 PDF View";
+      if (pdfDownloadPanel) pdfDownloadPanel.style.display = "flex";
       return;
-    }
-    
-    // Editable: .md files. Read-only: .rego, .js, .json
-    const isEditable = activeFile.endsWith('.md');
-    
-    btnSaveCompile.disabled = !isEditable;
-    if (!isEditable) {
-      btnSaveCompile.classList.add('disabled');
-      btnSaveCompile.textContent = "🔒 Read Only";
-    } else {
-      btnSaveCompile.classList.remove('disabled');
-      btnSaveCompile.textContent = "💾 Save & Compile";
     }
 
     try {
       const res = await fetch(`./${activeFile}?update=${Date.now()}`);
       if (res.ok) {
         const text = await res.text();
-        if (isEditable) {
-          editorTextarea.style.display = "block";
-          editorTextarea.value = text;
-        } else {
+        // JSON files show in pre (read-only, formatted)
+        if (activeFile.endsWith('.json') || activeFile.endsWith('.rego') || activeFile.endsWith('.js')) {
           codeViewerPre.style.display = "block";
-          // Pretty-print JSON files
           if (activeFile.endsWith('.json')) {
             try { codeViewer.textContent = JSON.stringify(JSON.parse(text), null, 2); }
             catch(_) { codeViewer.textContent = text; }
           } else {
             codeViewer.textContent = text;
           }
+        } else {
+          editorTextarea.style.display = "block";
+          editorTextarea.value = text;
         }
       } else {
         codeViewerPre.style.display = "block";
@@ -290,82 +251,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // 5. Save and compile human-readable declarations
-  btnSaveCompile.addEventListener('click', async () => {
-    btnSaveCompile.disabled = true;
-    btnSaveCompile.textContent = "⚙️ SkillJuror Auditing...";
-    jurorStatusBadge.textContent = "Juror: AUDITING...";
-    jurorStatusBadge.className = "badge badge-orange";
-    
-    try {
-      const res = await fetch('/save-file', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: json_payload_string()
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        
-        // Print SkillJuror validation results in console
-        auditConsole.textContent = data.auditLogs.join('\n');
-        
-        // Reload agent memory
-        await loadRegoSource();
-        await agent.reloadSkills();
-        
-        // Update components
-        refreshSkillsPills();
-        showToast("Success: File compiled & SkillJuror audited!", "success");
-        jurorStatusBadge.textContent = "Juror: SECURED";
-        jurorStatusBadge.className = "badge badge-purple";
-      } else {
-        showToast("Failed to save and compile. Check server log.", "error");
-        jurorStatusBadge.textContent = "Juror: ERROR";
-        jurorStatusBadge.className = "badge badge-red";
-      }
-    } catch (e) {
-      showToast(`Network error compiling: ${e.message}`, "error");
-      jurorStatusBadge.textContent = "Juror: OFFLINE";
-      jurorStatusBadge.className = "badge badge-red";
-    } finally {
-      btnSaveCompile.disabled = false;
-      btnSaveCompile.textContent = "💾 Save & Compile Policies";
-    }
-  });
-
-  function json_payload_string() {
-    return JSON.stringify({
-      filename: activeFile,
-      content: editorTextarea.value
-    });
-  }
-
-  // 6. Reset Workspace templates
-  btnResetWorkspace.addEventListener('click', async () => {
-    btnResetWorkspace.disabled = true;
-    try {
-      const res = await fetch('/reset-workspace', { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        
-        // Reset local agent instances
-        delete agent.skills.VerifyNpiStatusSkill;
-        await loadRegoSource();
-        await refreshActiveFileView();
-        refreshSkillsPills();
-        
-        auditConsole.textContent = "Workspace restored to initial defaults.";
-        showToast("Workspace templates reset successfully.", "success");
-        jurorStatusBadge.textContent = "Juror: ACTIVE";
-        jurorStatusBadge.className = "badge badge-purple";
-      }
-    } catch (e) {
-      showToast(`Error resetting workspace: ${e.message}`, "error");
-    } finally {
-      btnResetWorkspace.disabled = false;
-    }
-  });
+  // 5. (Save/compile removed — replaced by per-policy AI generation)
+  // 6. (Reset removed — policies are managed through JSON files)
 
   // 6.5. (Removed — per-policy action buttons handle this now)
 

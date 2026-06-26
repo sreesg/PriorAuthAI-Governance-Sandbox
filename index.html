@@ -38,79 +38,77 @@
 
   <!-- VIEW: Policy Workspace -->
   <div id="view-workspace" class="view-panel" style="display:none;">
+    <!-- Top: Policy selector + Generate actions -->
+    <div class="glass-card workspace-topbar">
+      <div class="workspace-topbar-row">
+        <div class="workspace-select-group">
+          <label for="policy-select">Active Policy:</label>
+          <select id="policy-select" class="policy-select"></select>
+        </div>
+        <div class="workspace-action-buttons">
+          <button id="btn-gen-all" class="btn-primary-action">🧠 Generate All</button>
+          <button class="btn-gen-individual" id="btn-gen-rules">⚙️ Rules</button>
+          <button class="btn-gen-individual" id="btn-gen-skills-ws">🛠️ Skills</button>
+          <button class="btn-gen-individual" id="btn-gen-hooks">🪝 Hooks</button>
+        </div>
+      </div>
+    </div>
+
     <div class="workspace-layout">
-      <!-- Left: Policy Selector + Details -->
+      <!-- Left: Policy Detail -->
       <div class="workspace-left">
         <div class="glass-card">
-          <h2>📋 Active Policies</h2>
-          <p class="subtitle">Click ⚙️🛠️🪝 to generate rules, skills, or hooks per policy</p>
-          <div class="policy-list" id="policy-list">
-            <!-- Populated dynamically -->
-          </div>
-        </div>
-
-        <!-- Selected Policy Detail -->
-        <div class="glass-card" id="policy-detail-card">
-          <div class="policy-detail-header" id="policy-detail-header">
-            <h2 id="policy-detail-title">Select a policy above</h2>
-            <span class="badge badge-blue" id="policy-detail-payer"></span>
-          </div>
-          <div id="policy-detail-body">
-            <p class="subtitle">Click a policy to see its criteria, CPT codes, and ICD-10 mappings.</p>
+          <h2 id="ws-policy-title">Select a policy</h2>
+          <span class="badge badge-blue" id="ws-policy-payer" style="margin-bottom:0.5rem;display:inline-block;"></span>
+          <div id="ws-policy-body">
+            <p class="subtitle">Choose a policy from the dropdown above.</p>
           </div>
         </div>
       </div>
 
-      <!-- Right: File Editor + Audit Console -->
+      <!-- Right: Generated Artifacts -->
       <div class="workspace-right">
         <div class="glass-card">
           <h2>📂 Generated Artifacts</h2>
-          <p class="subtitle">View rules, skills, and compiled output generated from policies</p>
-          <!-- File Tabs Selector -->
           <div class="file-tabs">
-            <button class="tab-btn active" data-file="rules_declaration.md">📄 Rules</button>
-            <button class="tab-btn" data-file="skills_declaration.md">📄 Skills Decl</button>
-            <button class="tab-btn" data-file="generated_skills.json">🛠️ Skills JSON</button>
-            <button class="tab-btn" data-file="rules.rego">⚙️ Rego</button>
-            <button class="tab-btn" data-file="skills.js">🛠️ skills.js</button>
+            <button class="tab-btn active" data-file="rules_declaration.md">⚙️ Rules</button>
+            <button class="tab-btn" data-file="generated_skills.json">🛠️ Skills</button>
+            <button class="tab-btn" data-file="rules.rego">📜 Rego</button>
           </div>
-
           <div class="editor-workspace-container">
-            <textarea id="editor-textarea" class="editor-textarea" style="display: block;"></textarea>
-            <pre id="code-viewer-pre" style="display: none;"><code id="code-viewer">Loading file source...</code></pre>
-            <div id="pdf-download-panel" style="display: none;" class="pdf-panel">
-              <div class="pdf-icon">📄</div>
-              <h3>UHC Policy Document</h3>
-              <p>Real payer clinical policy (160 pages)</p>
-              <a href="./real_payer_policy_uhc.pdf" target="_blank" class="btn-pdf-download">📥 Open PDF</a>
-            </div>
-          </div>
-
-          <div class="editor-controls">
-            <button id="btn-save-compile" class="btn-primary-action">💾 Save & Compile</button>
-            <button id="btn-reset-workspace" class="btn-tertiary">🔄 Reset</button>
+            <textarea id="editor-textarea" class="editor-textarea" style="display:block;" readonly></textarea>
+            <pre id="code-viewer-pre" style="display:none;"><code id="code-viewer"></code></pre>
+            <div id="pdf-download-panel" style="display:none;" class="pdf-panel"></div>
           </div>
         </div>
 
-        <!-- Audit Console + Skill Creator -->
+        <!-- Audit Console -->
         <div class="glass-card">
-          <h2>⚖️ Audit Console</h2>
+          <h2>📋 Generation Log</h2>
           <div class="audit-console-wrapper">
-            <pre class="audit-console" id="audit-console">Awaiting workspace actions...</pre>
-          </div>
-
-          <div class="nl-skill-creator">
-            <h4>➕ Create Skill from Plain English</h4>
-            <textarea id="nl-skill-input" class="nl-skill-textarea" rows="2" placeholder="e.g.: 'Check if patient age is over 65 and flag for senior review'"></textarea>
-            <button id="btn-create-skill" class="btn-secondary" type="button">🧠 Generate Skill</button>
-            <div id="nl-skill-status" class="nl-skill-status"></div>
-          </div>
-
-          <div class="active-skills-list-wrapper">
-            <h4>Active Skills:</h4>
-            <div class="skills-pills-container" id="active-skills-pills"></div>
+            <pre class="audit-console" id="audit-console">Click Generate to build rules, skills, and hooks for the selected policy.</pre>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Bottom: Manual entry by policy manager -->
+    <div class="glass-card">
+      <h2>✍️ Add Custom Rule, Skill, or Hook (Plain English)</h2>
+      <p class="subtitle">Policy managers can add custom entries that supplement the AI-generated ones.</p>
+      <div class="manual-entry-row">
+        <select id="manual-entry-type" class="policy-select" style="min-width:100px;">
+          <option value="skill">Skill</option>
+          <option value="rule">Rule</option>
+          <option value="hook">Hook</option>
+        </select>
+        <input type="text" id="nl-skill-input" class="manual-entry-input" placeholder="e.g.: 'Check if patient age is over 65 and flag for senior review'">
+        <button id="btn-create-skill" class="btn-primary-action" style="white-space:nowrap;">🧠 Add</button>
+      </div>
+      <div id="nl-skill-status" class="nl-skill-status"></div>
+      <div class="active-skills-list-wrapper" style="margin-top:0.5rem;">
+        <h4>Registered Skills:</h4>
+        <div class="skills-pills-container" id="active-skills-pills"></div>
       </div>
     </div>
   </div>
