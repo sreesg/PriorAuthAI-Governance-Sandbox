@@ -222,54 +222,55 @@
       <!-- Live trace timelines -->
       <div class="glass-card trace-card">
         <div class="trace-header">
-          <h2>🧬 Agent Lifecycle Timeline</h2>
-          <span class="trace-counter" id="trace-counter">0 events logged</span>
-        </div>
-        <p class="subtitle" style="margin-bottom: 0.75rem;">Interactive progressive disclosure and gate validation logs</p>
-
-        <!-- Governance Gate Flowchart -->
-        <div class="pipeline-flow">
-          <div class="flow-step" id="flow-step-1">
-            <div class="flow-step-label">1. PHI Scrub</div>
-            <div class="flow-step-disclosure" id="flow-disc-1">RULE-01</div>
-          </div>
-          <span class="flow-arrow">➔</span>
-          <div class="flow-step" id="flow-step-2">
-            <div class="flow-step-label">2. Coverage</div>
-            <div class="flow-step-disclosure" id="flow-disc-2">RULE-04</div>
-          </div>
-          <span class="flow-arrow">➔</span>
-          <div class="flow-step" id="flow-step-3">
-            <div class="flow-step-label">3. Evidence</div>
-            <div class="flow-step-disclosure" id="flow-disc-3">Guidelines</div>
-          </div>
-          <span class="flow-arrow">➔</span>
-          <div class="flow-step" id="flow-step-4">
-            <div class="flow-step-label">4. OPA Rego</div>
-            <div class="flow-step-disclosure" id="flow-disc-4">RULE-02</div>
-          </div>
-          <span class="flow-arrow">➔</span>
-          <div class="flow-step" id="flow-step-5">
-            <div class="flow-step-label">5. Notice</div>
-            <div class="flow-step-disclosure" id="flow-disc-5">RULE-03,05</div>
-          </div>
+          <h2>🧬 Agent Lifecycle</h2>
+          <span class="trace-counter" id="trace-counter">0 events</span>
         </div>
 
-        <!-- Progressive Disclosure Status Panel -->
-        <div class="disclosure-panel" id="disclosure-panel">
-          <div class="disclosure-header">
-            <span class="disclosure-icon">🔒</span>
-            <span class="disclosure-title">Progressive Disclosure Status</span>
-            <span class="disclosure-badge" id="disclosure-stage-badge">Idle</span>
-          </div>
-          <div class="disclosure-body" id="disclosure-body">
-            <div class="disclosure-row">
-              <span class="disc-label">Disclosed:</span>
-              <span class="disc-value" id="disc-disclosed">—</span>
+        <!-- Pipeline + Disclosure side by side -->
+        <div class="pipeline-disclosure-row">
+          <!-- Governance Gate Flowchart -->
+          <div class="pipeline-flow">
+            <div class="flow-step" id="flow-step-1">
+              <div class="flow-step-label">1. PHI</div>
+              <div class="flow-step-disclosure" id="flow-disc-1">R01</div>
             </div>
-            <div class="disclosure-row">
-              <span class="disc-label">Withheld:</span>
-              <span class="disc-value disc-withheld" id="disc-withheld">—</span>
+            <span class="flow-arrow">➔</span>
+            <div class="flow-step" id="flow-step-2">
+              <div class="flow-step-label">2. Coverage</div>
+              <div class="flow-step-disclosure" id="flow-disc-2">R04</div>
+            </div>
+            <span class="flow-arrow">➔</span>
+            <div class="flow-step" id="flow-step-3">
+              <div class="flow-step-label">3. Evidence</div>
+              <div class="flow-step-disclosure" id="flow-disc-3">Policy</div>
+            </div>
+            <span class="flow-arrow">➔</span>
+            <div class="flow-step" id="flow-step-4">
+              <div class="flow-step-label">4. Rego</div>
+              <div class="flow-step-disclosure" id="flow-disc-4">R02</div>
+            </div>
+            <span class="flow-arrow">➔</span>
+            <div class="flow-step" id="flow-step-5">
+              <div class="flow-step-label">5. Notice</div>
+              <div class="flow-step-disclosure" id="flow-disc-5">R03,05</div>
+            </div>
+          </div>
+
+          <!-- Progressive Disclosure compact -->
+          <div class="disclosure-panel" id="disclosure-panel">
+            <div class="disclosure-header">
+              <span class="disclosure-icon">🔒</span>
+              <span class="disclosure-badge" id="disclosure-stage-badge">Idle</span>
+            </div>
+            <div class="disclosure-body" id="disclosure-body">
+              <div class="disclosure-row">
+                <span class="disc-label">In:</span>
+                <span class="disc-value" id="disc-disclosed">—</span>
+              </div>
+              <div class="disclosure-row">
+                <span class="disc-label">Out:</span>
+                <span class="disc-value disc-withheld" id="disc-withheld">—</span>
+              </div>
             </div>
           </div>
         </div>
@@ -277,7 +278,7 @@
         <div class="timeline" id="trace-timeline">
           <div class="timeline-empty-state">
             <span class="timeline-empty-icon">🤖</span>
-            <p>Execution trace outputs will display here.</p>
+            <p>Trace outputs will display here after execution.</p>
           </div>
         </div>
       </div>

@@ -807,23 +807,48 @@ body {
 
 /* Timeline */
 .trace-card {
-  max-height: 520px;
+  max-height: none;
   display: flex;
   flex-direction: column;
   border-left-color: rgba(16, 185, 129, 0.5) !important;
 }
 
+.trace-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
 .trace-header h2 {
-  font-size: 1.05rem;
+  font-size: 1rem;
 }
 
 .trace-counter {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   background: var(--bg-secondary);
-  padding: 0.18rem 0.55rem;
+  padding: 0.15rem 0.5rem;
   border-radius: 50px;
   color: var(--text-muted);
   border: 1px solid var(--card-border);
+}
+
+/* Pipeline + Disclosure side by side */
+.pipeline-disclosure-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: stretch;
+  margin-bottom: 0.5rem;
+}
+
+.pipeline-disclosure-row .pipeline-flow {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.pipeline-disclosure-row .disclosure-panel {
+  min-width: 180px;
+  margin-bottom: 0;
 }
 
 .timeline {
@@ -831,11 +856,12 @@ body {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
-  margin-top: 0.75rem;
+  gap: 0.4rem;
   position: relative;
-  padding-left: 1rem;
-  max-height: 380px;
+  padding-left: 0.8rem;
+  max-height: 260px;
+  border-top: 1px solid var(--card-border);
+  padding-top: 0.5rem;
 }
 
 .timeline::before {
@@ -865,8 +891,8 @@ body {
   position: relative;
   background: var(--bg-secondary);
   border: 1px solid var(--card-border);
-  border-radius: 10px;
-  padding: 0.55rem 0.8rem;
+  border-radius: 8px;
+  padding: 0.35rem 0.6rem;
   cursor: pointer;
   transition: var(--transition-smooth);
 }
@@ -1054,11 +1080,11 @@ footer.app-footer {
   align-items: center;
   background: var(--bg-secondary);
   border: 1px solid var(--card-border);
-  padding: 0.7rem;
-  border-radius: 12px;
-  margin-bottom: 0.9rem;
+  padding: 0.4rem;
+  border-radius: 10px;
+  margin-bottom: 0.5rem;
   overflow-x: auto;
-  gap: 0.15rem;
+  gap: 0.1rem;
 }
 
 .flow-step {
@@ -1161,9 +1187,9 @@ footer.app-footer {
 .disclosure-panel {
   background: rgba(14, 165, 233, 0.03);
   border: 1px solid rgba(14, 165, 233, 0.15);
-  border-radius: 10px;
-  padding: 0.55rem 0.7rem;
-  margin-bottom: 0.75rem;
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.5rem;
 }
 
 .disclosure-header {
