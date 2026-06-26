@@ -431,7 +431,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'case-btn';
-        btn.innerHTML = `<h3>${c.title.split('—')[0].trim()}</h3><p style="font-size:0.6rem;color:var(--text-muted);margin-top:2px;">${c.category}</p>`;
+        btn.innerHTML = `<h3>${c.title.split('—')[0].trim()}</h3><p style="font-size:0.6rem;color:var(--text-muted);margin-top:2px;">${c.title.includes('Approved') || c.title.includes('Approve') ? '✓ Approve' : '⚠ Escalate'}</p>`;
         btn.addEventListener('click', () => {
           document.querySelectorAll('.case-btn').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
