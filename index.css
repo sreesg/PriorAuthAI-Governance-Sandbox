@@ -1929,11 +1929,11 @@ footer.app-footer {
 .concepts-three-col {
   flex: 1;
   display: grid;
-  grid-template-columns: 175px 1fr 175px;
+  grid-template-columns: 1fr 1.2fr 1fr;
   gap: 0.6rem;
   min-height: 0;
   overflow: hidden;
-  max-height: calc(100vh - 14rem);
+  max-height: calc(100vh - 12rem);
 }
 
 /* Compact agent columns */
@@ -2486,12 +2486,14 @@ footer.app-footer {
 
 /* Agent explanation area */
 .ac-explain {
-  font-size: 0.62rem;
-  color: #374151;
-  line-height: 1.4;
-  padding: 0.25rem 0.3rem;
+  font-size: 0.7rem;
+  color: #1e293b;
+  line-height: 1.5;
+  padding: 0.35rem 0.4rem;
   background: #f9fafb;
-  border-radius: 4px;
-  min-height: 1rem;
-  transition: all 0.3s;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  flex: 1;
+  overflow-y: auto;
+  white-space: pre-wrap;
 }
