@@ -344,35 +344,37 @@
           <div class="ac-decision" id="pa-decision">—</div>
         </div>
 
-        <!-- Col 2: Center — live data + explanations -->
+        <!-- Col 2: Center — case data + two decision paths -->
         <div class="concepts-center">
-          <!-- Case data -->
-          <div class="cc-card">
-            <div class="cc-title">📋 Live Case Data</div>
-            <div class="cc-data" id="cc-case-data">CPT: 72148 (Lumbar MRI) | ICD: M54.16<br>Policy: POL-RAD-501 | Payer: UHC<br>Notes: "8wk pain, PT done, positive SLR, no prior MRI"</div>
-          </div>
-          <!-- Criteria -->
-          <div class="cc-card">
-            <div class="cc-title">✓✗ Criteria (POL-RAD-501)</div>
-            <div class="cc-data" id="cc-criteria"><span id="cc-c1">① Therapy ≥6wk: ?</span><span id="cc-c2">② Neuro symptoms: ?</span><span id="cc-c3">③ Red flags: ?</span><span id="cc-c4">④ No prior MRI: ?</span></div>
-          </div>
-          <!-- What's happening -->
-          <div class="cc-card cc-narr-card">
-            <div class="cc-title">⚡ Current Step</div>
-            <div class="cc-data cc-narr" id="story-narration">Press Play to watch both agents process this case.</div>
-          </div>
-          <!-- Terms -->
-          <div class="cc-card cc-terms">
-            <div class="cc-title">📖 Key Terms</div>
-            <div class="cc-terms-grid">
-              <span><b>Skill</b> = does work</span>
-              <span><b>Rule</b> = guardrail</span>
-              <span><b>Hook</b> = event→rule wiring</span>
-              <span><b>MCP</b> = agent protocol</span>
-              <span><b>Policy</b> = criteria source</span>
-              <span><b>Challenger</b> = 2nd opinion</span>
+          <!-- Case + criteria row -->
+          <div class="cc-top-row">
+            <div class="cc-card cc-half">
+              <div class="cc-title">📋 Case</div>
+              <div class="cc-data">CPT 72148 (Lumbar MRI)<br>ICD M54.16 | POL-RAD-501 | UHC<br>Notes: "8wk pain, PT done, SLR+, no prior MRI"</div>
+            </div>
+            <div class="cc-card cc-half">
+              <div class="cc-title">✓✗ Criteria</div>
+              <div class="cc-data"><span id="cc-c1">① Therapy≥6wk: ?</span><span id="cc-c2">② Neuro: ?</span><span id="cc-c3">③ RedFlags: ?</span><span id="cc-c4">④ PriorMRI: ?</span></div>
             </div>
           </div>
+          <!-- Two decision path sub-windows -->
+          <div class="cc-paths-row">
+            <div class="cc-path-card cc-path-pa">
+              <div class="cc-title">🤖 PA Decision Path</div>
+              <div class="cc-path-body" id="pa-path">Waiting for PA Agent to run...</div>
+            </div>
+            <div class="cc-path-card cc-path-ch">
+              <div class="cc-title">🔁 Challenger Decision Path</div>
+              <div class="cc-path-body" id="ch-path">Waiting for Challenger to review...</div>
+            </div>
+          </div>
+          <!-- Narration -->
+          <div class="cc-card cc-narr-card">
+            <div class="cc-title">⚡ Step</div>
+            <div class="cc-data cc-narr" id="story-narration">Press Play to watch both agents.</div>
+          </div>
+          <!-- Terms -->
+          <div class="cc-terms-bar"><b>Skill</b>=does work | <b>Rule</b>=guardrail | <b>Hook</b>=event wiring | <b>Policy</b>=criteria | <b>MCP</b>=protocol | <b>Challenger</b>=2nd opinion</div>
         </div>
 
         <!-- Col 3: Challenger Agent (compact) -->

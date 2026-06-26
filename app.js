@@ -58,8 +58,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btn = document.getElementById('btn-play-story');
     const narr = document.getElementById('story-narration');
     const aviMsg = document.getElementById('avi-concept-msg');
-    const paExplain = document.getElementById('pa-explain');
-    const chExplain = document.getElementById('ch-explain');
+    const paPath = document.getElementById('pa-path');
+    const chPath = document.getElementById('ch-path');
     if (!btn || !narr) return;
     btn.disabled = true; btn.textContent = 'Playing...';
 
@@ -70,8 +70,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const chDec = document.getElementById('ch-decision');
     if (paDec) { paDec.className = 'ac-decision'; paDec.textContent = '\u2014'; }
     if (chDec) { chDec.className = 'ac-decision'; chDec.textContent = '\u2014'; }
-    if (paExplain) paExplain.textContent = '';
-    if (chExplain) chExplain.textContent = '';
+    if (paPath) paPath.textContent = '';
+    if (chPath) chPath.textContent = '';
     document.getElementById('ac-pa-status').textContent = 'idle';
     document.getElementById('ac-ch-status').textContent = 'idle';
     document.getElementById('cc-c1').textContent = '\u2460 Therapy \u22656wk: ?'; document.getElementById('cc-c1').className = '';
@@ -87,19 +87,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     // === PA AGENT ===
     document.getElementById('ac-pa').classList.add('active');
     document.getElementById('ac-pa-status').textContent = 'running';
-    if (paExplain) paExplain.textContent = 'Processing request...\nCPT: 72148 (Lumbar MRI)\nICD: M54.16 (Radiculopathy)';
+    if (paPath) paPath.textContent = 'Processing request...\nCPT: 72148 (Lumbar MRI)\nICD: M54.16 (Radiculopathy)';
     narr.textContent = 'PA Agent starts. Hook fires, PHI rule scrubs SSN/DOB from logs.';
     light('pa-h1'); light('pa-r1');
     await delay(900); dim('pa-h1'); dim('pa-r1');
 
     light('pa-s1'); light('pa-r3');
     narr.textContent = 'PolicyRouter matches CPT 72148 to POL-RAD-501. Code Match validates ICD M54.16.';
-    if (paExplain) paExplain.textContent = 'Matched: POL-RAD-501\nPayer: UnitedHealthcare\nCategory: Radiology\nCriteria: 4 to evaluate';
+    if (paPath) paPath.textContent = 'Matched: POL-RAD-501\nPayer: UnitedHealthcare\nCategory: Radiology\nCriteria: 4 to evaluate';
     await delay(900); dim('pa-s1'); dim('pa-r3');
 
     light('pa-s2');
     narr.textContent = 'ExtractEvidence calls LLM. Finds: 8wk symptoms, PT completed, positive SLR test.';
-    if (paExplain) paExplain.textContent = 'LLM Evidence Extraction:\n- Symptoms: 8 weeks\n- Therapy: PT completed (8wk)\n- Neuro: Positive SLR at 30 deg\n- Imaging: No prior MRI';
+    if (paPath) paPath.textContent = 'LLM Evidence Extraction:\n- Symptoms: 8 weeks\n- Therapy: PT completed (8wk)\n- Neuro: Positive SLR at 30 deg\n- Imaging: No prior MRI';
     await delay(1000); dim('pa-s2');
 
     light('pa-s3');
@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     light('pa-h2'); light('pa-r2');
     narr.textContent = 'Hook on_criteria fires. Conservatism rule: all met, no escalation needed.';
-    if (paExplain) paExplain.textContent = 'Criteria Results:\n1. Therapy >= 6wk: 8wk PASS\n2. Neuro symptoms: SLR+ PASS\n3. Red flags: None PASS\n4. Prior MRI: No conflict PASS\n\nConservatism: No escalation needed.';
+    if (paPath) paPath.textContent = 'Criteria Results:\n1. Therapy >= 6wk: 8wk PASS\n2. Neuro symptoms: SLR+ PASS\n3. Red flags: None PASS\n4. Prior MRI: No conflict PASS\n\nConservatism: No escalation needed.';
     await delay(800); dim('pa-s3'); dim('pa-h2'); dim('pa-r2');
 
     light('pa-s4'); light('pa-h3');
@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await delay(700); dim('pa-s4'); dim('pa-h3');
 
     paDec.textContent = 'APPROVED'; paDec.className = 'ac-decision approved';
-    if (paExplain) paExplain.textContent = 'DECISION: APPROVED\n\nReason: All 4 criteria satisfied.\n- 8 weeks PT (needs 6)\n- Positive neurological exam\n- No red flag symptoms\n- No conflicting prior imaging\n\nNotice letter generated.';
+    if (paPath) paPath.textContent = 'DECISION: APPROVED\n\nReason: All 4 criteria satisfied.\n- 8 weeks PT (needs 6)\n- Positive neurological exam\n- No red flag symptoms\n- No conflicting prior imaging\n\nNotice letter generated.';
     document.getElementById('ac-pa-status').textContent = 'done';
     document.getElementById('ac-pa').classList.remove('active');
     narr.textContent = 'PA Agent approved. Handing to Challenger for independent quality review...';
@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // === CHALLENGER ===
     document.getElementById('ac-ch').classList.add('active');
     document.getElementById('ac-ch-status').textContent = 'reviewing';
-    if (chExplain) chExplain.textContent = 'Received PA decision: APPROVED\nReviewing as quality auditor...\nLooking for weak or assumed evidence.';
+    if (chPath) chPath.textContent = 'Received PA decision: APPROVED\nReviewing as quality auditor...\nLooking for weak or assumed evidence.';
 
     light('ch-h1');
     narr.textContent = 'Hook on_pa_decision fires. Challenger receives all evidence and criteria results.';
@@ -141,7 +141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     light('ch-s1');
     narr.textContent = 'ReinterpretEvidence: Notes say "no prior MRI" but CRIT-4 was marked pass. Why?';
-    if (chExplain) chExplain.textContent = 'FINDING: Notes state "no prior MRI"\nbut PA Agent marked CRIT-4 as PASS.\n\nCriterion says: "No MRI of same\nregion within 12 months."\n\nIs this truly met or just assumed?';
+    if (chPath) chPath.textContent = 'FINDING: Notes state "no prior MRI"\nbut PA Agent marked CRIT-4 as PASS.\n\nCriterion says: "No MRI of same\nregion within 12 months."\n\nIs this truly met or just assumed?';
     await delay(1100); dim('ch-s1');
 
     document.getElementById('cc-c4').textContent = '\u2463 Prior MRI: WEAK'; 
@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     light('ch-s2'); light('ch-r1');
     narr.textContent = 'AssessGaps: PA logic assumed "no prior = pass" but phrasing is ambiguous. Rule: cite evidence.';
-    if (chExplain) chExplain.textContent = 'Analysis:\n- "No prior MRI" could mean never\n  had one, OR not in 12 months.\n- PA Agent assumed favorable reading\n- No documentation confirms timeline\n- This is ASSUMED evidence, not cited.';
+    if (chPath) chPath.textContent = 'Analysis:\n- "No prior MRI" could mean never\n  had one, OR not in 12 months.\n- PA Agent assumed favorable reading\n- No documentation confirms timeline\n- This is ASSUMED evidence, not cited.';
     await delay(1100); dim('ch-s2'); dim('ch-r1');
 
     light('ch-s3'); light('ch-r2');
@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     light('ch-r3');
     narr.textContent = 'Confidence rule: score 8/10 >= 7. FORMAL CHALLENGE authorized.';
-    if (chExplain) chExplain.textContent = 'Assessment: Evidence WEAK on CRIT-4\nConfidence: 8/10 (threshold: 7)\n\nRULE-C3: Formal challenge authorized.\nRULE-C1: Cited "no prior MRI" text.\nRULE-C2: Substantive analysis done.';
+    if (chPath) chPath.textContent = 'Assessment: Evidence WEAK on CRIT-4\nConfidence: 8/10 (threshold: 7)\n\nRULE-C3: Formal challenge authorized.\nRULE-C1: Cited "no prior MRI" text.\nRULE-C2: Substantive analysis done.';
     await delay(900); dim('ch-r3');
 
     light('ch-h2');
@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     chDec.textContent = 'CHALLENGE 8/10'; chDec.className = 'ac-decision challenge';
     paDec.textContent = 'FLAGGED'; paDec.className = 'ac-decision flagged';
-    if (chExplain) chExplain.textContent = 'VERDICT: CHALLENGE (8/10)\n\nOverride: APPROVED -> FLAGGED\nReason: CRIT-4 relies on ambiguous\nphrasing without explicit timeline.\n\nRouted to Medical Director.\nProvider may need to clarify MRI\nhistory before approval proceeds.';
+    if (chPath) chPath.textContent = 'VERDICT: CHALLENGE (8/10)\n\nOverride: APPROVED -> FLAGGED\nReason: CRIT-4 relies on ambiguous\nphrasing without explicit timeline.\n\nRouted to Medical Director.\nProvider may need to clarify MRI\nhistory before approval proceeds.';
     document.getElementById('ac-ch-status').textContent = 'overridden';
     document.getElementById('ac-ch').classList.remove('active');
     if (aviMsg) aviMsg.textContent = 'explains: "CRIT-4 evidence contradicts notes wording"';
