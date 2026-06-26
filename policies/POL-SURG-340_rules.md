@@ -3,9 +3,9 @@
 ## Policy: POL-SURG-340 (Orthopedic Surgery: Knee Arthroscopy)
 - CPT Code: 29881, 29880, 29882, 29883
 - Allowed ICD-10 Diagnosis Codes: [Not Specified]
-- Failed conservative treatment: Minimum 6 weeks of physical therapy, NSAIDs, and activity modification.
-- Mechanical symptoms present: Locking, catching, giving way, or inability to fully extend/flex.
-- MRI findings consistent with meniscal tear: Signal abnormality extending to articular surface.
-- Patient age/etiology: Age under 65 OR if over 65, evidence of mechanical etiology (not degenerative arthritis).
-- BMI status: BMI under 40 OR if over 40, documented weight management program participation.
-- Surgeon certification: Board-certified orthopedic surgeon with arthroscopy privileges.
+- CRIT-1: Minimum 6 weeks of physical therapy, NSAIDs, and activity modification.
+- CRIT-2: Presence of mechanical symptoms (locking, catching, giving way, or restricted range of motion).
+- CRIT-3: MRI findings consistent with meniscal tear (signal abnormality extending to articular surface).
+- CRIT-4: Patient age under 65 OR documented mechanical etiology if over 65.
+- CRIT-5: BMI under 40 OR documented weight management program participation if over 40.
+- CRIT-6: Surgeon must be a board-certified orthopedic surgeon with arthroscopy privileges.

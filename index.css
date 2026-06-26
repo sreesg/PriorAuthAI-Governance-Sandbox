@@ -573,7 +573,9 @@ body {
 }
 
 .case-btn p {
-  display: none;
+  display: block;
+  font-size: 0.62rem;
+  margin-top: 2px;
 }
 
 /* Request Form */
