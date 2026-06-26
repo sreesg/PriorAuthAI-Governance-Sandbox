@@ -43,7 +43,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       tab.classList.add('active');
       const view = tab.getAttribute('data-view');
       document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
-      document.getElementById(`view-${view}`).style.display = view === 'review' ? 'grid' : 'block';
+      const panel = document.getElementById(`view-${view}`);
+      if (view === 'review') panel.style.display = 'grid';
+      else panel.style.display = 'block';
     });
   });
 

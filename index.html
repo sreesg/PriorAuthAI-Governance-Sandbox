@@ -34,6 +34,7 @@
   <nav class="main-tabs">
     <button class="main-tab active" data-view="review">⚡ Agent Review</button>
     <button class="main-tab" data-view="workspace">🏗️ Policy Workspace</button>
+    <button class="main-tab" data-view="concepts">📖 Concepts</button>
   </nav>
 
   <!-- VIEW: Policy Workspace -->
@@ -306,6 +307,200 @@
         </div>
         <div class="paper-preview">
           <pre id="letter-content" class="letter-content">Awaiting review execution to draft notice letter...</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW: Concepts (animated explanations) -->
+  <div id="view-concepts" class="view-panel" style="display:none;">
+    <div class="concepts-container">
+      <h1 class="concepts-title">How the Agent Works</h1>
+      <p class="concepts-subtitle">Interactive visual guide to Skills, Rules, Hooks, MCP, and Progressive Disclosure</p>
+
+      <!-- Animated Pipeline -->
+      <div class="concept-section">
+        <h2>🔄 Agent Pipeline Flow</h2>
+        <div class="anim-pipeline">
+          <div class="anim-step anim-step-1">
+            <div class="anim-icon">📥</div>
+            <div class="anim-label">Request</div>
+          </div>
+          <div class="anim-arrow"></div>
+          <div class="anim-step anim-step-2">
+            <div class="anim-icon">🛠️</div>
+            <div class="anim-label">Skills</div>
+          </div>
+          <div class="anim-arrow"></div>
+          <div class="anim-step anim-step-3">
+            <div class="anim-icon">⚙️</div>
+            <div class="anim-label">Rules</div>
+          </div>
+          <div class="anim-arrow"></div>
+          <div class="anim-step anim-step-4">
+            <div class="anim-icon">🪝</div>
+            <div class="anim-label">Hooks</div>
+          </div>
+          <div class="anim-arrow"></div>
+          <div class="anim-step anim-step-5">
+            <div class="anim-icon">📤</div>
+            <div class="anim-label">Decision</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skills -->
+      <div class="concept-section concept-skills">
+        <div class="concept-header">
+          <span class="concept-badge">🛠️</span>
+          <h2>Skills</h2>
+        </div>
+        <p>Skills are <strong>what the agent CAN DO</strong> — discrete capabilities that extract data, validate criteria, or generate outputs.</p>
+        <div class="concept-cards">
+          <div class="concept-card anim-fadein" style="animation-delay:0.1s">
+            <h4>ExtractEvidence</h4>
+            <p>Reads clinical notes and extracts structured medical facts</p>
+            <span class="concept-tag">Input → Output</span>
+          </div>
+          <div class="concept-card anim-fadein" style="animation-delay:0.3s">
+            <h4>PolicyRouter</h4>
+            <p>Matches CPT code to the correct payer policy</p>
+            <span class="concept-tag">Input → Output</span>
+          </div>
+          <div class="concept-card anim-fadein" style="animation-delay:0.5s">
+            <h4>GenerateNotice</h4>
+            <p>Drafts the formal decision letter with citations</p>
+            <span class="concept-tag">Input → Output</span>
+          </div>
+        </div>
+        <div class="concept-key-point">Skills are generated per-policy by the ClinicalNLP Engine based on each policy's criteria.</div>
+      </div>
+
+      <!-- Rules -->
+      <div class="concept-section concept-rules">
+        <div class="concept-header">
+          <span class="concept-badge">⚙️</span>
+          <h2>Rules</h2>
+        </div>
+        <p>Rules are <strong>governance guardrails</strong> — non-negotiable constraints that the agent MUST obey regardless of what skills produce.</p>
+        <div class="concept-cards">
+          <div class="concept-card anim-fadein" style="animation-delay:0.2s">
+            <h4>RULE-01: PHI Redaction</h4>
+            <p>Never expose patient names, SSN, or DOB in logs</p>
+            <span class="concept-tag tag-always">Always Active</span>
+          </div>
+          <div class="concept-card anim-fadein" style="animation-delay:0.4s">
+            <h4>RULE-02: Clinical Conservatism</h4>
+            <p>Never auto-deny — escalate uncertain cases to human</p>
+            <span class="concept-tag tag-always">Always Active</span>
+          </div>
+          <div class="concept-card anim-fadein" style="animation-delay:0.6s">
+            <h4>RULE-04: Code Match</h4>
+            <p>CPT/ICD-10 must align with the matched policy</p>
+            <span class="concept-tag tag-always">Always Active</span>
+          </div>
+        </div>
+        <div class="concept-key-point">Rules are enforced at specific pipeline stages via Hooks. They cannot be overridden by skills.</div>
+      </div>
+
+      <!-- Hooks -->
+      <div class="concept-section concept-hooks">
+        <div class="concept-header">
+          <span class="concept-badge">🪝</span>
+          <h2>Hooks</h2>
+        </div>
+        <p>Hooks are <strong>lifecycle event triggers</strong> — they fire at specific pipeline stages and connect rules to the execution flow.</p>
+        <div class="hooks-timeline">
+          <div class="hook-stage anim-slidein" style="animation-delay:0.1s">
+            <div class="hook-dot"></div>
+            <div class="hook-info">
+              <strong>on_request_received</strong>
+              <span>→ Triggers PHI redaction</span>
+            </div>
+          </div>
+          <div class="hook-stage anim-slidein" style="animation-delay:0.3s">
+            <div class="hook-dot"></div>
+            <div class="hook-info">
+              <strong>on_guidelines_loaded</strong>
+              <span>→ Triggers code validation</span>
+            </div>
+          </div>
+          <div class="hook-stage anim-slidein" style="animation-delay:0.5s">
+            <div class="hook-dot"></div>
+            <div class="hook-info">
+              <strong>on_evidence_extracted</strong>
+              <span>→ Validates extraction quality</span>
+            </div>
+          </div>
+          <div class="hook-stage anim-slidein" style="animation-delay:0.7s">
+            <div class="hook-dot"></div>
+            <div class="hook-info">
+              <strong>on_criteria_evaluated</strong>
+              <span>→ Applies conservatism rule</span>
+            </div>
+          </div>
+          <div class="hook-stage anim-slidein" style="animation-delay:0.9s">
+            <div class="hook-dot"></div>
+            <div class="hook-info">
+              <strong>on_notice_generated</strong>
+              <span>→ Enforces citations + plain language</span>
+            </div>
+          </div>
+        </div>
+        <div class="concept-key-point">Hooks are generated per-policy. Each policy type gets different hooks based on its specific validation needs.</div>
+      </div>
+
+      <!-- MCP -->
+      <div class="concept-section concept-mcp">
+        <div class="concept-header">
+          <span class="concept-badge">🔌</span>
+          <h2>MCP (Model Context Protocol)</h2>
+        </div>
+        <p>MCP defines <strong>how the agent communicates with tools</strong> — a standardized contract for inputs, outputs, and resources.</p>
+        <div class="mcp-diagram">
+          <div class="mcp-client anim-fadein">
+            <h4>🖥️ Frontend (Client)</h4>
+            <p>Sends requests, displays results</p>
+          </div>
+          <div class="mcp-arrow-container">
+            <div class="mcp-arrow-line"></div>
+            <div class="mcp-arrow-label">HTTP API</div>
+          </div>
+          <div class="mcp-server anim-fadein" style="animation-delay:0.3s">
+            <h4>🐍 Agent Engine (Server)</h4>
+            <p>Routes policies, evaluates criteria</p>
+            <div class="mcp-tools">
+              <span>📋 /agent/policies</span>
+              <span>⚡ /agent/run-review</span>
+              <span>🧠 /agent/build-for-policy</span>
+              <span>🤖 /agent/avi</span>
+            </div>
+          </div>
+          <div class="mcp-arrow-container">
+            <div class="mcp-arrow-line"></div>
+            <div class="mcp-arrow-label">Ollama API</div>
+          </div>
+          <div class="mcp-llm anim-fadein" style="animation-delay:0.6s">
+            <h4>🧠 Gemma 4 12B (LLM)</h4>
+            <p>Extracts evidence, generates artifacts</p>
+          </div>
+        </div>
+        <div class="concept-key-point">Each endpoint is an MCP "Tool" with defined inputs and outputs. The agent decides which tools to call based on the request context.</div>
+      </div>
+
+      <!-- Progressive Disclosure -->
+      <div class="concept-section">
+        <div class="concept-header">
+          <span class="concept-badge">🔒</span>
+          <h2>Progressive Disclosure</h2>
+        </div>
+        <p>The agent receives context <strong>incrementally</strong> — each stage only sees what it needs. This prevents context overload and enforces separation of concerns.</p>
+        <div class="disclosure-animation">
+          <div class="disc-stage anim-slidein" style="animation-delay:0.1s"><span class="disc-num">1</span> PHI rules only — no policies loaded</div>
+          <div class="disc-stage anim-slidein" style="animation-delay:0.3s"><span class="disc-num">2</span> Coverage rules + member eligibility</div>
+          <div class="disc-stage anim-slidein" style="animation-delay:0.5s"><span class="disc-num">3</span> Clinical guidelines for THIS CPT code</div>
+          <div class="disc-stage anim-slidein" style="animation-delay:0.7s"><span class="disc-num">4</span> Rego evaluation rules (loaded NOW)</div>
+          <div class="disc-stage anim-slidein" style="animation-delay:0.9s"><span class="disc-num">5</span> All rules disclosed — decision + notice</div>
         </div>
       </div>
     </div>
