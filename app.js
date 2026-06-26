@@ -606,6 +606,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Remove any note summary/quality popups
     document.querySelectorAll('.notes-summary-popup').forEach(el => el.remove());
     
+    // Show evidence bundle link
+    const bundleLink = document.getElementById('evidence-bundle-link');
+    if (bundleLink && caseObj.evidenceBundle) {
+      bundleLink.href = caseObj.evidenceBundle;
+      bundleLink.style.display = 'inline-block';
+    } else if (bundleLink) {
+      bundleLink.style.display = 'none';
+    }
+    
     // Load policy-specific hooks dynamically
     loadPolicyHooksForCase(req.cptCode);
   }

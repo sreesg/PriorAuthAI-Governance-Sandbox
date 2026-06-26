@@ -1,7 +1,7 @@
 [
   {
     "id": "case-lumbar-approve",
-    "title": "Lumbar MRI — Approved (radiculopathy + failed PT)",
+    "title": "Lumbar MRI \u2014 Approved (radiculopathy + failed PT)",
     "category": "Radiology",
     "request": {
       "memberId": "MEM-4401",
@@ -13,11 +13,12 @@
       "providerName": "Spine Care Associates",
       "providerNpi": "1234567890",
       "clinicalNotes": "52-year-old male with 3-month history of progressive lower back pain radiating down the left leg to the foot (L5 distribution). Completed 8 weeks of physical therapy with McKenzie protocol without improvement. Failed trials of ibuprofen 800mg TID and gabapentin 300mg TID. Physical exam shows positive straight leg raise at 30 degrees on left, diminished ankle reflex, and decreased sensation to pinprick along L5 dermatome. No bowel or bladder symptoms. No prior lumbar MRI."
-    }
+    },
+    "evidenceBundle": "cases/case-lumbar-approve_bundle.pdf"
   },
   {
     "id": "case-lumbar-escalate",
-    "title": "Lumbar MRI — Escalated (no neuro symptoms)",
+    "title": "Lumbar MRI \u2014 Escalated (no neuro symptoms)",
     "category": "Radiology",
     "request": {
       "memberId": "MEM-4402",
@@ -29,11 +30,12 @@
       "providerName": "Family Medicine Clinic",
       "providerNpi": "2345678901",
       "clinicalNotes": "38-year-old female with mechanical low back pain for 3 weeks after lifting heavy box. No radiation to legs. No numbness or tingling. No weakness. Normal neurological exam. No physical therapy tried yet. Requesting MRI to rule out disc herniation due to patient anxiety about pain."
-    }
+    },
+    "evidenceBundle": "cases/case-lumbar-escalate_bundle.pdf"
   },
   {
     "id": "case-pet-approve",
-    "title": "PET/CT — Approved (lung cancer staging)",
+    "title": "PET/CT \u2014 Approved (lung cancer staging)",
     "category": "Oncology",
     "request": {
       "memberId": "MEM-7701",
@@ -45,11 +47,12 @@
       "providerName": "Oncology Partners LLC",
       "providerNpi": "3456789012",
       "clinicalNotes": "67-year-old male diagnosed with non-small cell lung cancer (adenocarcinoma) confirmed by CT-guided biopsy on 2026-05-15. Pathology report #P2026-4412 confirms malignancy. CT chest showed 3.2cm RUL mass with mediastinal lymphadenopathy. PET/CT requested for initial staging to determine surgical candidacy vs chemoradiation. Dr. Williams (medical oncologist) ordering to plan treatment approach. No prior PET scan."
-    }
+    },
+    "evidenceBundle": "cases/case-pet-approve_bundle.pdf"
   },
   {
     "id": "case-pet-deny",
-    "title": "PET/CT — Escalated (screening, no confirmed cancer)",
+    "title": "PET/CT \u2014 Escalated (screening, no confirmed cancer)",
     "category": "Oncology",
     "request": {
       "memberId": "MEM-7702",
@@ -61,11 +64,12 @@
       "providerName": "Pulmonary Care Group",
       "providerNpi": "4567890123",
       "clinicalNotes": "60-year-old female smoker with 8mm pulmonary nodule found on routine chest CT. No biopsy performed yet. No symptoms. PET/CT requested to evaluate the nodule. No prior oncology consultation. Primary care physician ordering."
-    }
+    },
+    "evidenceBundle": "cases/case-pet-deny_bundle.pdf"
   },
   {
     "id": "case-knee-approve",
-    "title": "Knee Arthroscopy — Approved (mechanical + MRI+)",
+    "title": "Knee Arthroscopy \u2014 Approved (mechanical + MRI+)",
     "category": "Surgery",
     "request": {
       "memberId": "MEM-5501",
@@ -77,11 +81,12 @@
       "providerName": "Sports Medicine Surgical Center",
       "providerNpi": "5678901234",
       "clinicalNotes": "34-year-old male soccer player with right knee injury 10 weeks ago. Completed 8 weeks of physical therapy focused on quad strengthening and ROM exercises without resolution of mechanical symptoms. Knee locks in flexion 2-3 times daily and gives way during lateral movements. MRI dated 2026-04-20 shows complex tear of the lateral meniscus posterior horn extending to articular surface (Grade 3 signal). Joint line tenderness on exam. McMurray test positive. BMI 24.3. Dr. Anderson is board-certified orthopedic surgeon."
-    }
+    },
+    "evidenceBundle": "cases/case-knee-approve_bundle.pdf"
   },
   {
     "id": "case-knee-escalate",
-    "title": "Knee Arthroscopy — Escalated (age >65, degenerative)",
+    "title": "Knee Arthroscopy \u2014 Escalated (age >65, degenerative)",
     "category": "Surgery",
     "request": {
       "memberId": "MEM-5502",
@@ -93,11 +98,12 @@
       "providerName": "Orthopedic Group Practice",
       "providerNpi": "6789012345",
       "clinicalNotes": "70-year-old female with chronic right knee pain for 2 years, worsening over last 6 months. Completed physical therapy. MRI shows degenerative horizontal tear of medial meniscus with moderate osteoarthritis (Kellgren-Lawrence Grade 3). No true mechanical locking, but reports stiffness and difficulty with stairs. No catching or giving way. BMI 32."
-    }
+    },
+    "evidenceBundle": "cases/case-knee-escalate_bundle.pdf"
   },
   {
     "id": "case-dupixent-approve",
-    "title": "Dupixent — Approved (failed step therapy)",
+    "title": "Dupixent \u2014 Approved (failed step therapy)",
     "category": "Specialty Pharmacy",
     "request": {
       "memberId": "MEM-8801",
@@ -109,11 +115,12 @@
       "providerName": "Advanced Dermatology Associates",
       "providerNpi": "7890123456",
       "clinicalNotes": "30-year-old female with severe atopic dermatitis since childhood. EASI score 28, IGA 4, BSA involvement 35%. Failed triamcinolone 0.1% ointment BID x 6 weeks, failed tacrolimus 0.1% ointment BID x 6 weeks, and failed methotrexate 15mg weekly x 4 months (discontinued due to elevated liver enzymes). TB screening negative (QuantiFERON Gold 2026-03-01). No active infections. Dr. Patel is board-certified dermatologist. Requesting dupilumab 300mg every 2 weeks."
-    }
+    },
+    "evidenceBundle": "cases/case-dupixent-approve_bundle.pdf"
   },
   {
     "id": "case-dupixent-escalate",
-    "title": "Dupixent — Escalated (step therapy incomplete)",
+    "title": "Dupixent \u2014 Escalated (step therapy incomplete)",
     "category": "Specialty Pharmacy",
     "request": {
       "memberId": "MEM-8802",
@@ -125,6 +132,7 @@
       "providerName": "Pediatric Dermatology Center",
       "providerNpi": "8901234567",
       "clinicalNotes": "13-year-old male with moderate atopic dermatitis. EASI score 18, BSA 12%. Used hydrocortisone 2.5% cream for 2 weeks. No calcineurin inhibitor tried. No systemic therapy attempted. Parent requesting Dupixent because they saw advertisement on television. Dr. Lee (dermatologist) submitting request."
-    }
+    },
+    "evidenceBundle": "cases/case-dupixent-escalate_bundle.pdf"
   }
 ]
