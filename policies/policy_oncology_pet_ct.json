@@ -1,0 +1,70 @@
+{
+  "policyId": "POL-ONC-220",
+  "policyName": "Oncology Imaging: PET/CT Scan",
+  "payer": "Aetna",
+  "effectiveDate": "2026-03-01",
+  "category": "Oncology",
+  "cptCodes": ["78816", "78815", "78814"],
+  "cptDescriptions": {
+    "78816": "PET imaging for CT attenuation, whole body",
+    "78815": "PET imaging for CT attenuation, limited area",
+    "78814": "PET imaging with CT, limited area"
+  },
+  "allowedIcd10": ["C34.90", "C34.91", "C34.92", "C50.911", "C50.912", "C18.9", "C20", "C83.30", "C85.90"],
+  "icd10Descriptions": {
+    "C34.90": "Malignant neoplasm of unspecified bronchus/lung",
+    "C34.91": "Malignant neoplasm of right bronchus/lung",
+    "C34.92": "Malignant neoplasm of left bronchus/lung",
+    "C50.911": "Malignant neoplasm of unspecified site, right breast",
+    "C50.912": "Malignant neoplasm of unspecified site, left breast",
+    "C18.9": "Malignant neoplasm of colon, unspecified",
+    "C20": "Malignant neoplasm of rectum",
+    "C83.30": "Diffuse large B-cell lymphoma, unspecified",
+    "C85.90": "Non-Hodgkin lymphoma, unspecified"
+  },
+  "criteria": [
+    {
+      "id": "CRIT-1",
+      "description": "Confirmed or strongly suspected malignancy with pathology report or imaging findings",
+      "type": "diagnosis_confirmation",
+      "threshold": "pathology or imaging evidence",
+      "required": true
+    },
+    {
+      "id": "CRIT-2",
+      "description": "Clinical indication: initial staging, restaging after treatment, or evaluation of suspected recurrence",
+      "type": "clinical_indication",
+      "threshold": "staging|restaging|recurrence",
+      "required": true
+    },
+    {
+      "id": "CRIT-3",
+      "description": "Conventional imaging (CT, MRI) performed first and is insufficient for clinical decision-making",
+      "type": "prior_imaging",
+      "threshold": "CT or MRI completed",
+      "required": true
+    },
+    {
+      "id": "CRIT-4",
+      "description": "Requesting physician is oncologist, pulmonologist, or surgeon managing the malignancy",
+      "type": "specialist_required",
+      "threshold": "oncologist|pulmonologist|surgeon",
+      "required": true
+    },
+    {
+      "id": "CRIT-5",
+      "description": "PET/CT will change the treatment plan (e.g., determine surgical candidacy, radiation field planning)",
+      "type": "treatment_impact",
+      "threshold": "documented impact on management",
+      "required": true
+    }
+  ],
+  "urgentBypass": "Suspected brain metastases with acute neurological decline — authorize emergent imaging.",
+  "denialReasons": [
+    "No confirmed malignancy (screening not covered)",
+    "Conventional imaging not attempted first",
+    "Requesting provider is not managing oncologist",
+    "Surveillance PET within 3 months of prior PET without clinical change",
+    "Indication is routine surveillance with no symptoms of recurrence"
+  ]
+}

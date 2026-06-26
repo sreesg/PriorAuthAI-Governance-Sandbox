@@ -1239,7 +1239,7 @@ Respond ONLY with the JSON object, no other text.
                 request_data = params.get('request', {})
                 use_ai = params.get('useAI', False)
                 
-                result = agent_engine.run_agent_review(request_data, use_ai_extraction=use_ai)
+                result = agent_engine.run_multi_policy_review(request_data, use_ai_extraction=use_ai)
                 
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
@@ -1249,6 +1249,40 @@ Respond ONLY with the JSON object, no other text.
             except Exception as e:
                 import traceback
                 traceback.print_exc()
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+        # 7b. Agent: Get preset cases
+        elif self.path == '/agent/cases':
+            try:
+                cases = agent_engine.load_preset_cases() if AGENT_ENGINE_AVAILABLE else []
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps(cases).encode())
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+        # 7c. Agent: Get available policies
+        elif self.path == '/agent/policies':
+            try:
+                policies = agent_engine.load_all_policies() if AGENT_ENGINE_AVAILABLE else []
+                summary = [{"policyId": p["policyId"], "name": p["policyName"], "category": p["category"],
+                            "payer": p["payer"], "cptCodes": p["cptCodes"]} for p in policies]
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps(summary).encode())
+            except Exception as e:
                 self.send_response(500)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Access-Control-Allow-Origin', '*')
@@ -1403,6 +1437,42 @@ Respond ONLY with the JSON object, no other text.
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(json.dumps({"error": f"Endpoint not found: {self.path}"}).encode())
+
+    def do_GET(self):
+        # Handle API GET routes before falling through to static file serving
+        if self.path == '/agent/policies':
+            try:
+                policies = agent_engine.load_all_policies() if AGENT_ENGINE_AVAILABLE else []
+                summary = [{"policyId": p["policyId"], "name": p["policyName"], "category": p["category"],
+                            "payer": p["payer"], "cptCodes": p["cptCodes"]} for p in policies]
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps(summary).encode())
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+        elif self.path == '/agent/cases':
+            try:
+                cases = agent_engine.load_preset_cases() if AGENT_ENGINE_AVAILABLE else []
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps(cases).encode())
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+        else:
+            # Fall through to static file serving
+            super().do_GET()
 
     def do_OPTIONS(self):
         self.send_response(200)

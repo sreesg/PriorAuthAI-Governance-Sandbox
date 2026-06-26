@@ -1,0 +1,84 @@
+{
+  "policyId": "POL-RX-880",
+  "policyName": "Specialty Pharmacy: Dupixent (dupilumab) for Atopic Dermatitis",
+  "payer": "BCBS",
+  "effectiveDate": "2026-01-15",
+  "category": "Specialty Pharmacy",
+  "cptCodes": ["J0875"],
+  "cptDescriptions": {
+    "J0875": "Injection, dupilumab, 1 mg subcutaneous"
+  },
+  "allowedIcd10": ["L20.9", "L20.89", "L20.81"],
+  "icd10Descriptions": {
+    "L20.9": "Atopic dermatitis, unspecified",
+    "L20.89": "Other atopic dermatitis",
+    "L20.81": "Atopic neurodermatitis"
+  },
+  "criteria": [
+    {
+      "id": "CRIT-1",
+      "description": "Confirmed diagnosis of moderate-to-severe atopic dermatitis by dermatologist (IGA score >= 3 or EASI score >= 16 or BSA >= 10%)",
+      "type": "diagnosis_severity",
+      "threshold": "IGA >= 3 OR EASI >= 16 OR BSA >= 10%",
+      "required": true
+    },
+    {
+      "id": "CRIT-2",
+      "description": "Failed or contraindicated to at least ONE topical corticosteroid (medium or high potency) used for minimum 4 weeks",
+      "type": "step_therapy_topical",
+      "threshold": "4 weeks topical corticosteroid",
+      "required": true
+    },
+    {
+      "id": "CRIT-3",
+      "description": "Failed or contraindicated to at least ONE topical calcineurin inhibitor (tacrolimus or pimecrolimus) used for minimum 4 weeks",
+      "type": "step_therapy_calcineurin",
+      "threshold": "4 weeks calcineurin inhibitor",
+      "required": true
+    },
+    {
+      "id": "CRIT-4",
+      "description": "Failed, intolerant, or contraindicated to at least ONE systemic immunosuppressant (methotrexate, cyclosporine, azathioprine, or mycophenolate) used for minimum 3 months",
+      "type": "step_therapy_systemic",
+      "threshold": "3 months systemic immunosuppressant",
+      "required": true
+    },
+    {
+      "id": "CRIT-5",
+      "description": "Prescribing physician is a dermatologist or allergist/immunologist",
+      "type": "specialist_required",
+      "threshold": "dermatologist or allergist",
+      "required": true
+    },
+    {
+      "id": "CRIT-6",
+      "description": "Patient is age 6 years or older",
+      "type": "age_minimum",
+      "threshold": "6 years",
+      "required": true
+    },
+    {
+      "id": "CRIT-7",
+      "description": "No active systemic infection and TB screening completed",
+      "type": "safety_screening",
+      "threshold": "TB negative, no active infection",
+      "required": true
+    }
+  ],
+  "reauthorizationCriteria": {
+    "interval": "12 months",
+    "requirements": [
+      "Documented clinical improvement (reduction in IGA, EASI, or BSA)",
+      "Patient compliance with treatment regimen",
+      "No significant adverse effects requiring discontinuation"
+    ]
+  },
+  "urgentBypass": "Severe flare with erythroderma or hospitalization — expedited 24-hour review.",
+  "denialReasons": [
+    "Step therapy not completed (topical steroids, calcineurin inhibitors, or systemic agents not tried)",
+    "Mild atopic dermatitis (IGA < 3 and EASI < 16 and BSA < 10%)",
+    "Prescriber is not dermatologist or allergist",
+    "Patient under 6 years of age",
+    "Active systemic infection or untreated latent TB"
+  ]
+}

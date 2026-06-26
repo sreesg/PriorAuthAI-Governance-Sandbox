@@ -1,0 +1,78 @@
+{
+  "policyId": "POL-SURG-340",
+  "policyName": "Orthopedic Surgery: Knee Arthroscopy",
+  "payer": "Cigna",
+  "effectiveDate": "2026-02-15",
+  "category": "Surgery",
+  "cptCodes": ["29881", "29880", "29882", "29883"],
+  "cptDescriptions": {
+    "29881": "Arthroscopy, knee, meniscectomy including partial meniscectomy",
+    "29880": "Arthroscopy, knee, meniscectomy with meniscus repair",
+    "29882": "Arthroscopy, knee, meniscectomy medial AND lateral",
+    "29883": "Arthroscopy, knee, meniscectomy medial AND lateral with repair"
+  },
+  "allowedIcd10": ["M23.201", "M23.211", "M23.221", "M23.301", "M23.311", "S83.201A", "S83.211A", "M17.11", "M17.12"],
+  "icd10Descriptions": {
+    "M23.201": "Derangement of unspecified lateral meniscus, right knee",
+    "M23.211": "Derangement of anterior horn lateral meniscus, right knee",
+    "M23.221": "Derangement of posterior horn lateral meniscus, right knee",
+    "M23.301": "Other meniscus derangements, right knee",
+    "M23.311": "Other meniscus derangements, medial meniscus, right knee",
+    "S83.201A": "Unspecified tear of lateral meniscus, right knee, initial",
+    "S83.211A": "Bucket-handle tear of lateral meniscus, right knee, initial",
+    "M17.11": "Primary osteoarthritis, right knee",
+    "M17.12": "Primary osteoarthritis, left knee"
+  },
+  "criteria": [
+    {
+      "id": "CRIT-1",
+      "description": "Failed conservative treatment: minimum 6 weeks of physical therapy, NSAIDs, and activity modification",
+      "type": "conservative_treatment",
+      "threshold": "6 weeks",
+      "required": true
+    },
+    {
+      "id": "CRIT-2",
+      "description": "Mechanical symptoms present: locking, catching, giving way, or inability to fully extend/flex",
+      "type": "mechanical_symptoms",
+      "threshold": "true",
+      "required": true
+    },
+    {
+      "id": "CRIT-3",
+      "description": "MRI findings consistent with meniscal tear (signal abnormality extending to articular surface)",
+      "type": "imaging_findings",
+      "threshold": "MRI showing meniscal pathology",
+      "required": true
+    },
+    {
+      "id": "CRIT-4",
+      "description": "Patient age under 65 OR if over 65, evidence that symptoms are primarily mechanical (not degenerative arthritis)",
+      "type": "age_consideration",
+      "threshold": "under 65 or documented mechanical etiology",
+      "required": true
+    },
+    {
+      "id": "CRIT-5",
+      "description": "BMI under 40 OR if BMI over 40, documented weight management program participation",
+      "type": "bmi_threshold",
+      "threshold": "BMI < 40 or weight management documented",
+      "required": false
+    },
+    {
+      "id": "CRIT-6",
+      "description": "Surgeon is board-certified orthopedic surgeon with arthroscopy privileges",
+      "type": "provider_qualification",
+      "threshold": "board-certified orthopedic",
+      "required": true
+    }
+  ],
+  "urgentBypass": "Locked knee with inability to extend — authorize expedited review within 24 hours.",
+  "denialReasons": [
+    "Insufficient conservative therapy (less than 6 weeks PT documented)",
+    "No mechanical symptoms — isolated pain without locking/catching",
+    "No MRI or MRI negative for meniscal pathology",
+    "Age >65 with primary osteoarthritis and no mechanical symptoms (arthroscopy not beneficial for degenerative disease)",
+    "BMI >40 without documented weight management"
+  ]
+}

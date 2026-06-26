@@ -1,0 +1,61 @@
+{
+  "policyId": "POL-RAD-501",
+  "policyName": "Advanced Imaging: Lumbar Spine MRI",
+  "payer": "UnitedHealthcare",
+  "effectiveDate": "2026-01-01",
+  "category": "Radiology",
+  "cptCodes": ["72148", "72149", "72158"],
+  "cptDescriptions": {
+    "72148": "MRI lumbar spine without contrast",
+    "72149": "MRI lumbar spine with contrast",
+    "72158": "MRI lumbar spine without contrast followed by with contrast"
+  },
+  "allowedIcd10": ["M54.5", "M54.16", "M54.17", "M51.16", "M51.17", "G55", "M47.816", "M47.817"],
+  "icd10Descriptions": {
+    "M54.5": "Low back pain",
+    "M54.16": "Radiculopathy, lumbar region",
+    "M54.17": "Radiculopathy, lumbosacral region",
+    "M51.16": "Intervertebral disc disorder with radiculopathy, lumbar",
+    "M51.17": "Intervertebral disc disorder with radiculopathy, lumbosacral",
+    "G55": "Nerve root and plexus compressions",
+    "M47.816": "Spondylosis with myelopathy, lumbar",
+    "M47.817": "Spondylosis with myelopathy, lumbosacral"
+  },
+  "criteria": [
+    {
+      "id": "CRIT-1",
+      "description": "Conservative therapy (physical therapy, NSAIDs, activity modification) for minimum 6 weeks with documented failure",
+      "type": "conservative_treatment",
+      "threshold": "6 weeks",
+      "required": true
+    },
+    {
+      "id": "CRIT-2",
+      "description": "Neurological symptoms present: radiculopathy, numbness/tingling, weakness, or bowel/bladder dysfunction",
+      "type": "neurological_symptoms",
+      "threshold": "true",
+      "required": true
+    },
+    {
+      "id": "CRIT-3",
+      "description": "Red flag symptoms absent OR if present, urgent/emergent pathway applies (cauda equina, progressive neuro deficit, suspected malignancy)",
+      "type": "red_flags",
+      "threshold": "screening",
+      "required": true
+    },
+    {
+      "id": "CRIT-4",
+      "description": "No MRI of the same region within the past 12 months unless new symptoms documented",
+      "type": "prior_imaging",
+      "threshold": "12 months",
+      "required": true
+    }
+  ],
+  "urgentBypass": "If cauda equina syndrome suspected (bilateral leg weakness, saddle anesthesia, bowel/bladder dysfunction), immediate MRI is authorized without conservative therapy requirement.",
+  "denialReasons": [
+    "Insufficient conservative therapy duration",
+    "No documented neurological findings on exam",
+    "Recent MRI within 12 months without new symptoms",
+    "Non-specific low back pain without radicular features"
+  ]
+}
