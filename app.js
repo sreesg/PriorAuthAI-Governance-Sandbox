@@ -49,6 +49,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
+  // Replay demo animation
+  const replayBtn = document.getElementById('btn-replay-demo');
+  if (replayBtn) {
+    replayBtn.addEventListener('click', () => {
+      const packet = document.getElementById('demo-packet');
+      if (packet) {
+        packet.style.animation = 'none';
+        packet.offsetHeight; // force reflow
+        packet.style.animation = 'packetMove 4s ease-in-out infinite';
+      }
+    });
+  }
+
   // Helper for non-blocking notifications
   function showToast(message, type = 'info') {
     const toast = document.createElement('div');
