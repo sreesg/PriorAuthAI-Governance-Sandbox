@@ -683,12 +683,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       npiBadge.textContent = '';
       npiBadge.className = 'badge';
 
-      // AI model badge
+      // AI model badge — not needed in outcome (toggle already visible)
       const aiModelBadge = document.getElementById('ai-model-badge');
-      if (aiModeEnabled) {
-        aiModelBadge.textContent = '🧠 ClinicalNLP';
-        aiModelBadge.className = 'badge badge-ai';
-      } else {
+      if (aiModelBadge) {
         aiModelBadge.textContent = '';
         aiModelBadge.className = 'badge';
       }
