@@ -67,20 +67,36 @@ def call_llm(prompt, max_tokens=400, temperature=0.1):
 
 
 def extract_json_from_response(text):
-    """Parse JSON from LLM response, handling markdown code blocks."""
+    """Parse JSON from LLM response, handling markdown code blocks and truncation."""
     if "```json" in text:
         text = text.split("```json")[1].split("```")[0].strip()
     elif "```" in text:
         text = text.split("```")[1].split("```")[0].strip()
+    
+    # Try array first
+    start = text.find("[")
+    end = text.rfind("]") + 1
+    if start >= 0 and end > start:
+        try:
+            return json.loads(text[start:end])
+        except json.JSONDecodeError:
+            # Try to fix truncated array by closing it
+            partial = text[start:]
+            # Find last complete object
+            last_brace = partial.rfind("}")
+            if last_brace > 0:
+                fixed = partial[:last_brace+1] + "]"
+                try:
+                    return json.loads(fixed)
+                except json.JSONDecodeError:
+                    pass
+    
+    # Try object
     start = text.find("{")
     end = text.rfind("}") + 1
     if start >= 0 and end > start:
         return json.loads(text[start:end])
-    # Try array
-    start = text.find("[")
-    end = text.rfind("]") + 1
-    if start >= 0 and end > start:
-        return json.loads(text[start:end])
+    
     raise ValueError(f"No JSON found in: {text[:200]}")
 
 
@@ -824,3 +840,134 @@ def _evaluate_policy_criteria(evidence, policy, request):
         results.append({"name": criterion.get("id", "") + " " + desc[:40], "met": met, "detail": detail})
 
     return results
+
+
+# ─── Build Rules/Skills/Hooks for a Specific Policy ──────────────────────────
+
+def build_for_policy(policy, action):
+    """
+    Use the LLM to generate rules, skills, or hooks for a specific policy.
+    Each is generated contextually based on the policy's criteria.
+    """
+    policy_id = policy.get("policyId", "")
+    policy_name = policy.get("policyName", "")
+    criteria_text = "\n".join(
+        f"- {c['id']}: {c['description']} (threshold: {c.get('threshold', 'N/A')})"
+        for c in policy.get("criteria", [])
+    )
+    cpt_codes = ", ".join(policy.get("cptCodes", []))
+
+    if action == "rules":
+        return _build_rules_for_policy(policy_id, policy_name, cpt_codes, criteria_text, policy)
+    elif action == "skills":
+        return _build_skills_for_policy(policy_id, policy_name, cpt_codes, criteria_text)
+    elif action == "hooks":
+        return _build_hooks_for_policy(policy_id, policy_name, cpt_codes, criteria_text)
+    else:
+        return {"error": f"Unknown action: {action}"}
+
+
+def _build_rules_for_policy(policy_id, policy_name, cpt_codes, criteria_text, policy):
+    """Generate OPA Rego-style rules from policy criteria."""
+    prompt = f"""Generate declarative policy rules for this prior authorization policy.
+Policy: {policy_id} — {policy_name}
+CPT Codes: {cpt_codes}
+Criteria:
+{criteria_text}
+
+Output as a markdown rules declaration (like rules_declaration.md format):
+## Policy: {policy_id} ({policy_name})
+- CPT Code: <code>
+- Allowed ICD-10 Diagnosis Codes: <codes>
+- <criteria as key-value pairs>
+
+Be concise. Output ONLY the markdown rules."""
+
+    response = call_llm(prompt, max_tokens=400, temperature=0.1)
+
+    # Save to rules file
+    rules_file = os.path.join(DATA_DIR, "rules_declaration.md")
+    with open(rules_file, "r") as f:
+        existing = f.read()
+
+    # Append if not already there
+    if policy_id not in existing:
+        with open(rules_file, "a") as f:
+            f.write(f"\n\n{response}\n")
+        audit = f"✓ Rules generated for {policy_id} and appended to rules_declaration.md\n\n{response}"
+    else:
+        audit = f"ℹ️ Rules for {policy_id} already exist in rules_declaration.md. No changes made.\n\nGenerated:\n{response}"
+
+    return {"status": "success", "action": "rules", "policyId": policy_id, "auditLog": audit}
+
+
+def _build_skills_for_policy(policy_id, policy_name, cpt_codes, criteria_text):
+    """Generate skill definitions tailored to a specific policy."""
+    prompt = f"""Design 2-3 validation skills for this prior authorization policy.
+Policy: {policy_id} — {policy_name}
+CPT: {cpt_codes}
+Criteria:
+{criteria_text}
+
+For each skill provide JSON:
+{{"skillName": "<PascalCaseSkill>", "description": "<what it validates>", "inputs": ["<fields>"], "outputs": ["<results>"], "logic": "<brief validation logic>"}}
+
+Return a JSON array of 2 skills only. Be very concise in descriptions (under 15 words each)."""
+
+    response = call_llm(prompt, max_tokens=500, temperature=0.2)
+
+    try:
+        skills = extract_json_from_response(response)
+        if isinstance(skills, dict):
+            skills = [skills]
+        # Save
+        skills_file = os.path.join(DATA_DIR, "generated_skills.json")
+        existing_skills = load_saved_skills()
+        existing_names = {s.get("skillName") for s in existing_skills}
+        new_skills = [s for s in skills if s.get("skillName") not in existing_names]
+        all_skills = existing_skills + new_skills
+        save_generated_skills(all_skills)
+
+        audit = f"✓ Generated {len(new_skills)} new skill(s) for {policy_id}:\n"
+        for s in new_skills:
+            audit += f"  • {s.get('skillName', '?')}: {s.get('description', '')[:60]}\n"
+        if not new_skills:
+            audit += "  (All skills already exist)\n"
+        audit += f"\nTotal skills registered: {len(all_skills)}"
+    except (ValueError, json.JSONDecodeError):
+        skills = []
+        audit = f"⚠️ Could not parse skills from LLM response.\nRaw:\n{response[:300]}"
+
+    return {"status": "success", "action": "skills", "policyId": policy_id, "skills": skills, "auditLog": audit}
+
+
+def _build_hooks_for_policy(policy_id, policy_name, cpt_codes, criteria_text):
+    """Generate lifecycle hooks for a specific policy."""
+    prompt = f"""Design 2 lifecycle hooks for this PA policy agent.
+Policy: {policy_id} — {policy_name}
+Criteria:
+{criteria_text}
+
+Stages: on_request_received, on_guidelines_loaded, on_evidence_extracted, on_criteria_evaluated, on_notice_generated
+
+Return JSON array of 2 hooks:
+{{"hookName": "<name>", "stage": "<stage>", "description": "<10 words max>", "validates": "<what>"}}
+
+Be very concise."""
+
+    response = call_llm(prompt, max_tokens=300, temperature=0.2)
+
+    try:
+        hooks = extract_json_from_response(response)
+        if isinstance(hooks, dict):
+            hooks = [hooks]
+        
+        audit = f"✓ Generated {len(hooks)} hook(s) for {policy_id}:\n"
+        for h in hooks:
+            audit += f"  🪝 {h.get('hookName', '?')} @ {h.get('stage', '?')}\n"
+            audit += f"     → {h.get('description', '')[:60]}\n"
+    except (ValueError, json.JSONDecodeError):
+        hooks = []
+        audit = f"⚠️ Could not parse hooks from LLM response.\nRaw:\n{response[:300]}"
+
+    return {"status": "success", "action": "hooks", "policyId": policy_id, "hooks": hooks, "auditLog": audit}

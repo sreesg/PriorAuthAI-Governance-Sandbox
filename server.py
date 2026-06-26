@@ -1181,6 +1181,50 @@ Respond ONLY with the JSON object, no other text.
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(e)}).encode())
 
+        # 5b. Agent: Build rules/skills/hooks for a specific policy
+        elif self.path == '/agent/build-for-policy':
+            if not AGENT_ENGINE_AVAILABLE:
+                self.send_response(503)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Agent engine not loaded"}).encode())
+                return
+            try:
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                params = json.loads(post_data.decode())
+                policy_id = params.get('policyId', '')
+                action = params.get('action', '')  # rules, skills, or hooks
+                
+                # Find the policy
+                all_policies = agent_engine.load_all_policies()
+                policy = next((p for p in all_policies if p['policyId'] == policy_id), None)
+                
+                if not policy:
+                    self.send_response(404)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": f"Policy {policy_id} not found"}).encode())
+                    return
+                
+                result = agent_engine.build_for_policy(policy, action)
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps(result).encode())
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+
         # 6. Agent: Generate skills for extracted policies
         elif self.path == '/agent/generate-skills':
             if not AGENT_ENGINE_AVAILABLE:

@@ -98,13 +98,53 @@ document.addEventListener('DOMContentLoaded', async () => {
             <p>CPT: ${p.cptCodes.join(', ')} • ${p.payer}</p>
           </div>
           <span class="policy-item-badge">${p.category}</span>
+          <div class="policy-item-actions">
+            <button class="btn-policy-action" data-policy-id="${p.policyId}" data-action="rules" title="Generate rules for this policy">⚙️</button>
+            <button class="btn-policy-action" data-policy-id="${p.policyId}" data-action="skills" title="Generate skills for this policy">🛠️</button>
+            <button class="btn-policy-action" data-policy-id="${p.policyId}" data-action="hooks" title="Generate hooks for this policy">🪝</button>
+          </div>
         `;
-        item.addEventListener('click', () => {
+        item.addEventListener('click', (e) => {
+          if (e.target.closest('.btn-policy-action')) return; // Don't select when clicking action buttons
           document.querySelectorAll('.policy-item').forEach(el => el.classList.remove('active'));
           item.classList.add('active');
           showPolicyDetail(p);
         });
         policyList.appendChild(item);
+      });
+      
+      // Attach action button handlers
+      document.querySelectorAll('.btn-policy-action').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const policyId = btn.getAttribute('data-policy-id');
+          const action = btn.getAttribute('data-action');
+          btn.disabled = true;
+          const origText = btn.textContent;
+          btn.textContent = '⏳';
+          
+          try {
+            const res = await fetch('/agent/build-for-policy', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ policyId, action })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              auditConsole.textContent = data.auditLog || `✓ ${action} generated for ${policyId}`;
+              showToast(`${action} generated for ${policyId}`, 'success');
+              if (action === 'skills') refreshSkillsPills();
+            } else {
+              auditConsole.textContent = `Error: ${data.error}`;
+              showToast(`Failed: ${data.error}`, 'error');
+            }
+          } catch(err) {
+            auditConsole.textContent = `Network error: ${err.message}`;
+          } finally {
+            btn.disabled = false;
+            btn.textContent = origText;
+          }
+        });
       });
       
       if (policies.length > 0) showPolicyDetail(policies[0]);
