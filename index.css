@@ -2263,3 +2263,25 @@ footer.app-footer {
   font-weight: 700;
   margin-bottom: 0.5rem;
 }
+
+.challenger-green-flag {
+  padding: 0.5rem 0.7rem;
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 6px;
+  color: #047857;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.challenger-amber-flag {
+  padding: 0.5rem 0.7rem;
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 6px;
+  color: #92400e;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}

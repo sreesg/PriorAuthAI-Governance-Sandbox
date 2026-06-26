@@ -95,19 +95,25 @@ def review(pa_decision, pa_reason, evidence, criteria_met, request, policy):
     # ─── Skill 3: Evaluate Decision Strength ─────────────────────────────
     # Build adversarial prompt based on decision type
     if pa_decision == "Approved":
-        role = "skeptical medical reviewer looking for missed risks"
-        focus = """Focus on:
-1. Criteria marked 'met' with WEAK or ASSUMED evidence
-2. Red flags: contradictions, incomplete history, missing labs/imaging
-3. Whether conservative treatment was TRULY exhausted (or just claimed)
-4. Patient safety concerns the PA Agent may have overlooked"""
+        role = "quality reviewer validating approval strength"
+        focus = """Evaluate the approval quality:
+1. Is each 'met' criterion backed by SPECIFIC evidence in the notes? (cite it)
+2. Are there any documentation gaps a Medical Director might question?
+3. Is there anything contradictory in the notes?
+4. Rate documentation quality: strong evidence = AGREE, weak/assumed = CHALLENGE
+
+If documentation is thorough with clear durations, exam findings, and treatment history, AGREE.
+Only CHALLENGE if evidence is genuinely weak, contradictory, or assumed."""
     else:
-        role = "patient advocate seeking approval paths"
-        focus = """Focus on:
-1. Evidence the PA Agent MISSED or misinterpreted in the notes
-2. Alternative valid readings that satisfy criteria (implicit evidence)
-3. Whether the escalation is overly strict for borderline cases
-4. Clinical context that supports medical necessity despite documentation gaps"""
+        role = "patient advocate checking if escalation is warranted"
+        focus = """Evaluate whether the escalation is appropriate:
+1. Is there implicit evidence the PA Agent may have MISSED? (cite it)
+2. Could criteria be satisfied with a reasonable reading of the notes?
+3. Is the escalation overly strict for this clinical situation?
+4. Rate: if documentation clearly lacks requirements = AGREE, if borderline = CHALLENGE
+
+If notes genuinely lack required documentation, AGREE with the escalation.
+Only CHALLENGE if you find evidence the PA Agent overlooked."""
 
     prompt = f"""You are a Challenger Agent — an autonomous {role}.
 You must provide SUBSTANTIVE analysis (RULE-C2).

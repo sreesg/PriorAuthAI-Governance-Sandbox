@@ -949,9 +949,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Red flag banner if formal challenge
         if (ch.formalChallenge) {
           bodyHtml += `<div class="challenger-red-flag">🚩 FORMAL CHALLENGE — Decision overridden. Sent to Medical Director with findings below.</div>`;
-          // Also update the outcome card to show flagged status
           outcomeCard.className = 'glass-card outcome-card escalated';
           outcomeBadge.textContent = outcome.decision;
+        } else if (ch.verdict === 'AGREE') {
+          bodyHtml += `<div class="challenger-green-flag">✅ QUALITY CONFIRMED — Challenger reviewed and agrees with the decision. Documentation is adequate.</div>`;
+        } else if (ch.verdict === 'CONCERN') {
+          bodyHtml += `<div class="challenger-amber-flag">⚠️ MINOR CONCERN — Documentation could be stronger but does not warrant override.</div>`;
         }
         
         bodyHtml += `<div class="challenger-reasoning">${ch.reasoning || ''}</div>`;
