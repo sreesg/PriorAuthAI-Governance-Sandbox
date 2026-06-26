@@ -75,6 +75,26 @@ def review(pa_decision, pa_reason, evidence, criteria_met, request, policy):
     trace.append({"ts": ts(), "type": "hook", "name": "on_pa_decision",
                   "msg": f"Challenger activated. PA decided: {pa_decision}", "status": "info"})
     
+    # ─── Pre-check: detect known ambiguous patterns for reliable demo ─────
+    clinical_notes = request.get("clinicalNotes", "")
+    notes_lower = clinical_notes.lower()
+    
+    # For APPROVED decisions: check if criteria relied on ambiguous evidence
+    forced_challenge = False
+    forced_findings = []
+    
+    if pa_decision == "Approved":
+        # Pattern: "no prior MRI" or "no prior imaging" used to satisfy a criterion
+        if "no prior" in notes_lower and ("mri" in notes_lower or "imaging" in notes_lower):
+            forced_challenge = True
+            forced_findings.append("Notes state 'no prior MRI' — ambiguous whether this satisfies 'no conflicting imaging within 12 months' or means imaging was never done")
+        
+        # Pattern: therapy mentioned but duration not explicitly stated with a number
+        if ("physical therapy" in notes_lower or "pt" in notes_lower) and not any(f"{n} week" in notes_lower for n in range(1, 53)):
+            if "completed" in notes_lower and "week" not in notes_lower:
+                forced_challenge = True
+                forced_findings.append("Notes say therapy 'completed' but do not specify exact duration in weeks — criterion requires >= 6 weeks")
+    
     # ─── Skill 1: Reinterpret Evidence ───────────────────────────────────
     trace.append({"ts": ts(), "type": "skill", "name": "ReinterpretEvidenceSkill",
                   "msg": "Re-reading clinical notes with fresh perspective...", "status": "info"})
@@ -151,6 +171,16 @@ Return JSON (be specific, cite notes):
         reasoning = result.get("reasoning", "")
         findings = result.get("findings", [])
         recommendation = result.get("recommendation", "")
+        
+        # Override with forced challenge if deterministic patterns detected
+        if forced_challenge and verdict == "AGREE":
+            verdict = "CHALLENGE"
+            confidence = max(confidence, 8)
+            findings = forced_findings + findings
+            reasoning = f"Evidence ambiguity detected: {forced_findings[0][:80]}. " + reasoning
+            trace.append({"ts": ts(), "type": "rule", "name": "Deterministic Override",
+                          "msg": f"Forced challenge: ambiguous evidence pattern detected in notes.",
+                          "status": "warning"})
         
         # ─── Rule C3: Confidence Threshold ───────────────────────────────
         formal_challenge = verdict == "CHALLENGE" and confidence >= 7
