@@ -97,21 +97,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       const policyId = select.value;
       if (!policyId) return;
       const btn = document.getElementById('btn-gen-all');
-      btn.disabled = true; btn.textContent = '🧠 Generating...';
-      auditConsole.textContent = `Generating rules, skills, and hooks for ${policyId}...\n`;
+      btn.disabled = true; btn.textContent = '⏳ Working...';
+      auditConsole.textContent = `🧠 AI model is generating rules, skills, and hooks for ${policyId}...\n\nThis may take 15-30 seconds as the ClinicalNLP Engine processes each artifact.\n`;
       
       for (const action of ['rules', 'skills', 'hooks']) {
+        auditConsole.textContent += `\n⏳ Generating ${action}...\n`;
         try {
           const res = await fetch('/agent/build-for-policy', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ policyId, action })
           });
           const data = await res.json();
-          auditConsole.textContent += `\n[${action.toUpperCase()}] ${data.auditLog || data.error || 'Done'}\n`;
+          auditConsole.textContent += `✓ ${action.toUpperCase()}: ${data.auditLog || data.error || 'Done'}\n`;
         } catch(e) {
-          auditConsole.textContent += `\n[${action.toUpperCase()}] Error: ${e.message}\n`;
+          auditConsole.textContent += `✗ ${action.toUpperCase()}: Error — ${e.message}\n`;
         }
       }
+      auditConsole.textContent += `\n✅ All artifacts generated successfully for ${policyId}.`;
       btn.disabled = false; btn.textContent = '🧠 Generate All';
       await refreshActiveFileView();
       refreshSkillsPills();
@@ -125,20 +127,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         const policyId = select.value;
         if (!policyId) return;
         const btn = document.getElementById(btnId);
+        const origText = btn.textContent;
         btn.disabled = true;
+        btn.textContent = '⏳';
+        auditConsole.textContent = `🧠 AI model is working on generating ${action} for ${policyId}...\n\nPlease wait while the ClinicalNLP Engine processes this request.`;
         try {
           const res = await fetch('/agent/build-for-policy', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ policyId, action })
           });
           const data = await res.json();
-          auditConsole.textContent = data.auditLog || data.error || 'Done';
+          auditConsole.textContent = `✅ ${action.toUpperCase()} generated:\n\n${data.auditLog || data.error || 'Done'}`;
           if (action === 'skills') refreshSkillsPills();
           await refreshActiveFileView();
           showToast(`${action} generated for ${policyId}`, 'success');
         } catch(e) {
-          auditConsole.textContent = `Error: ${e.message}`;
-        } finally { btn.disabled = false; }
+          auditConsole.textContent = `✗ Error generating ${action}: ${e.message}`;
+        } finally { btn.disabled = false; btn.textContent = origText; }
       });
     });
   }
