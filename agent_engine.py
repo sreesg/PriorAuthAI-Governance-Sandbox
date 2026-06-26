@@ -670,8 +670,13 @@ def run_multi_policy_review(request, use_ai_extraction=False):
         trace.append({"ts": ts(), "type": "skill", "name": "ExtractEvidence (ClinicalNLP)",
                       "msg": "🧠 Gemma 4 12B reading clinical notes...", "status": "info"})
         evidence = _ai_extract_full(clinical_notes, cpt_code, policy)
+        if isinstance(evidence, list):
+            evidence = evidence[0] if evidence else {}
+        if not isinstance(evidence, dict):
+            evidence = {}
+        positive = sum(1 for v in evidence.values() if v and v != 0)
         trace.append({"ts": ts(), "type": "skill", "name": "ExtractEvidence (ClinicalNLP)",
-                      "msg": f"AI extraction complete. Found {sum(1 for v in evidence.values() if v)} positive findings.",
+                      "msg": f"AI extraction complete. Found {positive} positive findings.",
                       "status": "success"})
     else:
         trace.append({"ts": ts(), "type": "skill", "name": "ExtractEvidence (Regex)",
@@ -752,7 +757,12 @@ Return JSON with these fields (use true/false for booleans, integers for weeks/m
 
     response = call_llm(prompt, max_tokens=300, temperature=0.1)
     try:
-        return extract_json_from_response(response)
+        result = extract_json_from_response(response)
+        if isinstance(result, list):
+            result = result[0] if result else {}
+        if not isinstance(result, dict):
+            result = {}
+        return result
     except (ValueError, json.JSONDecodeError):
         return {"conservativeTherapyWeeks": 0, "reasoning": "Parse failed: " + response[:100]}
 
