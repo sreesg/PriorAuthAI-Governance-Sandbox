@@ -50,15 +50,67 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Replay demo animation (if present)
-  const replayBtn = document.getElementById('btn-replay-demo');
-  if (replayBtn) {
-    replayBtn.addEventListener('click', () => {
-      document.querySelectorAll('.internal-item').forEach(el => {
-        el.style.animation = 'none';
-        el.offsetHeight;
-        el.style.animation = '';
-      });
-    });
+  const storyBtn = document.getElementById('btn-play-story');
+  if (storyBtn) {
+    storyBtn.addEventListener('click', playConceptStory);
+  }
+
+  async function playConceptStory() {
+    const req = document.getElementById('story-req');
+    const narration = document.getElementById('story-narration');
+    const avi = document.getElementById('ss-avi');
+    const aviStatus = document.getElementById('avi-anim-status');
+    const result = document.getElementById('ss-result');
+    const resultIcon = document.getElementById('ss-result-icon');
+    const resultText = document.getElementById('ss-result-text');
+    const btn = document.getElementById('btn-play-story');
+    
+    btn.disabled = true; btn.textContent = '⏸ Playing...';
+    
+    // Reset all stages
+    document.querySelectorAll('.story-stage').forEach(s => { s.className = 'story-stage'; });
+    result.className = 'story-result-box';
+    resultIcon.textContent = '⏳'; resultText.textContent = 'Pending';
+    avi.classList.remove('active');
+    aviStatus.textContent = 'observing';
+    req.style.left = '3%'; req.style.top = '50%';
+
+    const delay = ms => new Promise(r => setTimeout(r, ms));
+    const positions = ['12%', '29%', '46%', '63%', '80%'];
+    const narrations = [
+      '📥 Request arrives → Hook fires → PHI rule scrubs sensitive data',
+      '🛠️ PolicyRouter skill matches CPT code → Rule validates ICD-10 alignment',
+      '🧠 ExtractEvidence skill calls LLM → AI reads clinical notes semantically',
+      '🛠️ EvalCriteria checks thresholds → Hook triggers → Conservatism rule decides',
+      '🛠️ GenNotice drafts letter → Hook fires → Plain Language rule translates'
+    ];
+
+    for (let i = 0; i < 5; i++) {
+      // Move request
+      req.style.left = positions[i];
+      narration.textContent = narrations[i];
+      
+      // Activate stage
+      const stage = document.getElementById(`ss-${i+1}`);
+      stage.classList.add('active');
+      
+      // AVI reacts at stage 3
+      if (i === 2) { avi.classList.add('active'); aviStatus.textContent = 'analyzing context'; }
+      if (i === 4) { aviStatus.textContent = 'ready to explain'; }
+      
+      await delay(1500);
+      stage.classList.remove('active');
+      stage.classList.add('done');
+    }
+
+    // Final result
+    await delay(500);
+    req.style.left = '92%'; req.style.top = '75%';
+    result.classList.add('approved');
+    resultIcon.textContent = '✅'; resultText.textContent = 'Approved';
+    narration.textContent = '✅ All criteria met. Both agents collaborated — PA Agent decided, AVI is ready to explain why.';
+    
+    btn.disabled = false; btn.textContent = '▶ Play Again';
   }
 
   // Helper for non-blocking notifications

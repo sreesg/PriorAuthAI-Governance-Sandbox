@@ -312,107 +312,40 @@
     </div>
   </div>
 
-  <!-- VIEW: Concepts (animated explanations) -->
+  <!-- VIEW: Concepts (animated story) -->
   <div id="view-concepts" class="view-panel" style="display:none;">
-    <div class="concepts-fullscreen">
-      <!-- Title -->
-      <div class="concepts-header-row">
-        <h1>PriorAuthAI Agent Architecture</h1>
-        <p>Two agents • Skills • Rules • Hooks • MCP — all working together</p>
+    <div class="story-container">
+      <div class="story-header">
+        <h1>Watch a PA Request Flow Through the System</h1>
+        <button class="btn-primary-action" id="btn-play-story" style="width:auto;padding:0.4rem 1.2rem;">▶ Play</button>
       </div>
 
-      <!-- Main Diagram -->
-      <div class="arch-diagram">
-        <!-- Left: PA Review Agent -->
-        <div class="agent-box agent-pa">
-          <div class="agent-title">🤖 PA Review Agent</div>
-          <div class="agent-desc">Evaluates prior auth requests</div>
-          <div class="agent-internals">
-            <div class="internal-row">
-              <div class="internal-item skill-item" id="c-skill-1">🛠️ PolicyRouter</div>
-              <div class="internal-item skill-item" id="c-skill-2">🛠️ ExtractEvidence</div>
-            </div>
-            <div class="internal-row">
-              <div class="internal-item skill-item" id="c-skill-3">🛠️ EvalCriteria</div>
-              <div class="internal-item skill-item" id="c-skill-4">🛠️ GenNotice</div>
-            </div>
-            <div class="internal-divider"></div>
-            <div class="internal-row">
-              <div class="internal-item rule-item" id="c-rule-1">⚙️ PHI Redact</div>
-              <div class="internal-item rule-item" id="c-rule-2">⚙️ Conservatism</div>
-              <div class="internal-item rule-item" id="c-rule-3">⚙️ Code Match</div>
-            </div>
-            <div class="internal-divider"></div>
-            <div class="internal-row">
-              <div class="internal-item hook-item" id="c-hook-1">🪝 on_intake</div>
-              <div class="internal-item hook-item" id="c-hook-2">🪝 on_evidence</div>
-              <div class="internal-item hook-item" id="c-hook-3">🪝 on_decision</div>
-            </div>
-          </div>
-        </div>
+      <div class="story-canvas">
+        <!-- The request object that moves -->
+        <div class="story-request" id="story-req"><span>📋</span></div>
 
-        <!-- Center: Data Flow + MCP -->
-        <div class="arch-center">
-          <div class="mcp-tower">
-            <div class="mcp-label">MCP Server</div>
-            <div class="mcp-endpoint">/run-review</div>
-            <div class="mcp-endpoint">/build-for-policy</div>
-            <div class="mcp-endpoint">/agent/avi</div>
-            <div class="mcp-endpoint">/ai-extract</div>
-          </div>
-          <!-- Animated connections -->
-          <div class="conn-line conn-left"></div>
-          <div class="conn-line conn-right"></div>
-          <div class="conn-line conn-top"></div>
-          <div class="conn-line conn-bottom"></div>
-          <!-- Floating data particles -->
-          <div class="particle p1">📋</div>
-          <div class="particle p2">🧠</div>
-          <div class="particle p3">✅</div>
-        </div>
+        <!-- 5 Stage panels -->
+        <div class="story-stage" id="ss-1" data-label="Intake" data-actors="🪝 on_request → ⚙️ PHI Redact"></div>
+        <div class="story-stage" id="ss-2" data-label="Route" data-actors="🛠️ PolicyRouter → ⚙️ Code Match"></div>
+        <div class="story-stage" id="ss-3" data-label="Extract" data-actors="🛠️ ExtractEvidence → 🧠 LLM"></div>
+        <div class="story-stage" id="ss-4" data-label="Evaluate" data-actors="🛠️ EvalCriteria → 🪝 on_criteria → ⚙️ Conservatism"></div>
+        <div class="story-stage" id="ss-5" data-label="Decide" data-actors="🛠️ GenNotice → 🪝 on_notice → ⚙️ Plain Lang"></div>
 
-        <!-- Right: AVI Agent -->
-        <div class="agent-box agent-avi">
-          <div class="agent-title">🤖 AVI Agent</div>
-          <div class="agent-desc">Conversational assistant</div>
-          <div class="agent-internals">
-            <div class="internal-row">
-              <div class="internal-item skill-item">🛠️ LoadContext</div>
-              <div class="internal-item skill-item">🛠️ AnswerQuery</div>
-            </div>
-            <div class="internal-divider"></div>
-            <div class="internal-row">
-              <div class="internal-item rule-item">⚙️ No Hallucinate</div>
-              <div class="internal-item rule-item">⚙️ Use References</div>
-            </div>
-            <div class="internal-divider"></div>
-            <div class="internal-row">
-              <div class="internal-item hook-item">🪝 on_tab_change</div>
-              <div class="internal-item hook-item">🪝 on_case_load</div>
-            </div>
-          </div>
-        </div>
+        <!-- AVI observing -->
+        <div class="story-avi-box" id="ss-avi"><span>🤖</span> AVI<div class="avi-status" id="avi-anim-status">observing</div></div>
 
-        <!-- Bottom: LLM -->
-        <div class="arch-llm">
-          <div class="llm-icon">🧠</div>
-          <div class="llm-label">Gemma 4 12B (Local)</div>
-          <div class="llm-desc">ClinicalNLP Engine • Ollama</div>
-        </div>
-
-        <!-- Top: UI/User -->
-        <div class="arch-user">
-          <div class="user-icon">👤</div>
-          <div class="user-label">User / UI</div>
-        </div>
+        <!-- Result -->
+        <div class="story-result-box" id="ss-result"><span id="ss-result-icon">⏳</span><span id="ss-result-text">Pending</span></div>
       </div>
 
-      <!-- Legend -->
-      <div class="arch-legend">
-        <span class="legend-item"><span class="legend-dot dot-skill"></span> Skills = capabilities</span>
-        <span class="legend-item"><span class="legend-dot dot-rule"></span> Rules = guardrails</span>
-        <span class="legend-item"><span class="legend-dot dot-hook"></span> Hooks = event triggers</span>
-        <span class="legend-item"><span class="legend-dot dot-mcp"></span> MCP = communication protocol</span>
+      <div class="story-narration" id="story-narration">Click Play to watch a prior authorization request flow through skills, rules, hooks, and both agents.</div>
+
+      <div class="story-legend">
+        <span><span class="legend-dot dot-skill"></span> Skill</span>
+        <span><span class="legend-dot dot-rule"></span> Rule</span>
+        <span><span class="legend-dot dot-hook"></span> Hook</span>
+        <span><span class="legend-dot dot-llm"></span> LLM</span>
+        <span><span class="legend-dot" style="background:#6366f1;"></span> MCP</span>
       </div>
     </div>
   </div>
