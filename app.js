@@ -504,6 +504,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function loadPolicyHooksForCase(cptCode) {
     const hooksRow = document.getElementById('policy-hooks-row');
     const hooksContainer = document.getElementById('policy-hooks-container');
+    if (!hooksRow || !hooksContainer) return;
     hooksContainer.innerHTML = '';
     hooksRow.style.display = 'none';
     
@@ -522,15 +523,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       const hooks = hooksData.hooks || [];
       if (hooks.length === 0) return;
       
-      hooksRow.style.display = 'flex';
       hooks.forEach(h => {
         const pill = document.createElement('div');
         pill.className = 'rule-item';
-        pill.innerHTML = `<div class="rule-info"><h4>${h.hookName || h.stage || '?'}</h4></div>`;
+        pill.style.borderColor = '#0ea5e9';
+        pill.innerHTML = `<div class="rule-info"><h4>🪝 ${h.hookName || h.stage || '?'}</h4></div>`;
         pill.title = h.description || '';
         hooksContainer.appendChild(pill);
       });
-    } catch(_) {}
+      hooksRow.style.display = 'flex';
+    } catch(e) {
+      console.error('Hook loading error:', e);
+    }
   }
 
   // 8. Compact Rules Checkbox toggles — inline pills
