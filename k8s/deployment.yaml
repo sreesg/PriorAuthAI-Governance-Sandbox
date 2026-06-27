@@ -15,6 +15,7 @@ spec:
       labels:
         app: beacon-priorauth
     spec:
+      serviceAccountName: beacon-sa
       nodeSelector:
         node-group: beacon-llm
       containers:
