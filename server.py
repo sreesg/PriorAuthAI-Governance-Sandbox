@@ -1541,13 +1541,13 @@ Respond ONLY with the JSON object, no other text.
     def do_GET(self):
         # Handle API GET routes before falling through to static file serving
         if self.path == '/agent/asset-urls':
-            # Returns S3 presigned URLs for large assets (video, images, PDFs)
+            # Returns URLs for large assets — proxy paths when S3 is enabled
             try:
-                from s3_helper import is_s3_enabled, get_presigned_url
+                from s3_helper import is_s3_enabled
                 assets = {}
                 if is_s3_enabled():
-                    assets["video"] = get_presigned_url("PA agent.mp4")
-                    assets["architecture"] = get_presigned_url("PA Agentic architecture.png")
+                    assets["video"] = "/agent/asset/video"
+                    assets["architecture"] = "/agent/asset/architecture"
                 else:
                     assets["video"] = "./PA agent.mp4"
                     assets["architecture"] = "./PA Agentic architecture.png"
@@ -1562,6 +1562,70 @@ Respond ONLY with the JSON object, no other text.
                 self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
                 self.wfile.write(json.dumps({"video": "./PA agent.mp4", "architecture": "./PA Agentic architecture.png"}).encode())
+        elif self.path.startswith('/agent/asset/'):
+            # Proxy S3 assets through the server (video, images)
+            asset_name = self.path.split('/agent/asset/')[1]
+            asset_map = {
+                "video": ("PA agent.mp4", "video/mp4"),
+                "architecture": ("PA Agentic architecture.png", "image/png"),
+            }
+            if asset_name in asset_map:
+                s3_key, content_type = asset_map[asset_name]
+                try:
+                    from s3_helper import get_file_bytes
+                    data = get_file_bytes(s3_key)
+                    if data:
+                        self.send_response(200)
+                        self.send_header('Content-Type', content_type)
+                        self.send_header('Content-Length', str(len(data)))
+                        self.send_header('Cache-Control', 'public, max-age=86400')
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.end_headers()
+                        self.wfile.write(data)
+                    else:
+                        self.send_response(404)
+                        self.end_headers()
+                except Exception as e:
+                    self.send_response(500)
+                    self.send_header('Content-Type', 'text/plain')
+                    self.end_headers()
+                    self.wfile.write(f"Error: {e}".encode())
+            else:
+                self.send_response(404)
+                self.end_headers()
+        elif self.path.startswith('/agent/pdf/'):
+            # Proxy PDFs from S3: /agent/pdf/cases/case-lumbar-approve_bundle.pdf
+            from urllib.parse import unquote
+            pdf_path = unquote(self.path[len('/agent/pdf/'):])
+            allowed_prefixes = ('cases/', 'policies/', 'real_payer_policy_uhc.pdf', 'medical_necessity_rules.pdf')
+            if pdf_path.startswith(allowed_prefixes) and pdf_path.endswith('.pdf'):
+                try:
+                    from s3_helper import get_file_bytes
+                    data = get_file_bytes(pdf_path)
+                    if data:
+                        self.send_response(200)
+                        self.send_header('Content-Type', 'application/pdf')
+                        self.send_header('Content-Length', str(len(data)))
+                        self.send_header('Content-Disposition', f'inline; filename="{os.path.basename(pdf_path)}"')
+                        self.send_header('Cache-Control', 'public, max-age=3600')
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.end_headers()
+                        self.wfile.write(data)
+                    else:
+                        self.send_response(404)
+                        self.send_header('Content-Type', 'text/plain')
+                        self.end_headers()
+                        self.wfile.write(b"PDF not found")
+                except Exception as e:
+                    self.send_response(500)
+                    self.send_header('Content-Type', 'text/plain')
+                    self.end_headers()
+                    self.wfile.write(f"Error: {e}".encode())
+            else:
+                self.send_response(403)
+                self.send_header('Content-Type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b"Forbidden")
         elif self.path == '/agent/policies':
             try:
                 policies = agent_engine.load_all_policies() if AGENT_ENGINE_AVAILABLE else []

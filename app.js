@@ -4,6 +4,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   const agent = new PriorAuthAgent();
   let activeFile = "rules_declaration.md";
 
+  // Load S3 asset URLs for image and video
+  try {
+    const assetRes = await fetch('/agent/asset-urls');
+    const assets = await assetRes.json();
+    const archImg = document.getElementById('arch-image');
+    if (archImg && assets.architecture) {
+      archImg.src = assets.architecture;
+      archImg.style.display = 'block';
+    }
+    const videoSrc = document.getElementById('video-source');
+    const videoEl = document.getElementById('tutorial-video');
+    if (videoSrc && assets.video) {
+      videoSrc.src = assets.video;
+      if (videoEl) videoEl.load();
+    }
+  } catch(e) {
+    console.warn('Asset URLs not available, using local fallback');
+    const archImg = document.getElementById('arch-image');
+    if (archImg) { archImg.src = './PA Agentic architecture.png'; archImg.style.display = 'block'; }
+    const videoSrc = document.getElementById('video-source');
+    if (videoSrc) videoSrc.src = './PA agent.mp4';
+  }
+
   // Elements
   const presetContainer = document.getElementById('preset-cases-container');
   const rulesContainer = document.getElementById('rules-checkbox-container');
@@ -359,14 +382,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const selectedPolicyId = policySelect ? policySelect.value : '';
         
         // Find the matching policy to get its PDF path
-        let pdfPath = './real_payer_policy_uhc.pdf';
+        let pdfPath = '/agent/pdf/real_payer_policy_uhc.pdf';
         let policyLabel = 'UHC General Policy';
         
         if (selectedPolicyId && workspacePolicies) {
           // Fetch the full policy detail which includes pdfFile
           fetch(`/agent/policy-detail?id=${selectedPolicyId}`).then(r => r.json()).then(p => {
             if (p.pdfFile) {
-              frame.src = `./${p.pdfFile}`;
+              frame.src = `/agent/pdf/${p.pdfFile}`;
               if (note) note.textContent = `📌 ${p.payer}: ${p.policyName} (${p.policyId})`;
             }
           }).catch(() => {});
@@ -641,7 +664,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const bundleLink = document.getElementById('evidence-bundle-link');
     if (evidenceActions && caseObj.evidenceBundle) {
       evidenceActions.style.display = 'flex';
-      bundleLink.href = caseObj.evidenceBundle;
+      bundleLink.href = `/agent/pdf/${caseObj.evidenceBundle}`;
       // Store bundle path for the read button
       evidenceActions.dataset.bundle = caseObj.evidenceBundle;
       evidenceActions.dataset.cpt = req.cptCode;
