@@ -9,7 +9,7 @@ metadata:
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
     alb.ingress.kubernetes.io/ssl-redirect: "443"
     alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-west-2:747675253087:certificate/213f173c-5003-4a61-bcd0-176b49ae92ee
-    alb.ingress.kubernetes.io/group.name: beacon-priorauth
+    alb.ingress.kubernetes.io/group.name: mededatalake-sandbox
     alb.ingress.kubernetes.io/healthcheck-path: /agent/policies
 spec:
   ingressClassName: alb
