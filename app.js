@@ -818,7 +818,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       icd10Code: inputIcd.value.trim(),
       providerName: inputProvider.value.trim(),
       providerNpi: inputNpi.value.trim(),
-      clinicalNotes: inputNotes.value.trim()
+      clinicalNotes: inputNotes.value.trim(),
+      evidenceBundle: document.getElementById('evidence-actions')?.dataset?.bundle || ''
     };
 
     // Reset UI

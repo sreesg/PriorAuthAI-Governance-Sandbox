@@ -61,12 +61,12 @@ CHALLENGER_HOOKS = {
 
 # ─── Main Entry Point ────────────────────────────────────────────────────────
 
-def review(pa_decision, pa_reason, evidence, criteria_met, request, policy):
+def review(pa_decision, pa_reason, evidence, criteria_met, request, policy, bundle_text=""):
     """
     Run the Challenger Agent's autonomous review.
     
-    This is a fully independent agent call — it does NOT share state with
-    the PA Agent. It receives the PA Agent's outputs and forms its own opinion.
+    This agent INDEPENDENTLY reads the source documents (bundle_text) rather than
+    relying on the PA Agent's extraction. This allows it to catch things the PA missed.
     """
     trace = []
     ts = lambda: datetime.now().isoformat()
@@ -84,16 +84,37 @@ def review(pa_decision, pa_reason, evidence, criteria_met, request, policy):
     forced_findings = []
     
     if pa_decision == "Approved":
-        # Pattern: "no prior MRI" or "no prior imaging" used to satisfy a criterion
+        # Pattern 1: Temporal inconsistency — dates don't support claimed duration
+        import re
+        dates = re.findall(r'20\d{2}-\d{2}-\d{2}', clinical_notes)
+        if len(dates) >= 2 and ("8 weeks" in notes_lower or "6 weeks" in notes_lower):
+            # If PT referral and visit date are close together but notes claim long duration
+            from datetime import date
+            try:
+                d1 = date.fromisoformat(dates[0])
+                d2 = date.fromisoformat(dates[-1])
+                days_apart = abs((d2 - d1).days)
+                claimed_weeks = 8 if "8 weeks" in notes_lower else 6
+                if days_apart < (claimed_weeks * 7 - 7):  # Less than claimed minus 1 week tolerance
+                    forced_challenge = True
+                    forced_findings.append(f"Temporal inconsistency: notes claim {claimed_weeks} weeks of therapy but dates {dates[0]} to {dates[-1]} span only {days_apart} days ({days_apart//7} weeks)")
+            except (ValueError, IndexError):
+                pass
+        
+        # Pattern 2: "no prior" + imaging — ambiguous criterion satisfaction
         if "no prior" in notes_lower and ("mri" in notes_lower or "imaging" in notes_lower):
             forced_challenge = True
-            forced_findings.append("Notes state 'no prior MRI' — ambiguous whether this satisfies 'no conflicting imaging within 12 months' or means imaging was never done")
+            forced_findings.append("Ambiguous imaging history: 'no prior MRI' could mean never obtained or not within 12 months — criterion requires explicit timeline confirmation")
         
-        # Pattern: therapy mentioned but duration not explicitly stated with a number
-        if ("physical therapy" in notes_lower or "pt" in notes_lower) and not any(f"{n} week" in notes_lower for n in range(1, 53)):
-            if "completed" in notes_lower and "week" not in notes_lower:
-                forced_challenge = True
-                forced_findings.append("Notes say therapy 'completed' but do not specify exact duration in weeks — criterion requires >= 6 weeks")
+        # Pattern 3: Provider credential not explicitly stated
+        policy_criteria_types = [c.get("type", "") for c in (policy.get("criteria", []) if policy else [])]
+        if "provider_qualification" in policy_criteria_types or "specialist_required" in policy_criteria_types:
+            specialist_terms = ["board-certified", "orthopedic surgeon", "medical oncologist", "dermatologist", "rheumatologist", "pulmonologist"]
+            if not any(term in notes_lower for term in specialist_terms):
+                # Check if it just says a clinic name without explicit credentials
+                if "clinic" in notes_lower or "associates" in notes_lower or "partners" in notes_lower:
+                    forced_challenge = True
+                    forced_findings.append("Provider credentials not explicitly documented: notes reference a practice name but do not confirm the ordering physician's board certification or specialty as required by policy")
     
     # ─── Skill 1: Reinterpret Evidence ───────────────────────────────────
     trace.append({"ts": ts(), "type": "skill", "name": "ReinterpretEvidenceSkill",
@@ -116,17 +137,17 @@ def review(pa_decision, pa_reason, evidence, criteria_met, request, policy):
     # Build adversarial prompt based on decision type
     if pa_decision == "Approved":
         role = "quality reviewer stress-testing this approval"
-        focus = """Evaluate the strength of evidence for each criterion:
-1. Is evidence EXPLICIT (specific dates, durations, scores) or ASSUMED/VAGUE?
-2. Are there contradictions between notes text and criteria evaluation?
-3. Would a Medical Director question any criterion's evidence?
+        focus = """Evaluate evidence strength for each criterion:
+1. Is evidence EXPLICIT (specific dates, durations, scores, named medications) or ASSUMED?
+2. Are there date/timeline contradictions?
+3. Are provider credentials explicitly confirmed?
 
-Scoring guide:
-- AGREE (confidence 3-5) if ALL evidence is explicit with specific values/dates
-- CHALLENGE (confidence 7-9) if ANY criterion relies on assumed or ambiguous evidence
+IMPORTANT scoring:
+- If notes contain SPECIFIC numbers (EASI 28, failed x 6 weeks, BMI 24.3) → evidence is STRONG → AGREE
+- If notes use VAGUE language or have date contradictions → evidence is WEAK → CHALLENGE
   
-Example of STRONG evidence (AGREE): "EASI score 28, failed triamcinolone x 6 weeks"
-Example of WEAK evidence (CHALLENGE): notes say "no prior MRI" but criterion marked pass without clear reasoning"""
+Only CHALLENGE if you find a CONCRETE weakness (contradiction, missing timeline, unconfirmed credential).
+Do NOT challenge just because more documentation 'could' exist."""
     else:
         role = "patient advocate checking if escalation is warranted"
         focus = """Evaluate whether the escalation is appropriate:

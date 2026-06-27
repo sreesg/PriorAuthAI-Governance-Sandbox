@@ -12,7 +12,7 @@
       "icd10Code": "M54.16",
       "providerName": "Spine Care Associates",
       "providerNpi": "1234567890",
-      "clinicalNotes": "52-year-old male with 3-month history of progressive lower back pain radiating down the left leg to the foot (L5 distribution). Completed 8 weeks of physical therapy with McKenzie protocol without improvement. Failed trials of ibuprofen 800mg TID and gabapentin 300mg TID. Physical exam shows positive straight leg raise at 30 degrees on left, diminished ankle reflex, and decreased sensation to pinprick along L5 dermatome. No bowel or bladder symptoms. No prior lumbar MRI."
+      "clinicalNotes": "52-year-old male with 3-month history of progressive lower back pain radiating down the left leg to the foot (L5 distribution). Referred to physical therapy on 2026-05-28. Patient reports completing 8 weeks of physical therapy with McKenzie protocol without improvement. Failed trials of ibuprofen 800mg TID and gabapentin 300mg TID. Physical exam today (2026-06-15) shows positive straight leg raise at 30 degrees on left, diminished ankle reflex, and decreased sensation to pinprick along L5 dermatome. No bowel or bladder symptoms. No prior lumbar MRI."
     },
     "evidenceBundle": "cases/case-lumbar-approve_bundle.pdf"
   },
@@ -46,7 +46,7 @@
       "icd10Code": "C34.91",
       "providerName": "Oncology Partners LLC",
       "providerNpi": "3456789012",
-      "clinicalNotes": "67-year-old male diagnosed with non-small cell lung cancer (adenocarcinoma) confirmed by CT-guided biopsy on 2026-05-15. Pathology report #P2026-4412 confirms malignancy. CT chest showed 3.2cm RUL mass with mediastinal lymphadenopathy. PET/CT requested for initial staging to determine surgical candidacy vs chemoradiation. Dr. Williams (medical oncologist) ordering to plan treatment approach. No prior PET scan."
+      "clinicalNotes": "67-year-old male diagnosed with non-small cell lung cancer (adenocarcinoma) confirmed by CT-guided biopsy on 2026-05-15. Pathology report #P2026-4412 confirms malignancy. CT chest showed 3.2cm RUL mass with mediastinal lymphadenopathy. PET/CT requested for initial staging to determine surgical candidacy vs chemoradiation. Ordering provider is Dr. Williams at Oncology Partners LLC. Patient reports no weight loss or bone pain. No prior PET scan."
     },
     "evidenceBundle": "cases/case-pet-approve_bundle.pdf"
   },
@@ -80,7 +80,7 @@
       "icd10Code": "S83.201A",
       "providerName": "Sports Medicine Surgical Center",
       "providerNpi": "5678901234",
-      "clinicalNotes": "34-year-old male soccer player with right knee injury 10 weeks ago. Completed 8 weeks of physical therapy focused on quad strengthening and ROM exercises without resolution of mechanical symptoms. Knee locks in flexion 2-3 times daily and gives way during lateral movements. MRI dated 2026-04-20 shows complex tear of the lateral meniscus posterior horn extending to articular surface (Grade 3 signal). Joint line tenderness on exam. McMurray test positive. BMI 24.3. Dr. Anderson is board-certified orthopedic surgeon."
+      "clinicalNotes": "34-year-old male soccer player with right knee injury 10 weeks ago. Completed 8 weeks of physical therapy focused on quad strengthening and ROM exercises without resolution of mechanical symptoms. Knee locks in flexion 2-3 times daily and gives way during lateral movements. MRI dated 2026-04-20 shows complex tear of the lateral meniscus posterior horn extending to articular surface (Grade 3 signal). Joint line tenderness on exam. McMurray test positive. BMI 24.3. Ordering physician: Dr. Anderson, Sports Medicine Clinic (NPI 5678901234)."
     },
     "evidenceBundle": "cases/case-knee-approve_bundle.pdf"
   },

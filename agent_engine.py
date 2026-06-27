@@ -602,13 +602,29 @@ def load_preset_cases():
 def run_multi_policy_review(request, use_ai_extraction=False):
     """
     Full agent review with dynamic policy routing.
-    Selects the appropriate policy based on CPT code, loads the right
-    criteria, and evaluates accordingly.
+    Both PA Agent and Challenger read from the evidence bundle PDF (if available).
     """
     trace = []
     ts = lambda: datetime.now().isoformat()
     cpt_code = request.get("cptCode", "")
     icd_code = request.get("icd10Code", "")
+
+    trace.append({"ts": ts(), "type": "system", "name": "Agent Engine",
+                  "msg": f"Starting review for CPT {cpt_code} / ICD-10 {icd_code}", "status": "info"})
+
+    # ─── Read evidence bundle PDF if available ────────────────────────────
+    bundle_path = request.get("evidenceBundle", "")
+    bundle_text = ""
+    if bundle_path:
+        full_path = os.path.join(DATA_DIR, bundle_path)
+        if os.path.exists(full_path):
+            bundle_text = read_pdf_text(full_path, max_pages=5)
+            trace.append({"ts": ts(), "type": "skill", "name": "ReadDocumentSkill",
+                          "msg": f"Read evidence bundle: {os.path.basename(bundle_path)} ({len(bundle_text)} chars)",
+                          "status": "success"})
+    
+    # Use bundle text as the primary clinical source if available
+    clinical_notes = bundle_text if bundle_text else request.get("clinicalNotes", "")
 
     trace.append({"ts": ts(), "type": "system", "name": "Agent Engine",
                   "msg": f"Starting review for CPT {cpt_code} / ICD-10 {icd_code}", "status": "info"})
@@ -667,10 +683,9 @@ def run_multi_policy_review(request, use_ai_extraction=False):
     trace.append({"ts": ts(), "type": "disclosure", "name": "Progressive Disclosure",
                   "msg": "Stage 3: Guidelines disclosed. Extracting clinical evidence.", "status": "info"})
 
-    clinical_notes = request.get("clinicalNotes", "")
     if use_ai_extraction and clinical_notes:
         trace.append({"ts": ts(), "type": "skill", "name": "ExtractEvidence (ClinicalNLP)",
-                      "msg": "🧠 Gemma 4 12B reading clinical notes...", "status": "info"})
+                      "msg": "🧠 Reading clinical documentation with LLM...", "status": "info"})
         evidence = _ai_extract_full(clinical_notes, cpt_code, policy)
         if isinstance(evidence, list):
             evidence = evidence[0] if evidence else {}
@@ -685,7 +700,7 @@ def run_multi_policy_review(request, use_ai_extraction=False):
                       "msg": "Using pattern matching for extraction.", "status": "info"})
         evidence = _regex_extract_full(clinical_notes, policy)
         trace.append({"ts": ts(), "type": "skill", "name": "ExtractEvidence (Regex)",
-                      "msg": f"Extracted: therapy={evidence.get('conservativeTherapyWeeks',0)}wk, neuro={evidence.get('hasNeurologicalSymptoms')}, mech={evidence.get('hasMechanicalSymptoms')}, imaging={evidence.get('hasImagingFindings')}, specialist={evidence.get('hasSpecialist')}", "status": "success"})
+                      "msg": f"Extracted: therapy={evidence.get('conservativeTherapyWeeks',0)}wk, neuro={evidence.get('hasNeurologicalSymptoms')}, specialist={evidence.get('hasSpecialist')}", "status": "success"})
 
     # ─── STAGE 4: Criteria Evaluation ─────────────────────────────────────
     trace.append({"ts": ts(), "type": "disclosure", "name": "Progressive Disclosure",
@@ -733,7 +748,8 @@ def run_multi_policy_review(request, use_ai_extraction=False):
             evidence=evidence,
             criteria_met=criteria_results,
             request=request,
-            policy=policy
+            policy=policy,
+            bundle_text=bundle_text
         )
         # Merge challenger trace into main trace
         for t in challenger_result.get("trace", []):
