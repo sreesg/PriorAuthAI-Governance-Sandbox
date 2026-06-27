@@ -31,6 +31,8 @@ spec:
               value: "us-west-2"
             - name: OLLAMA_HOST
               value: "http://localhost:11434"
+            - name: LLM_MODEL
+              value: "gemma3:4b"
           resources:
             requests:
               cpu: "500m"
@@ -59,17 +61,17 @@ spec:
             - |
               /bin/ollama serve &
               sleep 10
-              ollama pull gemma4:12b
+              ollama pull gemma3:4b
               wait
           ports:
             - containerPort: 11434
           resources:
             requests:
               cpu: "2000m"
-              memory: "12Gi"
+              memory: "4Gi"
             limits:
               cpu: "6000m"
-              memory: "24Gi"
+              memory: "8Gi"
           volumeMounts:
             - name: ollama-data
               mountPath: /root/.ollama
