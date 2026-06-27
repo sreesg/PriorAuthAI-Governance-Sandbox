@@ -9,7 +9,7 @@ metadata:
 
 managedNodeGroups:
   - name: beacon-llm
-    instanceType: m5.xlarge
+    instanceType: m5.2xlarge
     minSize: 1
     maxSize: 2
     desiredCapacity: 1

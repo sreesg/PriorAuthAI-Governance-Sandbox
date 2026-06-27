@@ -58,10 +58,10 @@ spec:
           resources:
             requests:
               cpu: "2000m"
-              memory: "10Gi"
+              memory: "12Gi"
             limits:
-              cpu: "4000m"
-              memory: "14Gi"
+              cpu: "6000m"
+              memory: "24Gi"
           volumeMounts:
             - name: ollama-data
               mountPath: /root/.ollama
@@ -71,7 +71,7 @@ spec:
                 command:
                   - /bin/sh
                   - -c
-                  - "sleep 5 && ollama pull gemma3:4b"
+                  - "sleep 5 && ollama pull gemma4:12b"
           readinessProbe:
             httpGet:
               path: /api/tags

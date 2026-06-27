@@ -61,12 +61,12 @@ echo "  ✓ kubectl configured for $CLUSTER"
 
 # ─── Step 5: Create node group (if not exists) ───
 echo ""
-echo "▶ Step 5: Creating beacon-llm node group (m5.xlarge)..."
+echo "▶ Step 5: Creating beacon-llm node group (m5.2xlarge, 32GB)..."
 eksctl create nodegroup \
   --cluster $CLUSTER \
   --region $REGION \
   --name beacon-llm \
-  --node-type m5.xlarge \
+  --node-type m5.2xlarge \
   --nodes 1 \
   --nodes-min 1 \
   --nodes-max 2 \
