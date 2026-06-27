@@ -933,6 +933,68 @@
           </tr>
         </tbody>
       </table>
+
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">What Patterns Does the Challenger Catch?</h3>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        The Challenger independently reads the same source evidence bundle PDF as the PA Agent.
+        Because it uses a different analytical lens, it catches issues the PA Agent's criteria-focused
+        evaluation misses:
+      </p>
+      <table style="width:100%; margin-top:0.75rem; border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(0,0,0,0.08);">
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">PATTERN</th>
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">EXAMPLE</th>
+            <th style="text-align:left; padding:0.5rem; color:var(--text-muted); font-size:0.75rem;">WHY PA MISSES IT</th>
+          </tr>
+        </thead>
+        <tbody style="color:var(--text-main); font-size:0.78rem;">
+          <tr style="border-bottom:1px solid rgba(0,0,0,0.04);">
+            <td style="padding:0.5rem;"><strong>Temporal inconsistency</strong></td>
+            <td style="padding:0.5rem;">PT referral dated 2026-05-28, visit on 2026-06-15 (18 days), but notes claim "8 weeks of PT"</td>
+            <td style="padding:0.5rem;">PA extracts "8 weeks" as a number. Doesn't cross-reference dates.</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(0,0,0,0.04);">
+            <td style="padding:0.5rem;"><strong>Provider credential gap</strong></td>
+            <td style="padding:0.5rem;">Note says "fellowship-trained in sports medicine" but policy requires "board-certified orthopedic surgeon"</td>
+            <td style="padding:0.5rem;">PA matches "Sports Medicine" as specialist. Doesn't verify board certification specifically.</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(0,0,0,0.04);">
+            <td style="padding:0.5rem;"><strong>Specialty not confirmed</strong></td>
+            <td style="padding:0.5rem;">Practice named "Oncology Partners LLC" but note says "Specialty: Not specified"</td>
+            <td style="padding:0.5rem;">PA infers specialty from practice name. Challenger reads the explicit text stating credentials are unconfirmed.</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(0,0,0,0.04);">
+            <td style="padding:0.5rem;"><strong>Contradictory statements</strong></td>
+            <td style="padding:0.5rem;">HPI says "failed conservative therapy" but Plan says "recommend starting physical therapy"</td>
+            <td style="padding:0.5rem;">PA extracts "failed" keyword. Doesn't check if the Plan contradicts the History.</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(0,0,0,0.04);">
+            <td style="padding:0.5rem;"><strong>Ambiguous imaging history</strong></td>
+            <td style="padding:0.5rem;">"No prior lumbar MRI" used to satisfy "no conflicting imaging within 12 months"</td>
+            <td style="padding:0.5rem;">PA marks criterion as pass. Challenger questions whether "never had one" is the same as "not within 12 months."</td>
+          </tr>
+          <tr>
+            <td style="padding:0.5rem;"><strong>Dosage/protocol inadequacy</strong></td>
+            <td style="padding:0.5rem;">"Tried ibuprofen" without specifying dose or duration vs "ibuprofen 800mg TID x 6 weeks"</td>
+            <td style="padding:0.5rem;">PA matches medication keyword. Challenger checks if the trial was clinically adequate.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top:1.25rem; color:var(--accent-blue);">How Both Agents Read Documents</h3>
+      <p style="color:var(--text-muted); margin-top:0.5rem; line-height:1.7;">
+        Both agents independently process the same evidence bundle PDF. The PA Agent focuses on
+        extracting structured data to check against thresholds. The Challenger reads the full text
+        looking for inconsistencies, gaps, and assumptions the PA's structured extraction would miss.
+      </p>
+      <pre style="font-family:var(--font-mono); font-size:0.72rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:0.75rem; color:#334155; line-height:1.5; margin-top:0.5rem;">Evidence Bundle PDF (same document)
+    |
+    |--- PA Agent reads: extracts numbers, keywords, codes
+    |    "8 weeks PT" -> therapy=8 -> criterion MET
+    |
+    |--- Challenger reads: looks at dates, context, credentials
+         "referral 05-28, visit 06-15" -> only 18 days -> CHALLENGE</pre>
     </div>
 
     <!-- QUICK START -->
