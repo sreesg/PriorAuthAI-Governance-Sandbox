@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PriorAuthAI | Payer Clinical Governance Sandbox (SkillJuror)</title>
+  <title>MedeAnalytics Beacon — Reasoning Grade Fabric Demo Phase I</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -27,15 +27,101 @@
       <span class="badge badge-purple" id="juror-status-badge">Juror: ACTIVE</span>
       <span class="badge badge-orange">OPA Gherkin Rules</span>
       <span class="badge badge-blue" id="discovered-skills-count">5 Active Skills</span>
-      <a href="help.html" style="text-decoration:none;"><span class="badge badge-blue">❓ Help</span></a>
     </div>
   </header>
 
-  <nav class="main-tabs">
-    <button class="main-tab active" data-view="review">⚡ Agent Review</button>
-    <button class="main-tab" data-view="workspace">🏗️ Policy Workspace</button>
-    <button class="main-tab" data-view="concepts">📖 Concepts</button>
-  </nav>
+  <div class="app-layout">
+    <nav class="sidebar">
+      <div class="sidebar-nav">
+        <button class="sidebar-tab active" data-view="home">
+          <span class="sidebar-icon">🏠</span>
+          <span class="sidebar-label">Home</span>
+        </button>
+        <button class="sidebar-tab" data-view="review">
+          <span class="sidebar-icon">⚡</span>
+          <span class="sidebar-label">Agent Review</span>
+        </button>
+        <button class="sidebar-tab" data-view="workspace">
+          <span class="sidebar-icon">🏗️</span>
+          <span class="sidebar-label">Policy Workspace</span>
+        </button>
+        <button class="sidebar-tab" data-view="concepts">
+          <span class="sidebar-icon">📖</span>
+          <span class="sidebar-label">Concepts</span>
+        </button>
+        <button class="sidebar-tab" data-view="video">
+          <span class="sidebar-icon">🎬</span>
+          <span class="sidebar-label">Video Tutorial</span>
+        </button>
+      </div>
+      <div class="sidebar-footer">
+        <a href="help.html" class="sidebar-tab" style="text-decoration:none;">
+          <span class="sidebar-icon">❓</span>
+          <span class="sidebar-label">Help</span>
+        </a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+
+  <!-- VIEW: Home (default active) -->
+  <div id="view-home" class="view-panel" style="display:block;">
+    <div class="home-page">
+      <section class="home-hero">
+        <div class="home-hero-badge">Agentic AI for Healthcare Governance</div>
+        <h2>Autonomous Prior Authorization<br>with <span class="home-gradient-text">Dual-Agent Quality Assurance</span></h2>
+        <p class="home-hero-sub">
+          A governed AI system where two independent agents — a PA Review Agent and a Challenger Agent — 
+          work together to deliver fast, accurate, and fully auditable clinical authorization decisions.
+        </p>
+      </section>
+
+      <section class="home-architecture">
+        <div class="home-arch-card">
+          <img src="PA Agentic architecture.png" alt="PA Agentic Architecture Diagram">
+          <p class="home-arch-label">
+            End-to-end PA agentic architecture: Skills, Rules, Hooks, Progressive Disclosure, ClinicalNLP Engine, and Challenger Agent
+          </p>
+        </div>
+      </section>
+
+      <section class="home-features">
+        <h3>Core Capabilities</h3>
+        <div class="home-features-grid">
+          <div class="home-feature-card">
+            <div class="home-feature-icon">🤖</div>
+            <h4>PA Review Agent</h4>
+            <p>Evaluates clinical notes against payer policy criteria using skills, rules, and hooks. Routes to approve or escalate — never auto-denies.</p>
+          </div>
+          <div class="home-feature-card">
+            <div class="home-feature-icon">🔁</div>
+            <h4>Challenger Agent</h4>
+            <p>Autonomous second opinion that stress-tests every decision. Catches temporal inconsistencies, credential gaps, and ambiguous evidence.</p>
+          </div>
+          <div class="home-feature-card">
+            <div class="home-feature-icon">🧠</div>
+            <h4>ClinicalNLP Engine</h4>
+            <p>Local LLM (Gemma 4 12B) for semantic extraction from clinical notes. Handles negation, paraphrases, and implicit clinical references.</p>
+          </div>
+          <div class="home-feature-card">
+            <div class="home-feature-icon">🔒</div>
+            <h4>Progressive Disclosure</h4>
+            <p>Agent receives context incrementally at each pipeline stage — preventing overload and enforcing separation of concerns architecturally.</p>
+          </div>
+          <div class="home-feature-card">
+            <div class="home-feature-icon">📄</div>
+            <h4>Multi-Policy System</h4>
+            <p>Four policy domains (Radiology, Oncology, Surgery, Specialty Rx) with dynamic routing based on CPT codes. PDF-sourced criteria.</p>
+          </div>
+          <div class="home-feature-card">
+            <div class="home-feature-icon">🧬</div>
+            <h4>Full Audit Trail</h4>
+            <p>Every skill invocation, rule evaluation, and hook firing is traced with timestamps. Complete transparency from intake to decision.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
 
   <!-- VIEW: Policy Workspace -->
   <div id="view-workspace" class="view-panel" style="display:none;">
@@ -118,8 +204,8 @@
     </div>
   </div>
 
-  <!-- VIEW: Agent Review (default active) -->
-  <div id="view-review" class="view-panel">
+  <!-- VIEW: Agent Review -->
+  <div id="view-review" class="view-panel" style="display:none;">
     <!-- Left column: Cases + Form -->
     <div class="review-left">
       <!-- Preset selector + Run button row -->
@@ -389,7 +475,26 @@
 
       <!-- AVI -->
       <div class="concepts-avi-bar">
-        🤖 AVI: <span id="avi-concept-msg">ready to explain both agents' reasoning</span>
+        <img src="avi-icon.svg" alt="AVI" style="width:22px;height:22px;vertical-align:middle;margin-right:6px;"> AVI: <span id="avi-concept-msg">ready to explain both agents' reasoning</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW: Video Tutorial -->
+  <div id="view-video" class="view-panel" style="display:none;">
+    <div class="video-page">
+      <div class="video-header">
+        <h2>🎬 Agentic PA Video Tutorial</h2>
+        <p>Watch how the dual-agent prior authorization system works end-to-end</p>
+      </div>
+      <div class="video-container">
+        <video id="tutorial-video" controls controlslist="nodownload" preload="metadata" playsinline oncontextmenu="return false;">
+          <source src="PA agent.mp4" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+      </div>
+      <div class="video-description">
+        <p>This walkthrough demonstrates the full PA review lifecycle: case submission, policy routing, criteria evaluation, ClinicalNLP extraction, Challenger Agent review, and decision output with audit trail.</p>
       </div>
     </div>
   </div>
@@ -398,7 +503,7 @@
   <div class="avi-chat-panel" id="avi-chat-panel" style="display:none;">
     <div class="avi-header">
       <div class="avi-title">
-        <span class="avi-avatar">🤖</span>
+        <img src="avi-icon.svg" alt="AVI" class="avi-avatar-img">
         <div>
           <h3>AVI</h3>
           <p>Clinical Intelligence Assistant</p>
@@ -423,9 +528,11 @@
 
   <!-- AVI Floating Action Button -->
   <button class="avi-fab" id="avi-fab">
-    <span class="avi-fab-icon">🤖</span>
-    <span class="avi-fab-label">AVI</span>
+    <img src="avi-icon.svg" alt="AVI" class="avi-fab-img">
   </button>
+
+    </main>
+  </div>
 
   <footer class="app-footer">
     <p>PriorAuthAI Audit Sandbox • Built on SkillOpt & SkillJuror Specifications • Powered by ClinicalNLP Engine</p>

@@ -37,15 +37,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   const inputNotes = document.getElementById('input-notes');
 
   // Tab navigation
-  document.querySelectorAll('.main-tab').forEach(tab => {
+  document.querySelectorAll('.sidebar-tab[data-view]').forEach(tab => {
     tab.addEventListener('click', () => {
-      document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
       const view = tab.getAttribute('data-view');
       document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
       const panel = document.getElementById(`view-${view}`);
       if (view === 'review') panel.style.display = 'grid';
       else panel.style.display = 'block';
+
+      // Video pause/resume
+      const video = document.getElementById('tutorial-video');
+      if (video) {
+        if (view !== 'video') {
+          video.pause();
+        }
+      }
     });
   });
 
@@ -1172,7 +1180,7 @@ Clinical notes to score:\n${notes}`,
 
   function getAviUiContext() {
     // Determine which tab is active
-    const activeTabEl = document.querySelector('.main-tab.active');
+    const activeTabEl = document.querySelector('.sidebar-tab.active');
     const activeTab = activeTabEl ? activeTabEl.getAttribute('data-view') : 'review';
     
     const context = { activeTab };

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MedeAnalytics Beacon — Reasoning Grade Fabric</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      background: linear-gradient(160deg, #f8fafc 0%, #eef2ff 50%, #f0f9ff 100%);
+      min-height: 100vh;
+      color: #1e293b;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.2rem 3rem;
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .header-logo-icon {
+      font-size: 1.6rem;
+      background: rgba(14, 165, 233, 0.08);
+      padding: 0.4rem;
+      border-radius: 10px;
+      border: 1px solid rgba(14, 165, 233, 0.2);
+    }
+
+    .header-logo h1 {
+      font-size: 1.3rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .header-logo h1 span { color: #0ea5e9; }
+
+    .header-logo p {
+      font-size: 0.72rem;
+      color: #64748b;
+      margin-top: 1px;
+    }
+
+    .header-nav {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .header-nav a {
+      padding: 0.55rem 1.2rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .nav-link {
+      color: #64748b;
+      border: 1px solid transparent;
+    }
+
+    .nav-link:hover {
+      color: #0ea5e9;
+      background: rgba(14, 165, 233, 0.05);
+    }
+
+    .nav-cta {
+      background: #0ea5e9;
+      color: #fff;
+      border: 1px solid #0ea5e9;
+    }
+
+    .nav-cta:hover {
+      background: #0284c7;
+      box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+    }
+
+    /* Hero Section */
+    .hero {
+      text-align: center;
+      padding: 3.5rem 2rem 2rem;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: rgba(14, 165, 233, 0.08);
+      border: 1px solid rgba(14, 165, 233, 0.2);
+      border-radius: 20px;
+      padding: 0.35rem 1rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #0284c7;
+      margin-bottom: 1.25rem;
+    }
+
+    .hero h2 {
+      font-size: 2.6rem;
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1.15;
+      max-width: 750px;
+      margin: 0 auto 1rem;
+    }
+
+    .hero h2 span {
+      background: linear-gradient(135deg, #0ea5e9 30%, #6366f1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p {
+      font-size: 1.05rem;
+      color: #64748b;
+      max-width: 620px;
+      margin: 0 auto 2rem;
+      line-height: 1.65;
+    }
+
+    .hero-actions {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 3rem;
+    }
+
+    .btn-primary {
+      padding: 0.8rem 2rem;
+      background: #0ea5e9;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
+    }
+
+    .btn-primary:hover {
+      background: #0284c7;
+      box-shadow: 0 6px 18px rgba(14, 165, 233, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      padding: 0.8rem 2rem;
+      background: #ffffff;
+      color: #1e293b;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-secondary:hover {
+      border-color: #0ea5e9;
+      color: #0ea5e9;
+      box-shadow: 0 2px 8px rgba(14, 165, 233, 0.1);
+    }
+
+    /* Architecture Image */
+    .architecture-section {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 2rem 3rem;
+    }
+
+    .architecture-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    }
+
+    .architecture-card img {
+      width: 100%;
+      height: auto;
+      border-radius: 10px;
+    }
+
+    .architecture-label {
+      text-align: center;
+      margin-top: 1rem;
+      font-size: 0.78rem;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    /* Features Grid */
+    .features {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 2rem 3rem;
+    }
+
+    .features h3 {
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 2rem;
+      letter-spacing: -0.5px;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+    }
+
+    .feature-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1.5rem;
+      transition: all 0.2s ease;
+    }
+
+    .feature-card:hover {
+      border-color: #0ea5e9;
+      box-shadow: 0 4px 14px rgba(14, 165, 233, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .feature-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .feature-card h4 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+
+    .feature-card p {
+      font-size: 0.78rem;
+      color: #64748b;
+      line-height: 1.55;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 2rem;
+      border-top: 1px solid #e2e8f0;
+      color: #94a3b8;
+      font-size: 0.75rem;
+    }
+
+    @media (max-width: 768px) {
+      .features-grid { grid-template-columns: 1fr; }
+      .hero h2 { font-size: 1.8rem; }
+      .header { padding: 1rem 1.5rem; }
+      .hero-actions { flex-direction: column; align-items: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-logo">
+      <span class="header-logo-icon">🛡️</span>
+      <div>
+        <h1>PriorAuth<span>AI</span></h1>
+        <p>MedeAnalytics Beacon — Reasoning Grade Fabric Demo Phase I</p>
+      </div>
+    </div>
+    <nav class="header-nav">
+      <a href="help.html" class="nav-link">Documentation</a>
+      <a href="index.html" class="nav-cta">Launch Console →</a>
+    </nav>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-badge">Agentic AI for Healthcare Governance</div>
+    <h2>Autonomous Prior Authorization<br>with <span>Dual-Agent Quality Assurance</span></h2>
+    <p>
+      A governed AI system where two independent agents — a PA Review Agent and a Challenger Agent — 
+      work together to deliver fast, accurate, and fully auditable clinical authorization decisions.
+    </p>
+    <div class="hero-actions">
+      <a href="index.html" class="btn-primary">⚡ Open Governance Console</a>
+      <a href="help.html" class="btn-secondary">📖 Architecture Guide</a>
+    </div>
+  </section>
+
+  <!-- Architecture Diagram -->
+  <section class="architecture-section">
+    <div class="architecture-card">
+      <img src="PA Agentic architecture.png" alt="PA Agentic Architecture Diagram">
+      <p class="architecture-label">
+        End-to-end PA agentic architecture: Skills, Rules, Hooks, Progressive Disclosure, ClinicalNLP Engine, and Challenger Agent
+      </p>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features">
+    <h3>Core Capabilities</h3>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🤖</div>
+        <h4>PA Review Agent</h4>
+        <p>Evaluates clinical notes against payer policy criteria using skills, rules, and hooks. Routes to approve or escalate — never auto-denies.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔁</div>
+        <h4>Challenger Agent</h4>
+        <p>Autonomous second opinion that stress-tests every decision. Catches temporal inconsistencies, credential gaps, and ambiguous evidence.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🧠</div>
+        <h4>ClinicalNLP Engine</h4>
+        <p>Local LLM (Gemma 4 12B) for semantic extraction from clinical notes. Handles negation, paraphrases, and implicit clinical references.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <h4>Progressive Disclosure</h4>
+        <p>Agent receives context incrementally at each pipeline stage — preventing overload and enforcing separation of concerns architecturally.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📄</div>
+        <h4>Multi-Policy System</h4>
+        <p>Four policy domains (Radiology, Oncology, Surgery, Specialty Rx) with dynamic routing based on CPT codes. PDF-sourced criteria.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🧬</div>
+        <h4>Full Audit Trail</h4>
+        <p>Every skill invocation, rule evaluation, and hook firing is traced with timestamps. Complete transparency from intake to decision.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>MedeAnalytics Beacon — Reasoning Grade Fabric Demo Phase I • PriorAuthAI Governance Sandbox</p>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <!-- Background circle -->
+  <circle cx="60" cy="60" r="56" fill="#d8b4fe" opacity="0.5"/>
+  <circle cx="60" cy="60" r="48" fill="#c084fc" opacity="0.6"/>
+  
+  <!-- Body -->
+  <rect x="40" y="75" width="40" height="28" rx="12" fill="#a855f7" stroke="#4c1d95" stroke-width="2"/>
+  <!-- AVI text on body -->
+  <text x="60" y="94" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold" font-size="12" fill="white">AVI</text>
+  
+  <!-- Arms -->
+  <rect x="30" y="78" width="10" height="20" rx="5" fill="#a855f7" stroke="#4c1d95" stroke-width="1.5"/>
+  <rect x="80" y="78" width="10" height="20" rx="5" fill="#a855f7" stroke="#4c1d95" stroke-width="1.5"/>
+  
+  <!-- Head -->
+  <rect x="35" y="30" width="50" height="42" rx="18" fill="#a855f7" stroke="#4c1d95" stroke-width="2.5"/>
+  
+  <!-- Face visor -->
+  <rect x="42" y="40" width="36" height="22" rx="10" fill="#1e1b4b"/>
+  
+  <!-- Eyes -->
+  <circle cx="50" cy="51" r="4" fill="#67e8f9"/>
+  <circle cx="70" cy="51" r="4" fill="#67e8f9"/>
+  <!-- Eye glow -->
+  <circle cx="50" cy="51" r="2.5" fill="#a5f3fc" opacity="0.6"/>
+  <circle cx="70" cy="51" r="2.5" fill="#a5f3fc" opacity="0.6"/>
+  
+  <!-- Smile -->
+  <path d="M52 57 Q60 63 68 57" stroke="#67e8f9" stroke-width="2" fill="none" stroke-linecap="round"/>
+  
+  <!-- Antenna -->
+  <line x1="60" y1="30" x2="60" y2="20" stroke="#4c1d95" stroke-width="2"/>
+  <circle cx="60" cy="17" r="4" fill="#a855f7" stroke="#4c1d95" stroke-width="1.5"/>
+  
+  <!-- Ear pieces -->
+  <circle cx="33" cy="50" r="5" fill="#a855f7" stroke="#4c1d95" stroke-width="1.5"/>
+  <circle cx="87" cy="50" r="5" fill="#a855f7" stroke="#4c1d95" stroke-width="1.5"/>
+  
+  <!-- Chat bubble -->
+  <rect x="78" y="12" width="28" height="20" rx="8" fill="white" stroke="#4c1d95" stroke-width="1.5"/>
+  <polygon points="82,32 86,32 80,37" fill="white" stroke="#4c1d95" stroke-width="1" stroke-linejoin="round"/>
+  <!-- Dots in bubble -->
+  <circle cx="86" cy="22" r="2.5" fill="#a855f7"/>
+  <circle cx="92" cy="22" r="2.5" fill="#a855f7"/>
+  <circle cx="98" cy="22" r="2.5" fill="#a855f7"/>
+</svg>
