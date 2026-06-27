@@ -1,0 +1,26 @@
+# Reference for eksctl managed nodegroup creation
+# Run: eksctl create nodegroup -f k8s/nodegroup.yaml
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: sandbox-mededatalake-cluster
+  region: us-west-2
+
+managedNodeGroups:
+  - name: beacon-llm
+    instanceType: m5.xlarge
+    minSize: 1
+    maxSize: 2
+    desiredCapacity: 1
+    volumeSize: 50
+    labels:
+      node-group: beacon-llm
+      workload: llm-inference
+    tags:
+      Project: Beacon-PriorAuthAI
+      Environment: sandbox
+    iam:
+      withAddonPolicies:
+        albIngress: true
+        cloudWatch: true

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: beacon-priorauth-svc
+  namespace: beacon
+  labels:
+    app: beacon-priorauth
+spec:
+  type: ClusterIP
+  selector:
+    app: beacon-priorauth
+  ports:
+    - port: 80
+      targetPort: 8000
+      protocol: TCP

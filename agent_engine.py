@@ -13,14 +13,22 @@ All LLM calls go through the local Gemma 4 12B via Ollama.
 import json
 import os
 import re
+import io
 import urllib.request
 from datetime import datetime
 from pypdf import PdfReader
 
+# ─── S3 Support ──────────────────────────────────────────────────────────────
+try:
+    from s3_helper import is_s3_enabled, get_file_bytes
+    S3_AVAILABLE = True
+except ImportError:
+    S3_AVAILABLE = False
+
 # ─── Configuration ───────────────────────────────────────────────────────────
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL = "gemma4:12b"
+OLLAMA_URL = os.environ.get("OLLAMA_HOST", "http://localhost:11434") + "/api/generate"
+MODEL = os.environ.get("LLM_MODEL", "gemma4:12b")
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 EXTRACTED_POLICIES_FILE = os.path.join(DATA_DIR, "extracted_policies.json")
 GENERATED_SKILLS_FILE = os.path.join(DATA_DIR, "generated_skills.json")
@@ -105,7 +113,24 @@ def extract_json_from_response(text):
 # ─── PDF Policy Extraction ──────────────────────────────────────────────────
 
 def read_pdf_text(pdf_path, max_pages=20):
-    """Extract text from first N pages of a PDF."""
+    """Extract text from first N pages of a PDF. Supports S3 or local file."""
+    # Try S3 first if configured
+    if S3_AVAILABLE and is_s3_enabled():
+        # Convert absolute path to relative key
+        rel_path = pdf_path
+        if os.path.isabs(pdf_path):
+            rel_path = os.path.relpath(pdf_path, DATA_DIR)
+        pdf_bytes = get_file_bytes(rel_path)
+        if pdf_bytes:
+            reader = PdfReader(io.BytesIO(pdf_bytes))
+            pages_text = []
+            for i, page in enumerate(reader.pages[:max_pages]):
+                text = page.extract_text()
+                if text and text.strip():
+                    pages_text.append(f"--- PAGE {i+1} ---\n{text.strip()}")
+            return "\n\n".join(pages_text)
+
+    # Local filesystem fallback
     reader = PdfReader(pdf_path)
     pages_text = []
     for i, page in enumerate(reader.pages[:max_pages]):

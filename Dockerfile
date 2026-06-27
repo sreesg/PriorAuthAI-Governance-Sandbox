@@ -12,7 +12,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY server.py agent_engine.py challenger_agent.py ./
+COPY server.py agent_engine.py challenger_agent.py s3_helper.py ./
 COPY agent.js app.js cases.js hooks.js skills.js regoInterpreter.js ./
 COPY index.html index.css help.html main.html ./
 COPY avi-icon.svg ./

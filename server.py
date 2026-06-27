@@ -1540,7 +1540,29 @@ Respond ONLY with the JSON object, no other text.
 
     def do_GET(self):
         # Handle API GET routes before falling through to static file serving
-        if self.path == '/agent/policies':
+        if self.path == '/agent/asset-urls':
+            # Returns S3 presigned URLs for large assets (video, images, PDFs)
+            try:
+                from s3_helper import is_s3_enabled, get_presigned_url
+                assets = {}
+                if is_s3_enabled():
+                    assets["video"] = get_presigned_url("PA agent.mp4")
+                    assets["architecture"] = get_presigned_url("PA Agentic architecture.png")
+                else:
+                    assets["video"] = "./PA agent.mp4"
+                    assets["architecture"] = "./PA Agentic architecture.png"
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps(assets).encode())
+            except Exception as e:
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"video": "./PA agent.mp4", "architecture": "./PA Agentic architecture.png"}).encode())
+        elif self.path == '/agent/policies':
             try:
                 policies = agent_engine.load_all_policies() if AGENT_ENGINE_AVAILABLE else []
                 summary = [{"policyId": p["policyId"], "name": p["policyName"], "category": p["category"],

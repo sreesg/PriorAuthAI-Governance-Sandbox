@@ -1,0 +1,15 @@
+.git
+__pycache__
+*.pyc
+PA agent.mp4
+PA Agentic architecture.png
+real_payer_policy_uhc.pdf
+medical_necessity_rules.pdf
+cases/*.pdf
+policies/*.pdf
+k8s/
+.vscode/
+README.md
+startsite.sh
+deploy-eks.sh
+generate_pdf.py

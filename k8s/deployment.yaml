@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: beacon-priorauth
+  namespace: beacon
+  labels:
+    app: beacon-priorauth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: beacon-priorauth
+  template:
+    metadata:
+      labels:
+        app: beacon-priorauth
+    spec:
+      nodeSelector:
+        node-group: beacon-llm
+      containers:
+        # Main application container
+        - name: priorauth-app
+          image: 747675253087.dkr.ecr.us-west-2.amazonaws.com/beacon-priorauth:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: S3_BUCKET
+              value: "beacon-priorauthai-assets"
+            - name: AWS_REGION
+              value: "us-west-2"
+            - name: OLLAMA_HOST
+              value: "http://localhost:11434"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+          readinessProbe:
+            httpGet:
+              path: /agent/policies
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /agent/policies
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+
+        # Ollama sidecar for LLM inference
+        - name: ollama
+          image: ollama/ollama:latest
+          ports:
+            - containerPort: 11434
+          resources:
+            requests:
+              cpu: "2000m"
+              memory: "10Gi"
+            limits:
+              cpu: "4000m"
+              memory: "14Gi"
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /root/.ollama
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - "sleep 5 && ollama pull gemma3:4b"
+          readinessProbe:
+            httpGet:
+              path: /api/tags
+              port: 11434
+            initialDelaySeconds: 15
+            periodSeconds: 10
+
+      volumes:
+        - name: ollama-data
+          emptyDir:
+            sizeLimit: 10Gi
