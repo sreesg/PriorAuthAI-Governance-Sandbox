@@ -4,14 +4,13 @@ metadata:
   name: beacon-priorauth-ingress
   namespace: beacon
   annotations:
-    kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/scheme: internal
     alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
-    alb.ingress.kubernetes.io/ssl-redirect: "443"
-    alb.ingress.kubernetes.io/group.name: mededatalake-sandbox
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    alb.ingress.kubernetes.io/group.name: beacon-priorauth
     alb.ingress.kubernetes.io/healthcheck-path: /agent/policies
 spec:
+  ingressClassName: alb
   rules:
     - host: beacon.sbxaws.medeanalytics.zone
       http:

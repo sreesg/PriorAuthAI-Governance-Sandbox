@@ -53,6 +53,13 @@ spec:
         # Ollama sidecar for LLM inference
         - name: ollama
           image: ollama/ollama:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              /bin/ollama serve &
+              sleep 10
+              ollama pull gemma4:12b
+              wait
           ports:
             - containerPort: 11434
           resources:
@@ -65,19 +72,14 @@ spec:
           volumeMounts:
             - name: ollama-data
               mountPath: /root/.ollama
-          lifecycle:
-            postStart:
-              exec:
-                command:
-                  - /bin/sh
-                  - -c
-                  - "sleep 5 && ollama pull gemma4:12b"
           readinessProbe:
             httpGet:
               path: /api/tags
               port: 11434
-            initialDelaySeconds: 15
-            periodSeconds: 10
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 40
 
       volumes:
         - name: ollama-data
