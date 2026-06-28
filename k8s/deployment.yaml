@@ -19,7 +19,6 @@ spec:
       nodeSelector:
         node-group: beacon-llm
       containers:
-        # Main application container
         - name: priorauth-app
           image: 747675253087.dkr.ecr.us-west-2.amazonaws.com/beacon-priorauth:latest
           ports:
@@ -29,10 +28,8 @@ spec:
               value: "beacon-priorauthai-assets"
             - name: AWS_REGION
               value: "us-west-2"
-            - name: OLLAMA_HOST
-              value: "http://localhost:11434"
-            - name: LLM_MODEL
-              value: "gemma4:12b"
+            - name: BEDROCK_MODEL
+              value: "amazon.nova-lite-v1:0"
           resources:
             requests:
               cpu: "500m"
@@ -44,49 +41,13 @@ spec:
             httpGet:
               path: /agent/policies
               port: 8000
-            initialDelaySeconds: 10
+            initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /agent/policies
               port: 8000
-            initialDelaySeconds: 30
+            initialDelaySeconds: 10
             periodSeconds: 30
 
-        # Ollama sidecar for LLM inference (GPU accelerated)
-        - name: ollama
-          image: ollama/ollama:latest
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              /bin/ollama serve &
-              sleep 10
-              ollama pull gemma4:12b
-              wait
-          ports:
-            - containerPort: 11434
-          resources:
-            requests:
-              cpu: "1000m"
-              memory: "4Gi"
-              nvidia.com/gpu: "1"
-            limits:
-              cpu: "3000m"
-              memory: "8Gi"
-              nvidia.com/gpu: "1"
-          volumeMounts:
-            - name: ollama-data
-              mountPath: /root/.ollama
-          readinessProbe:
-            httpGet:
-              path: /api/tags
-              port: 11434
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 5
-            failureThreshold: 40
-
-      volumes:
-        - name: ollama-data
-          emptyDir:
-            sizeLimit: 10Gi
+      volumes: []

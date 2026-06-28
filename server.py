@@ -34,27 +34,8 @@ LLM_CONFIG = {
     "score": {"num_predict": 150, "temperature": 0.1},      # Quality score: JSON only
 }
 
-# Pre-warm the LLM on startup (keeps model in memory) — runs in background
-def prewarm_llm():
-    try:
-        import urllib.request
-        ollama_host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
-        model = os.environ.get("LLM_MODEL", "gemma4:12b")
-        payload = json.dumps({
-            "model": model,
-            "prompt": "Ready",
-            "stream": False,
-            "keep_alive": "24h",
-            "options": {"num_predict": 1}
-        }).encode()
-        req = urllib.request.Request(f'{ollama_host}/api/generate', data=payload, headers={'Content-Type': 'application/json'})
-        urllib.request.urlopen(req, timeout=120)
-        print(f"LLM pre-warmed: {model} loaded in memory (keep_alive=24h)")
-    except Exception as e:
-        print(f"LLM pre-warm skipped (Ollama may not be running): {e}")
-
-import threading
-threading.Thread(target=prewarm_llm, daemon=True).start()
+# Pre-warm skipped — using Bedrock (no local model to warm)
+print("LLM Backend: AWS Bedrock (Claude 3.5 Haiku)")
 
 # Original files templates for reset
 ORIGINAL_SKILLS = """import { MEMBER_BENEFITS, CLINICAL_GUIDELINES } from './cases.js';
@@ -1107,44 +1088,15 @@ Respond ONLY with the JSON object, no other text.
                         effective_context = system_context  # Fallback to uncompressed
                         print(f"  Headroom compression skipped: {he}")
                 
-                full_prompt = f"<start_of_turn>user\n"
+                full_prompt = ""
                 if effective_context:
                     full_prompt += f"CONTEXT:\n{effective_context}\n\n"
-                full_prompt += f"{prompt_text}\nRespond concisely in 2-4 sentences.\n<end_of_turn>\n<start_of_turn>model\n<|channel>text\n<channel|>"
+                full_prompt += f"{prompt_text}\nRespond concisely in 2-4 sentences."
                 
-                ollama_payload = json.dumps({
-                    "model": "gemma4:12b",
-                    "prompt": full_prompt,
-                    "stream": False,
-                    "raw": True,
-                    "keep_alive": "24h",
-                    "options": {
-                        "temperature": LLM_CONFIG.get(mode, LLM_CONFIG["chat"])["temperature"],
-                        "num_predict": LLM_CONFIG.get(mode, LLM_CONFIG["chat"])["num_predict"],
-                        "num_ctx": 2048 if mode in ("chat", "summarize", "score") else 4096,
-                        "repeat_penalty": 1.1,
-                        "top_k": 40,
-                        "top_p": 0.9
-                    }
-                }).encode()
-                
-                req = urllib.request.Request(
-                    'http://localhost:11434/api/generate',
-                    data=ollama_payload,
-                    headers={'Content-Type': 'application/json'}
-                )
-                
-                resp = urllib.request.urlopen(req, timeout=90)
-                resp_data = json.loads(resp.read().decode())
-                raw_response = resp_data.get('response', '')
-                
-                # Clean Gemma 4 thought channel markers
-                clean_response = raw_response
-                if '<|channel>' in clean_response:
-                    parts = clean_response.split('<channel|>')
-                    clean_response = parts[-1].strip() if len(parts) > 1 else clean_response
-                # Remove any trailing turn markers
-                clean_response = clean_response.replace('<end_of_turn>', '').strip()
+                # Use Bedrock via agent_engine.call_llm (falls back to Ollama locally)
+                max_tokens = LLM_CONFIG.get(mode, LLM_CONFIG["chat"])["num_predict"]
+                temp = LLM_CONFIG.get(mode, LLM_CONFIG["chat"])["temperature"]
+                clean_response = agent_engine.call_llm(full_prompt, max_tokens=max_tokens, temperature=temp)
                 
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
@@ -1156,12 +1108,12 @@ Respond ONLY with the JSON object, no other text.
                     "compression": compression_note if compression_note else None
                 }).encode())
                 
-            except urllib.error.URLError as e:
-                self.send_response(503)
+            except Exception as e:
+                self.send_response(500)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
-                self.wfile.write(json.dumps({"error": "ClinicalNLP Engine offline. Ensure Ollama is running.", "details": str(e)}).encode())
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
             except Exception as e:
                 self.send_response(500)
                 self.send_header('Content-Type', 'application/json')

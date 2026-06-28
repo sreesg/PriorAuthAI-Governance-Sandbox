@@ -36,8 +36,59 @@ GENERATED_SKILLS_FILE = os.path.join(DATA_DIR, "generated_skills.json")
 
 # ─── LLM Interface ──────────────────────────────────────────────────────────
 
+# ─── LLM Interface ──────────────────────────────────────────────────────────
+
 def call_llm(prompt, max_tokens=400, temperature=0):
-    """Call local Gemma 4 12B via Ollama with proper chat template."""
+    """Call LLM via AWS Bedrock (Claude 3.5 Haiku) or fall back to Ollama."""
+    # Try Bedrock first (deployed environment)
+    try:
+        import boto3
+        bedrock_region = os.environ.get("AWS_REGION", "us-west-2")
+        model_id = os.environ.get("BEDROCK_MODEL", "amazon.nova-lite-v1:0")
+        
+        client = boto3.client("bedrock-runtime", region_name=bedrock_region)
+        
+        # Build request body based on model provider
+        if model_id.startswith("anthropic."):
+            body = json.dumps({
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "messages": [
+                    {"role": "user", "content": f"{prompt}\n\nRespond concisely. Output ONLY what is asked."}
+                ]
+            })
+        else:
+            # Amazon Nova models
+            body = json.dumps({
+                "messages": [
+                    {"role": "user", "content": [{"text": f"{prompt}\n\nRespond concisely. Output ONLY what is asked."}]}
+                ],
+                "inferenceConfig": {
+                    "maxTokens": max_tokens,
+                    "temperature": temperature
+                }
+            })
+        
+        response = client.invoke_model(
+            modelId=model_id,
+            contentType="application/json",
+            accept="application/json",
+            body=body
+        )
+        result = json.loads(response["body"].read())
+        
+        # Parse response based on provider
+        if model_id.startswith("anthropic."):
+            return result["content"][0]["text"].strip()
+        else:
+            # Nova response format
+            return result["output"]["message"]["content"][0]["text"].strip()
+    except Exception as bedrock_err:
+        # Fall back to Ollama (local dev)
+        pass
+
+    # Ollama fallback (local development)
     full_prompt = (
         f"<start_of_turn>user\n{prompt}\n"
         f"Respond concisely. Output ONLY what is asked.\n"
