@@ -34,20 +34,22 @@ LLM_CONFIG = {
     "score": {"num_predict": 150, "temperature": 0.1},      # Quality score: JSON only
 }
 
-# Pre-warm the LLM on startup (keeps model in GPU memory)
+# Pre-warm the LLM on startup (keeps model in memory)
 def prewarm_llm():
     try:
         import urllib.request
+        ollama_host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+        model = os.environ.get("LLM_MODEL", "gemma4:12b")
         payload = json.dumps({
-            "model": "gemma4:12b",
-            "prompt": "<start_of_turn>user\nReady<end_of_turn>\n<start_of_turn>model\n",
-            "stream": False, "raw": True,
+            "model": model,
+            "prompt": "Ready",
+            "stream": False,
             "keep_alive": "24h",
             "options": {"num_predict": 1}
         }).encode()
-        req = urllib.request.Request('http://localhost:11434/api/generate', data=payload, headers={'Content-Type': 'application/json'})
-        urllib.request.urlopen(req, timeout=30)
-        print("LLM pre-warmed: gemma4:12b loaded in GPU memory (keep_alive=24h)")
+        req = urllib.request.Request(f'{ollama_host}/api/generate', data=payload, headers={'Content-Type': 'application/json'})
+        urllib.request.urlopen(req, timeout=60)
+        print(f"LLM pre-warmed: {model} loaded in memory (keep_alive=24h)")
     except Exception as e:
         print(f"LLM pre-warm skipped (Ollama may not be running): {e}")
 
