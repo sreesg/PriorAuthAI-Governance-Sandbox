@@ -16,8 +16,6 @@ spec:
         app: beacon-priorauth
     spec:
       serviceAccountName: beacon-sa
-      nodeSelector:
-        node-group: beacon-llm
       containers:
         - name: priorauth-app
           image: 747675253087.dkr.ecr.us-west-2.amazonaws.com/beacon-priorauth:latest
@@ -32,11 +30,11 @@ spec:
               value: "amazon.nova-lite-v1:0"
           resources:
             requests:
-              cpu: "500m"
-              memory: "512Mi"
+              cpu: "100m"
+              memory: "256Mi"
             limits:
-              cpu: "2000m"
-              memory: "2Gi"
+              cpu: "1000m"
+              memory: "1Gi"
           readinessProbe:
             httpGet:
               path: /agent/policies
