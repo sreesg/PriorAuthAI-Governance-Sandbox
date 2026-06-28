@@ -34,7 +34,7 @@ LLM_CONFIG = {
     "score": {"num_predict": 150, "temperature": 0.1},      # Quality score: JSON only
 }
 
-# Pre-warm the LLM on startup (keeps model in memory)
+# Pre-warm the LLM on startup (keeps model in memory) — runs in background
 def prewarm_llm():
     try:
         import urllib.request
@@ -48,12 +48,13 @@ def prewarm_llm():
             "options": {"num_predict": 1}
         }).encode()
         req = urllib.request.Request(f'{ollama_host}/api/generate', data=payload, headers={'Content-Type': 'application/json'})
-        urllib.request.urlopen(req, timeout=60)
+        urllib.request.urlopen(req, timeout=120)
         print(f"LLM pre-warmed: {model} loaded in memory (keep_alive=24h)")
     except Exception as e:
         print(f"LLM pre-warm skipped (Ollama may not be running): {e}")
 
-prewarm_llm()
+import threading
+threading.Thread(target=prewarm_llm, daemon=True).start()
 
 # Original files templates for reset
 ORIGINAL_SKILLS = """import { MEMBER_BENEFITS, CLINICAL_GUIDELINES } from './cases.js';
