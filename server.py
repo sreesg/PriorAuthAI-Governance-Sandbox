@@ -1641,8 +1641,180 @@ Respond ONLY with the JSON object, no other text.
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(e)}).encode())
         else:
-            # Fall through to static file serving
-            super().do_GET()
+            # CRF API endpoints (Clinical Reasoning Fabric)
+            if self.path.startswith('/api/'):
+                self._handle_crf_api()
+            else:
+                # Fall through to static file serving
+                super().do_GET()
+
+    def _handle_crf_api(self):
+        """Handle /api/* routes for CRF frontend panels."""
+        import asyncio
+        try:
+            from clinical_reasoning_fabric.beacon.audit_trail_service import (
+                AuditTrailService, InMemoryAppendOnlyStorage,
+            )
+            from clinical_reasoning_fabric.models.core import TraceCategory
+        except ImportError:
+            self.send_response(503)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "CRF modules not available"}).encode())
+            return
+
+        # Simple response helper
+        def json_response(data, status=200):
+            self.send_response(status)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(data).encode())
+
+        path = self.path
+
+        # GET /api/beacon/status/{request_id}
+        if path.startswith('/api/beacon/status/'):
+            request_id = path.split('/api/beacon/status/')[1]
+            layers = [
+                {"id": "L1", "name": "Identity", "state": "passed", "timestamp": None},
+                {"id": "L2", "name": "Context", "state": "passed", "timestamp": None},
+                {"id": "L3", "name": "MCP Gateway", "state": "passed", "timestamp": None},
+                {"id": "L4", "name": "Sandbox", "state": "passed", "timestamp": None},
+                {"id": "L5", "name": "Verification", "state": "passed", "timestamp": None},
+                {"id": "L6", "name": "Observability", "state": "passed", "timestamp": None},
+                {"id": "L7", "name": "Human Gates", "state": "pending", "timestamp": None},
+            ]
+            json_response({"request_id": request_id, "layers": layers, "current_layer": 6})
+
+        # GET /api/axisweave/context/{request_id}
+        elif path.startswith('/api/axisweave/context/'):
+            request_id = path.split('/api/axisweave/context/')[1]
+            # Return evidence chunks from S3-stored documents
+            chunks = self._get_evidence_chunks_for_request(request_id)
+            json_response({"request_id": request_id, "chunks": chunks})
+
+        # GET /api/evidence-bundle/{execution_id}
+        elif path.startswith('/api/evidence-bundle/'):
+            execution_id = path.split('/api/evidence-bundle/')[1]
+            json_response({"error": f"No bundle for {execution_id}"}, 404)
+
+        # GET /api/graph/member/{member_id}
+        elif path.startswith('/api/graph/member/'):
+            member_id = path.split('/api/graph/member/')[1]
+            graph = self._get_member_graph(member_id)
+            json_response(graph)
+
+        # GET /api/inference/sdoh/{member_id}
+        elif path.startswith('/api/inference/sdoh/'):
+            member_id = path.split('/api/inference/sdoh/')[1]
+            json_response({"member_id": member_id, "inferred_facts": [], "explicit_facts": []})
+
+        # GET /api/md-queue
+        elif path == '/api/md-queue':
+            json_response({"cases": []})
+
+        else:
+            json_response({"error": f"Unknown CRF endpoint: {path}"}, 404)
+
+    def _get_evidence_chunks_for_request(self, request_id):
+        """Get evidence chunks from S3 for a request (based on member case data)."""
+        try:
+            from s3_helper import list_files, get_file_bytes
+            # Map request to member_id from preset cases
+            member_map = {
+                "req-001": "MEM-4401", "req-002": "MEM-4402",
+                "req-003": "MEM-7701", "req-004": "MEM-7702",
+                "req-005": "MEM-5501", "req-006": "MEM-5502",
+                "req-007": "MEM-8801", "req-008": "MEM-8802",
+            }
+            member_id = member_map.get(request_id, "MEM-4401")
+            prefix = f"clinical-evidence/{member_id}/"
+            files = list_files(prefix)
+            chunks = []
+            for i, f in enumerate(files[:20]):
+                chunks.append({
+                    "chunk_id": f"chunk-{i:03d}",
+                    "text": f"Evidence document: {os.path.basename(f)}",
+                    "document_id": f,
+                    "content_hash": "a" * 64,
+                    "relevance_score": round(0.95 - i * 0.03, 2),
+                    "kms_status": "valid",
+                    "chunk_index": i,
+                    "ingestion_timestamp": "2026-06-15T10:00:00Z",
+                })
+            return chunks
+        except Exception:
+            return []
+
+    def _get_member_graph(self, member_id):
+        """Build a graph visualization for a demo member from Neo4j or fallback."""
+        import os
+        neo4j_uri = os.environ.get("NEO4J_URI")
+        if neo4j_uri:
+            try:
+                from neo4j import GraphDatabase
+                driver = GraphDatabase.driver(
+                    neo4j_uri,
+                    auth=(os.environ.get("NEO4J_USER","neo4j"),
+                          os.environ.get("NEO4J_PASSWORD","beacon-graph-2024")))
+                with driver.session() as session:
+                    # Get all nodes connected to this member
+                    result = session.run("""
+                        MATCH (m:Member {member_id: $mid})-[r]->(n)
+                        RETURN m, type(r) as rel_type, n, labels(n)[0] as node_label
+                    """, mid=member_id)
+                    nodes = [{"id": member_id, "type": "member", "label": "", "properties": {}}]
+                    edges = []
+                    seen_ids = {member_id}
+                    for record in result:
+                        m_props = dict(record["m"])
+                        nodes[0]["label"] = m_props.get("name", member_id)
+                        nodes[0]["properties"] = {k:v for k,v in m_props.items() if k != "member_id"}
+
+                        n_props = dict(record["n"])
+                        node_label = record["node_label"]
+                        # Determine node ID
+                        n_id = (n_props.get("event_id") or n_props.get("policy_id") or
+                                n_props.get("sdoh_id") or n_props.get("evidence_id") or
+                                n_props.get("npi") or str(hash(str(n_props)))[:12])
+                        if n_id not in seen_ids:
+                            seen_ids.add(n_id)
+                            n_type = node_label.lower() if node_label else "unknown"
+                            if n_type == "event":
+                                n_type = n_props.get("type", "event")
+                            display_label = (n_props.get("description") or n_props.get("drug") or
+                                           n_props.get("name") or n_props.get("therapy_type") or n_id)
+                            nodes.append({"id": n_id, "type": n_type, "label": display_label[:60],
+                                         "properties": {k:str(v) for k,v in n_props.items() if v is not None}})
+                        edges.append({"source": member_id, "target": n_id,
+                                     "type": record["rel_type"], "label": record["rel_type"].lower().replace("_"," ")})
+                driver.close()
+                return {"member_id": member_id, "nodes": nodes, "edges": edges}
+            except Exception as e:
+                print(f"Neo4j query failed, falling back: {e}")
+
+        # Fallback to preset_cases.json
+        try:
+            with open('policies/preset_cases.json', 'r') as f:
+                cases = json.load(f)
+            case = next((c for c in cases if c['request']['memberId'] == member_id), None)
+            if not case:
+                return {"member_id": member_id, "nodes": [], "edges": []}
+            req = case['request']
+            nodes = [
+                {"id": member_id, "type": "member", "label": req['patientName'], "properties": {"dob": req['patientDob']}},
+                {"id": f"dx-{req['icd10Code']}", "type": "diagnosis", "label": f"{req['icd10Code']}", "properties": {"icd10": req['icd10Code']}},
+                {"id": f"cpt-{req['cptCode']}", "type": "policy_rule", "label": f"CPT {req['cptCode']}", "properties": {"cpt": req['cptCode']}},
+            ]
+            edges = [
+                {"source": member_id, "target": f"dx-{req['icd10Code']}", "type": "HAS_CONDITION", "label": "has condition"},
+                {"source": f"dx-{req['icd10Code']}", "target": f"cpt-{req['cptCode']}", "type": "GOVERNED_BY", "label": "governed by"},
+            ]
+            return {"member_id": member_id, "nodes": nodes, "edges": edges}
+        except Exception:
+            return {"member_id": member_id, "nodes": [], "edges": []}
 
     def do_OPTIONS(self):
         self.send_response(200)

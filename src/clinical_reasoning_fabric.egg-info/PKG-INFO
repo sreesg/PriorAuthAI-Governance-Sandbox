@@ -1,0 +1,27 @@
+Metadata-Version: 2.4
+Name: clinical-reasoning-fabric
+Version: 0.1.0
+Summary: Clinical Reasoning Fabric - Unified architecture for clinical AI agents orchestrating Prior Authorization decision support
+Requires-Python: >=3.11
+Requires-Dist: boto3>=1.34.0
+Requires-Dist: requests>=2.31.0
+Requires-Dist: pypdf>=4.0.0
+Requires-Dist: hypothesis>=6.100.0
+Requires-Dist: pytest>=7.4.0
+Requires-Dist: pytest-asyncio>=0.23.0
+Requires-Dist: qdrant-client>=1.9.0
+Requires-Dist: neo4j>=5.19.0
+Requires-Dist: docling>=2.0.0
+Requires-Dist: chonkie>=0.1.0
+Requires-Dist: opa-python>=1.0.0
+Requires-Dist: dagster>=1.7.0
+Requires-Dist: dbt-core>=1.8.0
+Requires-Dist: dbt-snowflake>=1.8.0
+Requires-Dist: pydantic>=2.7.0
+Requires-Dist: cryptography>=42.0.0
+Requires-Dist: fastapi>=0.111.0
+Requires-Dist: uvicorn>=0.29.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.4.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.23.0; extra == "dev"
+Requires-Dist: hypothesis>=6.100.0; extra == "dev"

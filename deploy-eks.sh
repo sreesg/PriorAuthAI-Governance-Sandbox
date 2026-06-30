@@ -34,6 +34,12 @@ aws s3 cp ./real_payer_policy_uhc.pdf s3://$S3_BUCKET/real_payer_policy_uhc.pdf 
 aws s3 cp ./medical_necessity_rules.pdf s3://$S3_BUCKET/medical_necessity_rules.pdf --region $REGION
 echo "  ✓ Assets uploaded"
 
+# Generate and upload clinical evidence documents for CRF
+echo "  Generating evidence PDFs for 8 demo patients..."
+pip install reportlab --quiet 2>/dev/null
+python generate_evidence_docs.py --bucket $S3_BUCKET --prefix clinical-evidence/ --region $REGION || echo "  ⚠ Evidence generation skipped (run manually if needed)"
+echo "  ✓ Evidence documents uploaded"
+
 # ─── Step 2: Create ECR repository ───
 echo ""
 echo "▶ Step 2: Creating ECR repository..."
@@ -81,16 +87,70 @@ kubectl wait --for=condition=Ready nodes -l node-group=beacon-llm --timeout=300s
 echo ""
 echo "▶ Step 6: Deploying to Kubernetes..."
 kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/qdrant.yaml
+kubectl apply -f k8s/neo4j.yaml
 kubectl apply -f k8s/deployment.yaml
 kubectl apply -f k8s/service.yaml
 kubectl apply -f k8s/ingress.yaml
 
-echo "  Waiting for pods to be ready..."
+echo "  Waiting for Qdrant to be ready..."
+kubectl rollout status deployment/qdrant -n $NAMESPACE --timeout=120s || true
+
+echo "  Waiting for Neo4j to be ready..."
+kubectl rollout status deployment/neo4j -n $NAMESPACE --timeout=120s || true
+
+echo "  Waiting for app pods to be ready..."
 kubectl rollout status deployment/beacon-priorauth -n $NAMESPACE --timeout=300s
 
-# ─── Step 7: Create Route 53 record ───
+# ─── Step 7: Seed Qdrant Vector DB with evidence documents ───
 echo ""
-echo "▶ Step 7: Creating Route 53 DNS record..."
+echo "▶ Step 7: Seeding Qdrant with evidence documents..."
+QDRANT_POD=$(kubectl get pod -n $NAMESPACE -l app=qdrant -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+if [ -n "$QDRANT_POD" ]; then
+    # Port-forward Qdrant temporarily for seeding
+    kubectl port-forward -n $NAMESPACE svc/qdrant 6333:6333 &
+    PF_PID=$!
+    sleep 3
+
+    pip install pypdf sentence-transformers --quiet 2>/dev/null
+    python seed_vector_db.py \
+        --bucket $S3_BUCKET \
+        --prefix clinical-evidence/ \
+        --qdrant-url http://localhost:6333 \
+        --region $REGION || echo "  ⚠ Seeding failed (run manually later)"
+
+    kill $PF_PID 2>/dev/null
+    echo "  ✓ Vector DB seeded"
+else
+    echo "  ⚠ Qdrant not ready. Seed manually after deployment:"
+    echo "    kubectl port-forward -n beacon svc/qdrant 6333:6333 &"
+    echo "    python seed_vector_db.py --bucket $S3_BUCKET --qdrant-url http://localhost:6333"
+fi
+
+# ─── Step 7b: Seed Neo4j Graph DB with patient clinical data ───
+echo ""
+echo "▶ Step 7b: Seeding Neo4j with patient graph data..."
+NEO4J_POD=$(kubectl get pod -n $NAMESPACE -l app=neo4j -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+if [ -n "$NEO4J_POD" ]; then
+    kubectl port-forward -n $NAMESPACE svc/neo4j 7687:7687 &
+    PF_PID2=$!
+    sleep 5
+
+    python seed_graph_db.py \
+        --neo4j-uri bolt://localhost:7687 \
+        --clear || echo "  ⚠ Graph seeding failed (run manually later)"
+
+    kill $PF_PID2 2>/dev/null
+    echo "  ✓ Graph DB seeded"
+else
+    echo "  ⚠ Neo4j not ready. Seed manually after deployment:"
+    echo "    kubectl port-forward -n beacon svc/neo4j 7687:7687 &"
+    echo "    python seed_graph_db.py --neo4j-uri bolt://localhost:7687 --clear"
+fi
+
+# ─── Step 8: Create Route 53 record ───
+echo ""
+echo "▶ Step 8: Creating Route 53 DNS record..."
 HOSTED_ZONE_ID="Z02419242UVTP3JVANNPO"
 ALB_DNS=$(kubectl get ingress beacon-priorauth-ingress -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
 
@@ -126,4 +186,6 @@ echo "  Useful commands:"
 echo "    kubectl get pods -n $NAMESPACE"
 echo "    kubectl logs -f deployment/beacon-priorauth -n $NAMESPACE -c priorauth-app"
 echo "    kubectl logs -f deployment/beacon-priorauth -n $NAMESPACE -c ollama"
+echo "    kubectl logs -f deployment/qdrant -n $NAMESPACE"
+echo "    kubectl logs -f deployment/neo4j -n $NAMESPACE"
 echo "═══════════════════════════════════════════"

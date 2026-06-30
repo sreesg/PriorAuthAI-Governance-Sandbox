@@ -53,6 +53,10 @@
           <span class="sidebar-icon">🎬</span>
           <span class="sidebar-label">Video Tutorial</span>
         </button>
+        <button class="sidebar-tab" data-view="crf">
+          <span class="sidebar-icon">🧬</span>
+          <span class="sidebar-label">CRF Fabric</span>
+        </button>
       </div>
       <div class="sidebar-footer">
         <a href="help.html" class="sidebar-tab" style="text-decoration:none;">
@@ -532,6 +536,39 @@
   </button>
 
     </main>
+
+  <!-- VIEW: CRF Fabric (inside app-layout for view switching) -->
+  <div id="view-crf" class="view-panel" style="display:none;">
+    <div class="crf-page" style="padding:1rem;">
+      <!-- Sub-navigation for CRF views -->
+      <div class="crf-subnav" style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+        <button class="crf-subtab active" data-crfview="workflow" style="padding:0.35rem 0.8rem;border-radius:8px;border:1px solid var(--card-border);background:var(--bg-secondary);color:var(--text-main);font-size:0.68rem;font-weight:600;cursor:pointer;">
+          🎬 How It Works
+        </button>
+        <button class="crf-subtab" data-crfview="panels" style="padding:0.35rem 0.8rem;border-radius:8px;border:1px solid var(--card-border);background:transparent;color:var(--text-muted);font-size:0.68rem;font-weight:600;cursor:pointer;">
+          📊 Live Panels
+        </button>
+      </div>
+
+      <!-- Sub-view: How It Works (animated explainer) -->
+      <div id="crf-view-workflow" class="crf-subview">
+        <div id="crf-workflow-explainer"></div>
+      </div>
+
+      <!-- Sub-view: Live Panels (the 6 CRF panels) -->
+      <div id="crf-view-panels" class="crf-subview" style="display:none;">
+        <div class="crf-panels-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+          <div id="crf-beacon-panel"></div>
+          <div id="crf-axisweave-panel"></div>
+          <div id="crf-bundle-panel"></div>
+          <div id="crf-graph-panel"></div>
+          <div id="crf-sdoh-panel"></div>
+          <div id="crf-mdqueue-panel"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   </div>
 
   <footer class="app-footer">
@@ -539,5 +576,67 @@
   </footer>
 
   <script type="module" src="app.js"></script>
+  <script type="module">
+    // CRF Panel Integration — loads when CRF tab is selected
+    import { render as renderBeacon } from './static/crf/beacon_harness_viz.js';
+    import { render as renderAxisweave } from './static/crf/axisweave_context_panel.js';
+    import { render as renderBundle } from './static/crf/evidence_bundle_viewer.js';
+    import { render as renderGraph } from './static/crf/causal_graph_viz.js';
+    import { render as renderSDOH } from './static/crf/sdoh_inference_display.js';
+    import { render as renderMDQueue } from './static/crf/md_queue_view.js';
+    import { render as renderWorkflow } from './static/crf/crf_workflow_explainer.js';
+
+    let crfInitialized = false;
+    let panelsInitialized = false;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const crfTab = document.querySelector('[data-view="crf"]');
+      if (crfTab) {
+        crfTab.addEventListener('click', () => {
+          if (!crfInitialized) {
+            crfInitialized = true;
+            // Render the workflow explainer immediately
+            renderWorkflow('crf-workflow-explainer');
+          }
+        });
+      }
+
+      // CRF sub-tab switching
+      document.querySelectorAll('.crf-subtab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const view = btn.dataset.crfview;
+          // Toggle active state
+          document.querySelectorAll('.crf-subtab').forEach(b => {
+            b.classList.remove('active');
+            b.style.background = 'transparent';
+            b.style.color = 'var(--text-muted)';
+          });
+          btn.classList.add('active');
+          btn.style.background = 'var(--bg-secondary)';
+          btn.style.color = 'var(--text-main)';
+
+          // Show/hide sub-views
+          document.querySelectorAll('.crf-subview').forEach(v => v.style.display = 'none');
+          const target = document.getElementById(`crf-view-${view}`);
+          if (target) target.style.display = 'block';
+
+          // Lazy-init panels on first switch to "panels" view
+          if (view === 'panels' && !panelsInitialized) {
+            panelsInitialized = true;
+            const requestId = window.__lastRequestId || 'req-001';
+            const memberId = window.__lastMemberId || 'MEM-4401';
+            const executionId = window.__lastExecutionId || 'exec-001';
+
+            renderBeacon('crf-beacon-panel', requestId, { autoRefresh: true });
+            renderAxisweave('crf-axisweave-panel', requestId);
+            renderBundle('crf-bundle-panel', executionId);
+            renderGraph('crf-graph-panel', memberId);
+            renderSDOH('crf-sdoh-panel', memberId);
+            renderMDQueue('crf-mdqueue-panel');
+          }
+        });
+      });
+    });
+  </script>
 </body>
 </html>

@@ -28,6 +28,16 @@ spec:
               value: "us-west-2"
             - name: BEDROCK_MODEL
               value: "amazon.nova-lite-v1:0"
+            - name: QDRANT_URL
+              value: "http://qdrant.beacon.svc.cluster.local:6333"
+            - name: NEO4J_URI
+              value: "bolt://neo4j.beacon.svc.cluster.local:7687"
+            - name: NEO4J_USER
+              value: "neo4j"
+            - name: NEO4J_PASSWORD
+              value: "beacon-graph-2024"
+            - name: CRF_EVIDENCE_PREFIX
+              value: "clinical-evidence/"
           resources:
             requests:
               cpu: "100m"
