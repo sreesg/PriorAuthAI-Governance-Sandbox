@@ -2785,3 +2785,30 @@ footer.app-footer {
   overflow-y: auto;
   white-space: pre-wrap;
 }
+
+/* Cockpit Tab Styles */
+.cockpit-tab-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.cockpit-tab-btn:hover {
+  color: var(--text-main);
+}
+
+.cockpit-tab-btn.active {
+  color: var(--text-main);
+  border-bottom-color: var(--accent-blue);
+}
+
+.cockpit-tab-content {
+  margin-top: 0.5rem;
+}
+

@@ -1,4 +1,8 @@
+import { PRESET_CASES } from './cases.js';
 import { PriorAuthAgent } from './agent.js';
+import { render as renderBeacon } from './static/crf/beacon_harness_viz.js';
+import { render as renderAxisweave } from './static/crf/axisweave_context_panel.js';
+import { render as renderGraph } from './static/crf/causal_graph_viz.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   const agent = new PriorAuthAgent();
@@ -611,6 +615,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function loadCaseToForm(caseObj) {
+    activeCaseId = caseObj.id;
     const req = caseObj.request;
     inputMemberId.value = req.memberId;
     inputPatientName.value = req.patientName;
@@ -674,6 +679,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Load policy-specific hooks dynamically
     loadPolicyHooksForCase(req.cptCode);
+
+    // Trigger cockpit panel updates
+    const requestId = caseObj.id || 'req-001';
+    const memberId = req.memberId || 'MEM-4401';
+    
+    // Render BEACON 7-Layer Harness
+    renderBeacon('review-beacon-panel', requestId, { autoRefresh: true });
+    
+    // Render Axisweave Context (Qdrant)
+    renderAxisweave('review-axisweave-panel', requestId);
+    
+    // Render Causal Graph (Neo4j)
+    renderGraph('review-graph-panel', memberId);
   }
 
   async function loadPolicyHooksForCase(cptCode) {
@@ -1023,6 +1041,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         challengerCard.style.display = 'none';
       }
 
+      // Store execution references globally
+      const currentRequestId = activeCaseId || 'req-001';
+      const currentMemberId = request.memberId || 'MEM-4401';
+      
+      window.__lastRequestId = currentRequestId;
+      window.__lastMemberId = currentMemberId;
+      window.__lastExecutionId = outcome.executionId || 'exec-001';
+      
+      // Refresh cockpit visual panels
+      renderBeacon('review-beacon-panel', currentRequestId, { autoRefresh: false });
+      renderAxisweave('review-axisweave-panel', currentRequestId);
+      renderGraph('review-graph-panel', currentMemberId);
+
     } catch (e) {
       outcomeBadge.textContent = 'Error';
       outcomeReason.textContent = e.message;
@@ -1033,6 +1064,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Init UI
   await renderPresets();
   renderRulesToggles();
+
+  // Cockpit Tab Switching Listener
+  document.querySelectorAll('.cockpit-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabName = btn.dataset.tab;
+      const card = btn.closest('.cockpit-tab-card');
+      
+      // Update active tab button style
+      card.querySelectorAll('.cockpit-tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      // Toggle tab content visibility
+      card.querySelectorAll('.cockpit-tab-content').forEach(content => {
+        content.style.display = content.id === `cockpit-content-${tabName}` ? 'block' : 'none';
+      });
+      
+      // Trigger lazy panel refresh on view switch to graph or axisweave if last IDs exist
+      const reqId = window.__lastRequestId || activeCaseId || 'req-001';
+      const memId = window.__lastMemberId || inputMemberId.value || 'MEM-4401';
+      
+      if (tabName === 'graph') {
+        renderGraph('review-graph-panel', memId);
+      } else if (tabName === 'axisweave') {
+        renderAxisweave('review-axisweave-panel', reqId);
+      }
+    });
+  });
 
   // ═══════════════════════════════════════════════════════════════
   // AI FEATURES (All powered by ClinicalNLP Engine via /ai-chat)
