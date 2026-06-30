@@ -1640,6 +1640,22 @@ Respond ONLY with the JSON object, no other text.
                 self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(e)}).encode())
+        elif self.path.startswith('/static/crf/'):
+            # Serve CRF frontend panels from source directory directly
+            filename = self.path.split('/static/crf/')[1]
+            # Strip query params if any
+            filename = filename.split('?')[0]
+            local_path = os.path.join('src', 'clinical_reasoning_fabric', 'frontend', filename)
+            if os.path.exists(local_path):
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/javascript')
+                self.send_header('Cache-Control', 'no-cache')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                with open(local_path, 'rb') as f:
+                    self.wfile.write(f.read())
+            else:
+                super().do_GET()
         else:
             # CRF API endpoints (Clinical Reasoning Fabric)
             if self.path.startswith('/api/'):

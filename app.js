@@ -635,19 +635,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     timeline.innerHTML = `<div class="timeline-empty-state"><span class="timeline-empty-icon">🤖</span><p>Execution trace outputs will display here.</p></div>`;
     traceCounter.textContent = '0 events logged';
     
-    // Reset pipeline flow
+    // Reset pipeline flow (only if elements exist)
     [1, 2, 3, 4, 5].forEach(s => {
       const el = document.getElementById(`flow-step-${s}`);
-      el.className = 'flow-step';
-      const disc = el.querySelector('.flow-step-disclosure');
-      if (disc) disc.classList.remove('disc-active');
+      if (el) {
+        el.className = 'flow-step';
+        const disc = el.querySelector('.flow-step-disclosure');
+        if (disc) disc.classList.remove('disc-active');
+      }
     });
     
-    // Reset disclosure panel
-    document.getElementById('disclosure-stage-badge').textContent = 'Idle';
-    document.getElementById('disclosure-stage-badge').className = 'disclosure-badge';
-    document.getElementById('disc-disclosed').textContent = '—';
-    document.getElementById('disc-withheld').textContent = '—';
+    // Reset disclosure panel (only if elements exist)
+    const discBadge = document.getElementById('disclosure-stage-badge');
+    if (discBadge) {
+      discBadge.textContent = 'Idle';
+      discBadge.className = 'disclosure-badge';
+    }
+    const discDisclosed = document.getElementById('disc-disclosed');
+    if (discDisclosed) discDisclosed.textContent = '—';
+    const discWithheld = document.getElementById('disc-withheld');
+    if (discWithheld) discWithheld.textContent = '—';
     
     // Hide AI panels
     const aiCard = document.getElementById('ai-reasoning-card');
@@ -874,15 +881,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Reset UI
     [1,2,3,4,5].forEach(s => {
       const el = document.getElementById(`flow-step-${s}`);
-      el.className = 'flow-step';
-      const disc = el.querySelector('.flow-step-disclosure');
-      if (disc) disc.classList.remove('disc-active');
+      if (el) {
+        el.className = 'flow-step';
+        const disc = el.querySelector('.flow-step-disclosure');
+        if (disc) disc.classList.remove('disc-active');
+      }
     });
     outcomeBadge.textContent = 'Processing...';
     outcomeReason.textContent = 'Calling AI agent...';
     letterContent.textContent = '';
     timeline.innerHTML = '<div class="timeline-empty-state">🤖 Agent processing...</div>';
-    document.getElementById('flow-step-1').className = 'flow-step active';
+    const flow1 = document.getElementById('flow-step-1');
+    if (flow1) flow1.className = 'flow-step active';
 
     const aiModeEnabled = document.getElementById('ai-mode-toggle').checked;
 
@@ -916,17 +926,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         const m = t.msg.match(/Stage (\d)/);
         if (m) maxStage = Math.max(maxStage, parseInt(m[1]));
       });
-      // Light up stages
+      // Light up stages (only if elements exist)
       for (let s = 1; s <= 5; s++) {
         const el = document.getElementById(`flow-step-${s}`);
-        if (s <= maxStage) {
+        if (el && s <= maxStage) {
           el.className = outcome.status === 'approved' || s < maxStage ? 'flow-step passed' : 'flow-step warning';
         }
       }
-      // If there were failed criteria, mark stage 4 as warning
+      // If there were failed criteria, mark stage 4 as warning (only if elements exist)
       if (outcome.status !== 'approved') {
-        document.getElementById('flow-step-4').className = 'flow-step warning';
-        document.getElementById('flow-step-5').className = 'flow-step warning';
+        const flow4 = document.getElementById('flow-step-4');
+        if (flow4) flow4.className = 'flow-step warning';
+        const flow5 = document.getElementById('flow-step-5');
+        if (flow5) flow5.className = 'flow-step warning';
       }
 
       // Update NPI badge
@@ -941,14 +953,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         aiModelBadge.className = 'badge';
       }
 
-      // Update disclosure panel
+      // Update disclosure panel (only if elements exist)
       const discBadge = document.getElementById('disclosure-stage-badge');
       const discDisclosed = document.getElementById('disc-disclosed');
       const discWithheld = document.getElementById('disc-withheld');
-      discBadge.textContent = 'Complete';
-      discBadge.className = 'disclosure-badge complete';
-      discDisclosed.textContent = `Policy: ${outcome.policyUsed}`;
-      discWithheld.textContent = 'None — all disclosed';
+      if (discBadge) {
+        discBadge.textContent = 'Complete';
+        discBadge.className = 'disclosure-badge complete';
+      }
+      if (discDisclosed) discDisclosed.textContent = `Policy: ${outcome.policyUsed}`;
+      if (discWithheld) discWithheld.textContent = 'None — all disclosed';
 
       // Show AI evidence panel if available
       const aiReasoningCard = document.getElementById('ai-reasoning-card');
