@@ -7,6 +7,7 @@ import { render as renderGraph } from './static/crf/causal_graph_viz.js';
 document.addEventListener('DOMContentLoaded', async () => {
   const agent = new PriorAuthAgent();
   let activeFile = "rules_declaration.md";
+  let activeCaseId = null;
 
   // Load S3 asset URLs for image and video
   try {
