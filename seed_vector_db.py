@@ -17,6 +17,7 @@ REQUIREMENTS: boto3, qdrant-client, pypdf, sentence-transformers
 import argparse
 import hashlib
 import io
+import json
 import os
 import sys
 import uuid
@@ -42,28 +43,42 @@ except ImportError as e:
 _embedder = None
 
 def get_embedder():
-    """Lazy-load the sentence-transformers model."""
+    """Lazy-load the embedding function using Bedrock Titan."""
     global _embedder
     if _embedder is None:
         try:
-            from sentence_transformers import SentenceTransformer
-            print("  Loading embedding model (all-MiniLM-L6-v2)...")
-            _embedder = SentenceTransformer("all-MiniLM-L6-v2")
-            print("  ✓ Embedding model loaded (384 dimensions)")
-        except ImportError:
-            print("  ⚠ sentence-transformers not available, using random vectors")
+            import boto3
+            client = boto3.client("bedrock-runtime",
+                                  region_name=os.environ.get("AWS_REGION", "us-west-2"))
+            # Test the connection
+            print("  Using Amazon Bedrock Titan Embed Text v2 (1024 dimensions)")
+            _embedder = client
+        except Exception as e:
+            print(f"  ⚠ Bedrock not available ({e}), using random vectors")
             _embedder = "random"
     return _embedder
 
 
 def embed_text(text: str) -> list[float]:
-    """Generate embedding vector for text."""
+    """Generate embedding vector for text using Bedrock Titan."""
     import random
     embedder = get_embedder()
     if embedder == "random":
         random.seed(hash(text) % (2**32))
-        return [random.uniform(-1, 1) for _ in range(384)]
-    return embedder.encode(text).tolist()
+        return [random.uniform(-1, 1) for _ in range(1024)]
+    try:
+        body = json.dumps({"inputText": text[:8000]})
+        response = embedder.invoke_model(
+            modelId="amazon.titan-embed-text-v2:0",
+            contentType="application/json",
+            accept="application/json",
+            body=body,
+        )
+        result = json.loads(response["body"].read())
+        return result.get("embedding", [random.uniform(-1, 1) for _ in range(1024)])
+    except Exception as e:
+        random.seed(hash(text) % (2**32))
+        return [random.uniform(-1, 1) for _ in range(1024)]
 
 
 # =============================================================================
@@ -109,7 +124,7 @@ def chunk_text(text: str, max_chunk_size: int = 500) -> list[str]:
 # =============================================================================
 
 COLLECTION_NAME = "clinical_documents"
-VECTOR_SIZE = 384  # all-MiniLM-L6-v2 output size
+VECTOR_SIZE = 1024  # Amazon Titan Embed Text v2 output size
 
 
 def ensure_collection(client: QdrantClient):

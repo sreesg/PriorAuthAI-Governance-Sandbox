@@ -47,8 +47,8 @@ spec:
             periodSeconds: 30
       volumes:
         - name: qdrant-storage
-          emptyDir:
-            sizeLimit: 10Gi
+          persistentVolumeClaim:
+            claimName: qdrant-pvc
 ---
 apiVersion: v1
 kind: Service

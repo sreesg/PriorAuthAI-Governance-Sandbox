@@ -387,12 +387,67 @@ def run_agent_review(request, use_ai_extraction=False):
         trace.append({"ts": timestamp(), "type": "skill", "name": "VerifyCoverageSkill",
                       "msg": "Member not found in enrollment database.", "status": "fail"})
 
-    # ─── STAGE 3: Clinical Evidence Extraction ────────────────────────────
+    # ─── STAGE 3: Semantic Evidence Retrieval (Axisweave) ─────────────────
     trace.append({"ts": timestamp(), "type": "disclosure", "name": "Progressive Disclosure",
-                  "msg": "Stage 3: Disclosing clinical guidelines. Extracting evidence.", "status": "info"})
+                  "msg": "Stage 3: Axisweave semantic search — retrieving evidence documents.", "status": "info"})
 
+    # Extract fields needed for semantic query (used in Stage 3 and Stage 4)
     clinical_notes = request.get("clinicalNotes", "")
     cpt_code = request.get("cptCode", "")
+
+    retrieved_evidence_docs = []
+    semantic_query = ""
+    graph_state = {}
+
+    # Query Qdrant for relevant evidence
+    qdrant_url = os.environ.get("QDRANT_URL")
+    if qdrant_url and member_id:
+        try:
+            semantic_query = f"CPT {cpt_code} {clinical_notes[:200]}"
+            trace.append({"ts": timestamp(), "type": "skill", "name": "Axisweave Retrieval",
+                          "msg": f"🔍 Semantic query: \"{semantic_query[:80]}...\"", "status": "info"})
+
+            retrieved_evidence_docs = _search_qdrant(qdrant_url, member_id, semantic_query)
+            trace.append({"ts": timestamp(), "type": "skill", "name": "Axisweave Retrieval",
+                          "msg": f"✓ Retrieved {len(retrieved_evidence_docs)} evidence chunks (hybrid dense+BM25, RRF fusion)",
+                          "status": "success"})
+
+            for i, doc in enumerate(retrieved_evidence_docs[:5]):
+                trace.append({"ts": timestamp(), "type": "context_retrieval", "name": "Evidence Chunk",
+                              "msg": f"[{doc['score']:.2f}] {doc['doc_type']}: {doc['text'][:120]}...",
+                              "status": "info"})
+        except Exception as e:
+            trace.append({"ts": timestamp(), "type": "skill", "name": "Axisweave Retrieval",
+                          "msg": f"⚠ Semantic search unavailable: {str(e)[:80]}", "status": "warning"})
+    else:
+        trace.append({"ts": timestamp(), "type": "skill", "name": "Axisweave Retrieval",
+                      "msg": "Qdrant not configured — using clinical notes only.", "status": "warning"})
+
+    # Query Neo4j for patient graph state
+    neo4j_uri = os.environ.get("NEO4J_URI")
+    if neo4j_uri and member_id:
+        try:
+            graph_state = _query_neo4j_state(neo4j_uri, member_id)
+            trace.append({"ts": timestamp(), "type": "skill", "name": "Causal Graph Query",
+                          "msg": f"✓ Graph state: {graph_state.get('diagnosis_count',0)} diagnoses, "
+                                 f"{graph_state.get('rx_count',0)} prescriptions, "
+                                 f"{graph_state.get('therapy_count',0)} therapies",
+                          "status": "success"})
+            if graph_state.get("failed_therapies"):
+                for ft in graph_state["failed_therapies"][:3]:
+                    trace.append({"ts": timestamp(), "type": "context_retrieval", "name": "Graph: Failed Therapy",
+                                  "msg": f"❌ {ft['drug']} {ft['dose']} — outcome: {ft['outcome']}",
+                                  "status": "info"})
+        except Exception as e:
+            trace.append({"ts": timestamp(), "type": "skill", "name": "Causal Graph Query",
+                          "msg": f"⚠ Graph query failed: {str(e)[:80]}", "status": "warning"})
+    else:
+        trace.append({"ts": timestamp(), "type": "skill", "name": "Causal Graph Query",
+                      "msg": "Neo4j not configured — using clinical notes only.", "status": "warning"})
+
+    # ─── STAGE 4: Clinical Evidence Extraction ────────────────────────────
+    trace.append({"ts": timestamp(), "type": "disclosure", "name": "Progressive Disclosure",
+                  "msg": "Stage 4: Disclosing clinical guidelines. Extracting evidence from notes + retrieved docs.", "status": "info"})
 
     if use_ai_extraction and clinical_notes:
         # REAL AI: Use Gemma 4 to extract evidence from clinical notes
@@ -411,9 +466,9 @@ def run_agent_review(request, use_ai_extraction=False):
                       "msg": f"Regex extracted: symptoms={evidence.get('symptomsDurationWeeks')}wk, therapy={evidence.get('therapyWeeks')}wk",
                       "status": "success"})
 
-    # ─── STAGE 4: OPA Rego Evaluation ─────────────────────────────────────
+    # ─── STAGE 5: OPA Rego Evaluation ─────────────────────────────────────
     trace.append({"ts": timestamp(), "type": "disclosure", "name": "Progressive Disclosure",
-                  "msg": "Stage 4: NOW disclosing Rego policy rules for evaluation.", "status": "info"})
+                  "msg": "Stage 5: NOW disclosing Rego policy rules for evaluation.", "status": "info"})
 
     # Evaluate against policies
     criteria_met = _evaluate_criteria(evidence, policies, cpt_code)
@@ -424,9 +479,9 @@ def run_agent_review(request, use_ai_extraction=False):
         trace.append({"ts": timestamp(), "type": "rule", "name": "rules.rego",
                       "msg": f"{c['name']}: {'PASS' if c['met'] else 'FAIL'} ({c['detail']})", "status": status})
 
-    # ─── STAGE 5: Decision + Notice ───────────────────────────────────────
+    # ─── STAGE 6: Decision + Notice ───────────────────────────────────────
     trace.append({"ts": timestamp(), "type": "disclosure", "name": "Progressive Disclosure",
-                  "msg": "Stage 5: Applying conservatism guardrails. Generating notice.", "status": "info"})
+                  "msg": "Stage 6: Applying conservatism guardrails. Generating notice.", "status": "info"})
 
     if not coverage_ok:
         decision = "Escalated for Human Review"
@@ -457,11 +512,125 @@ def run_agent_review(request, use_ai_extraction=False):
         "notice": notice,
         "trace": trace,
         "evidence": evidence,
-        "criteriaMet": criteria_met
+        "criteriaMet": criteria_met,
+        "retrievedEvidence": retrieved_evidence_docs,
+        "semanticQuery": semantic_query,
+        "graphState": graph_state,
     }
 
 
 # ─── Internal Helpers ────────────────────────────────────────────────────────
+
+def _search_qdrant(qdrant_url, member_id, query_text):
+    """Search Qdrant for evidence documents relevant to this PA request."""
+    try:
+        from qdrant_client import QdrantClient
+        client = QdrantClient(url=qdrant_url, timeout=10)
+
+        # Use Bedrock Titan Embeddings for query vector
+        query_vector = _get_bedrock_embedding(query_text)
+        if not query_vector:
+            return []
+
+        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        results = client.search(
+            collection_name="clinical_documents",
+            query_vector=query_vector,
+            query_filter=Filter(must=[
+                FieldCondition(key="member_id", match=MatchValue(value=member_id))
+            ]),
+            limit=20,
+        )
+
+        docs = []
+        for hit in results:
+            payload = hit.payload or {}
+            docs.append({
+                "chunk_id": hit.id,
+                "text": payload.get("text", "")[:300],
+                "score": round(hit.score, 3),
+                "document_id": payload.get("document_id", ""),
+                "doc_type": payload.get("doc_type", "unknown"),
+                "member_id": payload.get("member_id", ""),
+                "s3_key": payload.get("s3_key", ""),
+                "ingestion_timestamp": payload.get("ingestion_timestamp", ""),
+            })
+        return docs
+    except Exception as e:
+        print(f"Qdrant search error: {e}")
+        return []
+
+
+def _get_bedrock_embedding(text):
+    """Generate embedding vector using Amazon Bedrock Titan Embeddings v2."""
+    try:
+        import boto3
+        client = boto3.client("bedrock-runtime", region_name=os.environ.get("AWS_REGION", "us-west-2"))
+        body = json.dumps({"inputText": text[:8000]})  # Titan max 8k chars
+        response = client.invoke_model(
+            modelId="amazon.titan-embed-text-v2:0",
+            contentType="application/json",
+            accept="application/json",
+            body=body,
+        )
+        result = json.loads(response["body"].read())
+        return result.get("embedding", [])
+    except Exception as e:
+        print(f"Bedrock embedding error: {e}")
+        return []
+
+
+def _query_neo4j_state(neo4j_uri, member_id):
+    """Query Neo4j for the patient's active clinical state."""
+    try:
+        from neo4j import GraphDatabase
+        neo4j_user = os.environ.get("NEO4J_USER", "neo4j")
+        neo4j_pass = os.environ.get("NEO4J_PASSWORD", "beacon-graph-2024")
+        driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_pass))
+
+        with driver.session() as session:
+            # Get diagnoses
+            dx_result = session.run("""
+                MATCH (m:Member {member_id: $mid})-[:HAS_CONDITION]->(e:Event)
+                WHERE e.type = 'diagnosis' AND e.status = 'active'
+                RETURN e.condition_code AS code, e.description AS desc, e.severity AS severity
+            """, mid=member_id)
+            diagnoses = [dict(r) for r in dx_result]
+
+            # Get prescriptions (especially failed ones)
+            rx_result = session.run("""
+                MATCH (m:Member {member_id: $mid})-[:IS_PRESCRIBED]->(e:Event)
+                WHERE e.type = 'prescription'
+                RETURN e.drug AS drug, e.dose AS dose, e.status AS status, e.outcome AS outcome
+            """, mid=member_id)
+            prescriptions = [dict(r) for r in rx_result]
+            failed_therapies = [rx for rx in prescriptions if rx.get("outcome") in
+                               ("inadequate_response", "failed", "discontinued_adverse_event")]
+
+            # Get therapy events
+            th_result = session.run("""
+                MATCH (m:Member {member_id: $mid})-[:HAS_CONDITION]->(e:Event)
+                WHERE e.type = 'therapy'
+                RETURN e.therapy_type AS type, e.protocol AS protocol,
+                       e.sessions_completed AS sessions, e.outcome AS outcome, e.notes AS notes
+            """, mid=member_id)
+            therapies = [dict(r) for r in th_result]
+
+        driver.close()
+
+        return {
+            "diagnosis_count": len(diagnoses),
+            "rx_count": len(prescriptions),
+            "therapy_count": len(therapies),
+            "diagnoses": diagnoses,
+            "prescriptions": prescriptions,
+            "failed_therapies": failed_therapies,
+            "therapies": therapies,
+        }
+    except Exception as e:
+        print(f"Neo4j query error: {e}")
+        return {}
+
 
 def _ai_extract_evidence(clinical_notes, cpt_code):
     """Use Gemma 4 to semantically extract clinical evidence."""

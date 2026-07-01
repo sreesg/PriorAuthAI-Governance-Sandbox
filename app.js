@@ -700,6 +700,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Render Causal Graph (Neo4j)
     renderGraph('review-graph-panel', memberId);
+
+    // Load Raw Evidence Documents
+    loadRawEvidenceDocuments(memberId);
   }
 
   async function loadPolicyHooksForCase(cptCode) {
@@ -735,6 +738,65 @@ document.addEventListener('DOMContentLoaded', async () => {
       hooksRow.style.display = 'flex';
     } catch(e) {
       console.error('Hook loading error:', e);
+    }
+  }
+
+  async function loadRawEvidenceDocuments(memberId) {
+    const listEl = document.getElementById('raw-evidence-list');
+    const viewerEl = document.getElementById('raw-evidence-viewer');
+    const titleEl = document.getElementById('raw-evidence-title');
+    if (!listEl || !viewerEl || !titleEl) return;
+    
+    listEl.innerHTML = '<span style="font-size:0.65rem;color:var(--text-muted);">Loading documents...</span>';
+    viewerEl.textContent = 'Select a document from the list to review its full text content.';
+    titleEl.textContent = 'Select a document...';
+    
+    try {
+      const res = await fetch(`/api/evidence-documents/${memberId}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const docs = data.documents || [];
+      if (docs.length === 0) {
+        listEl.innerHTML = '<span style="font-size:0.65rem;color:var(--text-muted);">No documents found.</span>';
+        return;
+      }
+      
+      listEl.innerHTML = '';
+      docs.forEach(doc => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-ai-action';
+        btn.style.textAlign = 'left';
+        btn.style.width = '100%';
+        btn.style.fontSize = '0.62rem';
+        btn.style.padding = '0.25rem 0.4rem';
+        btn.style.whiteSpace = 'nowrap';
+        btn.style.overflow = 'hidden';
+        btn.style.textOverflow = 'ellipsis';
+        btn.textContent = doc.name;
+        btn.title = doc.name;
+        
+        btn.addEventListener('click', async () => {
+          listEl.querySelectorAll('button').forEach(b => b.style.borderColor = 'var(--card-border)');
+          btn.style.borderColor = 'var(--accent-blue)';
+          titleEl.textContent = doc.name;
+          viewerEl.textContent = 'Reading document content from S3...';
+          
+          try {
+            const contentRes = await fetch(`/api/evidence-document/content?path=${encodeURIComponent(doc.path)}`);
+            if (!contentRes.ok) throw new Error(`HTTP ${contentRes.status}`);
+            const text = await contentRes.text();
+            viewerEl.textContent = text || '(Empty document)';
+          } catch (err) {
+            viewerEl.textContent = `Error loading document content: ${err.message}`;
+          }
+        });
+        
+        listEl.appendChild(btn);
+      });
+    } catch (e) {
+      console.error('Failed to load raw evidence:', e);
+      listEl.innerHTML = `<span style="font-size:0.65rem;color:var(--accent-red);">Load failed: ${e.message}</span>`;
     }
   }
 
@@ -1064,6 +1126,62 @@ document.addEventListener('DOMContentLoaded', async () => {
       window.__lastMemberId = currentMemberId;
       window.__lastExecutionId = outcome.executionId || 'exec-001';
       
+      // Render retrieved evidence documents panel
+      const evidencePanel = document.getElementById('retrieved-evidence-panel');
+      if (evidencePanel && outcome.retrievedEvidence && outcome.retrievedEvidence.length > 0) {
+        evidencePanel.style.display = 'block';
+        let evHtml = `<div style="font-size:0.72rem;font-weight:700;color:var(--text-main);margin-bottom:0.4rem;">
+          📎 Retrieved Evidence (${outcome.retrievedEvidence.length} chunks via Axisweave)
+        </div>`;
+        if (outcome.semanticQuery) {
+          evHtml += `<div style="font-size:0.6rem;color:var(--text-muted);background:var(--bg-secondary);padding:0.3rem 0.5rem;border-radius:6px;margin-bottom:0.4rem;font-family:var(--font-mono);">
+            🔍 Query: "${outcome.semanticQuery.substring(0, 100)}..."
+          </div>`;
+        }
+        evHtml += '<div style="max-height:300px;overflow-y:auto;">';
+        outcome.retrievedEvidence.forEach((doc, i) => {
+          const scoreColor = doc.score >= 0.8 ? 'var(--accent-green)' : doc.score >= 0.5 ? 'var(--accent-blue)' : 'var(--accent-orange)';
+          const pdfLink = doc.s3_key ? `/agent/pdf/${doc.s3_key}` : '#';
+          evHtml += `<div style="padding:0.4rem;margin-bottom:0.3rem;background:var(--bg-secondary);border:1px solid var(--card-border);border-radius:6px;border-left:3px solid ${scoreColor};">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:0.65rem;font-weight:600;color:var(--text-main);">${doc.doc_type || 'document'}</span>
+              <span style="font-size:0.6rem;font-weight:700;color:${scoreColor};">${doc.score.toFixed(2)}</span>
+            </div>
+            <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.2rem;line-height:1.3;">${doc.text.substring(0, 150)}...</div>
+            <div style="display:flex;gap:0.5rem;margin-top:0.2rem;font-size:0.55rem;font-family:var(--font-mono);color:var(--text-muted);">
+              <span>${doc.document_id ? doc.document_id.split('/').pop() : ''}</span>
+              ${doc.s3_key ? `<a href="${pdfLink}" target="_blank" style="color:var(--accent-blue);text-decoration:none;">View PDF →</a>` : ''}
+            </div>
+          </div>`;
+        });
+        evHtml += '</div>';
+        evidencePanel.innerHTML = evHtml;
+      } else if (evidencePanel) {
+        evidencePanel.style.display = 'none';
+      }
+
+      // Render graph state summary
+      const graphStatePanel = document.getElementById('graph-state-panel');
+      if (graphStatePanel && outcome.graphState && outcome.graphState.diagnosis_count > 0) {
+        graphStatePanel.style.display = 'block';
+        const gs = outcome.graphState;
+        let gsHtml = `<div style="font-size:0.72rem;font-weight:700;color:var(--text-main);margin-bottom:0.4rem;">🕸️ Patient Graph State (Neo4j)</div>`;
+        gsHtml += `<div style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.3rem;">
+          <span style="font-size:0.62rem;background:var(--bg-secondary);padding:0.15rem 0.4rem;border-radius:8px;">🩺 ${gs.diagnosis_count} diagnoses</span>
+          <span style="font-size:0.62rem;background:var(--bg-secondary);padding:0.15rem 0.4rem;border-radius:8px;">💊 ${gs.rx_count} prescriptions</span>
+          <span style="font-size:0.62rem;background:var(--bg-secondary);padding:0.15rem 0.4rem;border-radius:8px;">🏥 ${gs.therapy_count} therapies</span>
+        </div>`;
+        if (gs.failed_therapies && gs.failed_therapies.length > 0) {
+          gsHtml += `<div style="font-size:0.62rem;font-weight:600;color:var(--accent-red);margin-top:0.3rem;">Failed/Inadequate Therapies:</div>`;
+          gs.failed_therapies.forEach(ft => {
+            gsHtml += `<div style="font-size:0.58rem;color:var(--text-muted);padding:0.1rem 0;">❌ ${ft.drug} ${ft.dose} — ${ft.outcome}</div>`;
+          });
+        }
+        graphStatePanel.innerHTML = gsHtml;
+      } else if (graphStatePanel) {
+        graphStatePanel.style.display = 'none';
+      }
+
       // Refresh cockpit visual panels
       renderBeacon('review-beacon-panel', currentRequestId, { autoRefresh: false });
       renderAxisweave('review-axisweave-panel', currentRequestId);
@@ -1103,6 +1221,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderGraph('review-graph-panel', memId);
       } else if (tabName === 'axisweave') {
         renderAxisweave('review-axisweave-panel', reqId);
+      } else if (tabName === 'rawevidence') {
+        loadRawEvidenceDocuments(memId);
       }
     });
   });

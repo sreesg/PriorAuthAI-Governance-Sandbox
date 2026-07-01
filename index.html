@@ -314,6 +314,7 @@
           <button type="button" class="cockpit-tab-btn active" data-tab="timeline">🧬 Timeline</button>
           <button type="button" class="cockpit-tab-btn" data-tab="graph">🕸️ Causal Graph (Neo4j)</button>
           <button type="button" class="cockpit-tab-btn" data-tab="axisweave">📄 Axisweave Context (Qdrant)</button>
+          <button type="button" class="cockpit-tab-btn" data-tab="rawevidence">📁 Raw Evidence</button>
           <button type="button" class="cockpit-tab-btn" data-tab="letter">✉️ Notice Letter</button>
         </div>
 
@@ -333,6 +334,12 @@
           <div class="ai-reasoning-panel-wrapper" id="ai-reasoning-card" style="display:none;margin-bottom:0.75rem;border-bottom:1px solid rgba(255,255,255,0.04);padding-bottom:0.75rem;">
             <div class="ai-card-header" style="display:flex;justify-content:space-between;align-items:center;">
               <h3 style="font-size:0.75rem;margin:0;">🧠 ClinicalNLP Engine — Semantic Reasoning</h3>
+
+          <!-- Retrieved Evidence Documents Panel (populated after execution) -->
+          <div id="retrieved-evidence-panel" class="glass-card" style="display:none;margin-bottom:0.75rem;padding:0.6rem;border-left:3px solid var(--accent-blue);"></div>
+
+          <!-- Patient Graph State Panel (populated after execution) -->
+          <div id="graph-state-panel" class="glass-card" style="display:none;margin-bottom:0.75rem;padding:0.6rem;border-left:3px solid var(--accent-green);"></div>
               <span class="badge badge-purple" id="ai-status-badge">Idle</span>
             </div>
             <p class="subtitle" style="margin-top:2px;font-size:0.65rem;">Semantic extraction vs regex comparison</p>
@@ -387,6 +394,22 @@
           </div>
           <div class="paper-preview">
             <pre id="letter-content" class="letter-content" style="max-height:400px;overflow-y:auto;">Awaiting review execution to draft notice letter...</pre>
+          </div>
+        </div>
+
+        <!-- Tab 5 Content: Raw Evidence Manual Viewer -->
+        <div class="cockpit-tab-content" id="cockpit-content-rawevidence" style="display:none;">
+          <div style="display:flex;gap:0.75rem;">
+            <div style="width:200px;border-right:1px solid rgba(255,255,255,0.06);padding-right:0.5rem;max-height:400px;overflow-y:auto;">
+              <h4 style="font-size:0.7rem;margin:0 0 0.4rem 0;color:var(--text-muted);">S3 Documents:</h4>
+              <div id="raw-evidence-list" style="display:flex;flex-direction:column;gap:0.3rem;">
+                <span style="font-size:0.65rem;color:var(--text-muted);">No documents loaded.</span>
+              </div>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <h4 id="raw-evidence-title" style="font-size:0.7rem;margin:0 0 0.4rem 0;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Select a document...</h4>
+              <div id="raw-evidence-viewer" style="font-size:0.68rem;line-height:1.4;background:rgba(0,0,0,0.15);border:1px solid var(--card-border);border-radius:6px;padding:0.6rem;height:350px;overflow-y:auto;white-space:pre-wrap;color:var(--text-main);">Select a document from the list to review its full text content.</div>
+            </div>
           </div>
         </div>
       </div>
@@ -507,14 +530,7 @@
     </div>
   </div>
 
-  <!-- AVI Floating Action Button -->
-  <button class="avi-fab" id="avi-fab">
-    <img src="avi-icon.svg" alt="AVI" class="avi-fab-img">
-  </button>
-
-    </main>
-
-  <!-- VIEW: CRF Fabric (inside app-layout for view switching) -->
+  <!-- VIEW: CRF Fabric (inside main-content for view switching) -->
   <div id="view-crf" class="view-panel" style="display:none;">
     <div class="crf-page" style="padding:1rem;">
       <!-- Sub-navigation for CRF views -->
@@ -552,7 +568,7 @@
     <p>PriorAuthAI Audit Sandbox • Built on SkillOpt & SkillJuror Specifications • Powered by ClinicalNLP Engine</p>
   </footer>
 
-  <script type="module" src="app.js?v=1.0.1"></script>
+  <script type="module" src="app.js?v=1.0.2"></script>
   <script type="module">
     // CRF Panel Integration — loads when CRF tab is selected
     import { render as renderBeacon } from './static/crf/beacon_harness_viz.js';

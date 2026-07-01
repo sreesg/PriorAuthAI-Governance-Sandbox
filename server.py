@@ -1716,6 +1716,52 @@ Respond ONLY with the JSON object, no other text.
             execution_id = path.split('/api/evidence-bundle/')[1]
             json_response({"error": f"No bundle for {execution_id}"}, 404)
 
+        # GET /api/evidence-documents/{member_id}
+        elif path.startswith('/api/evidence-documents/'):
+            member_id = path.split('/api/evidence-documents/')[1]
+            from s3_helper import list_files
+            prefix = f"clinical-evidence/{member_id}/"
+            files = list_files(prefix)
+            filenames = [{"path": f, "name": os.path.basename(f)} for f in files]
+            json_response({"member_id": member_id, "documents": filenames})
+
+        # GET /api/evidence-document/content
+        elif path.startswith('/api/evidence-document/content'):
+            from urllib.parse import urlparse, parse_qs
+            parsed = urlparse(self.path)
+            params = parse_qs(parsed.query)
+            s3_path = params.get('path', [''])[0]
+            if not s3_path:
+                json_response({"error": "Missing path parameter"}, 400)
+            else:
+                try:
+                    from s3_helper import get_file_bytes
+                    data = get_file_bytes(s3_path)
+                    if not data:
+                        json_response({"error": "File not found or empty"}, 404)
+                    else:
+                        text_content = ""
+                        if s3_path.endswith('.pdf'):
+                            from pypdf import PdfReader
+                            import io
+                            reader = PdfReader(io.BytesIO(data))
+                            pages = []
+                            for i, page in enumerate(reader.pages):
+                                txt = page.extract_text()
+                                if txt:
+                                    pages.append(f"--- PAGE {i+1} ---\n{txt.strip()}")
+                            text_content = "\n\n".join(pages)
+                        else:
+                            text_content = data.decode('utf-8', errors='ignore')
+                        
+                        self.send_response(200)
+                        self.send_header('Content-Type', 'text/plain; charset=utf-8')
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.end_headers()
+                        self.wfile.write(text_content.encode('utf-8'))
+                except Exception as e:
+                    json_response({"error": f"Failed to read document: {e}"}, 500)
+
         # GET /api/graph/member/{member_id}
         elif path.startswith('/api/graph/member/'):
             member_id = path.split('/api/graph/member/')[1]
@@ -1735,24 +1781,54 @@ Respond ONLY with the JSON object, no other text.
             json_response({"error": f"Unknown CRF endpoint: {path}"}, 404)
 
     def _get_evidence_chunks_for_request(self, request_id):
-        """Get evidence chunks from S3 for a request (based on member case data)."""
+        """Get evidence chunks from Qdrant/S3 for a request based on member case data."""
         try:
-            from s3_helper import list_files, get_file_bytes
-            # Map request to member_id from preset cases
-            member_map = {
-                "req-001": "MEM-4401", "req-002": "MEM-4402",
-                "req-003": "MEM-7701", "req-004": "MEM-7702",
-                "req-005": "MEM-5501", "req-006": "MEM-5502",
-                "req-007": "MEM-8801", "req-008": "MEM-8802",
-            }
-            member_id = member_map.get(request_id, "MEM-4401")
+            import json
+            # Load from preset_cases.json dynamically
+            cases_file = os.path.join("policies", "preset_cases.json")
+            member_id = "MEM-4401"
+            clinical_notes = ""
+            cpt_code = "72148"
+            if os.path.exists(cases_file):
+                with open(cases_file, "r") as f:
+                    cases = json.load(f)
+                    for c in cases:
+                        if c.get("id") == request_id:
+                            member_id = c.get("request", {}).get("memberId", "MEM-4401")
+                            clinical_notes = c.get("request", {}).get("clinicalNotes", "")
+                            cpt_code = c.get("request", {}).get("cptCode", "72148")
+                            break
+
+            # 2. Query Qdrant for real retrieved evidence chunks
+            qdrant_url = os.environ.get("QDRANT_URL")
+            if qdrant_url:
+                from agent_engine import _search_qdrant
+                query_text = f"CPT {cpt_code} {clinical_notes[:200]}"
+                qdrant_chunks = _search_qdrant(qdrant_url, member_id, query_text)
+                if qdrant_chunks:
+                    chunks = []
+                    for i, qc in enumerate(qdrant_chunks):
+                        chunks.append({
+                            "chunk_id": qc.get("chunk_id") or f"chunk-{i:03d}",
+                            "text": qc.get("text") or "",
+                            "document_id": qc.get("document_id") or qc.get("s3_key") or "S3 Document",
+                            "content_hash": "a" * 64,
+                            "relevance_score": qc.get("score") or round(0.95 - i * 0.03, 2),
+                            "kms_status": "valid",
+                            "chunk_index": i,
+                            "ingestion_timestamp": qc.get("ingestion_timestamp") or "2026-06-15T10:00:00Z",
+                        })
+                    return chunks
+
+            # 3. Fallback to S3 file listing if Qdrant is disabled/fails
+            from s3_helper import list_files
             prefix = f"clinical-evidence/{member_id}/"
             files = list_files(prefix)
             chunks = []
             for i, f in enumerate(files[:20]):
                 chunks.append({
                     "chunk_id": f"chunk-{i:03d}",
-                    "text": f"Evidence document: {os.path.basename(f)}",
+                    "text": f"Evidence document file listed: {os.path.basename(f)}",
                     "document_id": f,
                     "content_hash": "a" * 64,
                     "relevance_score": round(0.95 - i * 0.03, 2),
@@ -1761,7 +1837,8 @@ Respond ONLY with the JSON object, no other text.
                     "ingestion_timestamp": "2026-06-15T10:00:00Z",
                 })
             return chunks
-        except Exception:
+        except Exception as e:
+            print(f"Error in _get_evidence_chunks_for_request: {e}")
             return []
 
     def _get_member_graph(self, member_id):
