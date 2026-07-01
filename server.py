@@ -1853,10 +1853,12 @@ Respond ONLY with the JSON object, no other text.
                     auth=(os.environ.get("NEO4J_USER","neo4j"),
                           os.environ.get("NEO4J_PASSWORD","beacon-graph-2024")))
                 with driver.session() as session:
-                    # Get all nodes connected to this member
+                    # Get all nodes connected to this member within 2 hops (conditions, meds, policies, evidence)
                     result = session.run("""
-                        MATCH (m:Member {member_id: $mid})-[r]->(n)
-                        RETURN m, type(r) as rel_type, n, labels(n)[0] as node_label
+                        MATCH (m:Member {member_id: $mid})
+                        OPTIONAL MATCH (m)-[r1]->(n1)
+                        OPTIONAL MATCH (n1)-[r2]->(n2)
+                        RETURN m, r1, n1, labels(n1)[0] as label1, r2, n2, labels(n2)[0] as label2
                     """, mid=member_id)
                     nodes = [{"id": member_id, "type": "member", "label": "", "properties": {}}]
                     edges = []
@@ -1866,23 +1868,47 @@ Respond ONLY with the JSON object, no other text.
                         nodes[0]["label"] = m_props.get("name", member_id)
                         nodes[0]["properties"] = {k:v for k,v in m_props.items() if k != "member_id"}
 
-                        n_props = dict(record["n"])
-                        node_label = record["node_label"]
-                        # Determine node ID
-                        n_id = (n_props.get("event_id") or n_props.get("policy_id") or
-                                n_props.get("sdoh_id") or n_props.get("evidence_id") or
-                                n_props.get("npi") or str(hash(str(n_props)))[:12])
-                        if n_id not in seen_ids:
-                            seen_ids.add(n_id)
-                            n_type = node_label.lower() if node_label else "unknown"
-                            if n_type == "event":
-                                n_type = n_props.get("type", "event")
-                            display_label = (n_props.get("description") or n_props.get("drug") or
-                                           n_props.get("name") or n_props.get("therapy_type") or n_id)
-                            nodes.append({"id": n_id, "type": n_type, "label": display_label[:60],
-                                         "properties": {k:str(v) for k,v in n_props.items() if v is not None}})
-                        edges.append({"source": member_id, "target": n_id,
-                                     "type": record["rel_type"], "label": record["rel_type"].lower().replace("_"," ")})
+                        if record["n1"] is not None:
+                            n1_props = dict(record["n1"])
+                            n1_label = record["label1"]
+                            n1_id = (n1_props.get("event_id") or n1_props.get("policy_id") or
+                                    n1_props.get("sdoh_id") or n1_props.get("evidence_id") or
+                                    n1_props.get("npi") or str(hash(str(n1_props)))[:12])
+                            if n1_id not in seen_ids:
+                                seen_ids.add(n1_id)
+                                n1_type = n1_label.lower() if n1_label else "unknown"
+                                if n1_type == "event":
+                                    n1_type = n1_props.get("type", "event")
+                                display_label = (n1_props.get("description") or n1_props.get("drug") or
+                                               n1_props.get("name") or n1_props.get("therapy_type") or n1_id)
+                                nodes.append({"id": n1_id, "type": n1_type, "label": display_label[:60],
+                                             "properties": {k:str(v) for k,v in n1_props.items() if v is not None}})
+                            
+                            rel1_type = record["r1"].type
+                            edge1 = {"source": member_id, "target": n1_id, "type": rel1_type, "label": rel1_type.lower().replace("_"," ")}
+                            if edge1 not in edges:
+                                edges.append(edge1)
+
+                            if record["n2"] is not None:
+                                n2_props = dict(record["n2"])
+                                n2_label = record["label2"]
+                                n2_id = (n2_props.get("event_id") or n2_props.get("policy_id") or
+                                         n2_props.get("sdoh_id") or n2_props.get("evidence_id") or
+                                         n2_props.get("npi") or str(hash(str(n2_props)))[:12])
+                                if n2_id not in seen_ids:
+                                    seen_ids.add(n2_id)
+                                    n2_type = n2_label.lower() if n2_label else "unknown"
+                                    if n2_type == "event":
+                                        n2_type = n2_props.get("type", "event")
+                                    display_label = (n2_props.get("description") or n2_props.get("drug") or
+                                                   n2_props.get("name") or n2_props.get("therapy_type") or n2_id)
+                                    nodes.append({"id": n2_id, "type": n2_type, "label": display_label[:60],
+                                                 "properties": {k:str(v) for k,v in n2_props.items() if v is not None}})
+                                
+                                rel2_type = record["r2"].type
+                                edge2 = {"source": n1_id, "target": n2_id, "type": rel2_type, "label": rel2_type.lower().replace("_"," ")}
+                                if edge2 not in edges:
+                                    edges.append(edge2)
                 driver.close()
                 return {"member_id": member_id, "nodes": nodes, "edges": edges}
             except Exception as e:
