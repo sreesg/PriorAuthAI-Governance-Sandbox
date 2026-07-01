@@ -7,7 +7,7 @@ ACCOUNT_ID="747675253087"
 ECR_REPO="beacon-priorauth"
 NAMESPACE="beacon"
 IMAGE_TAG="latest"
-ECR_URI="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG"
+ECR_URI="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}"
 
 echo "═══════════════════════════════════════════"
 echo "  Quick Redeploy — App Image Only"
@@ -20,12 +20,12 @@ aws ecr get-login-password --region $REGION | \
 
 echo ""
 echo "▶ Step 2: Building Docker image..."
-docker build --platform linux/amd64 -t $ECR_REPO:$IMAGE_TAG .
+docker build --platform linux/amd64 -t ${ECR_REPO}:${IMAGE_TAG} .
 
 echo ""
 echo "▶ Step 3: Pushing to ECR..."
-docker tag $ECR_REPO:$IMAGE_TAG $ECR_URI
-docker push $ECR_URI
+docker tag ${ECR_REPO}:${IMAGE_TAG} ${ECR_URI}
+docker push ${ECR_URI}
 
 echo ""
 echo "▶ Step 4: Restarting pod..."

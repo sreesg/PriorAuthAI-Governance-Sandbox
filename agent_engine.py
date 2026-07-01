@@ -926,7 +926,58 @@ def run_multi_policy_review(request, use_ai_extraction=False):
 
     # ─── STAGE 3: Evidence Extraction ─────────────────────────────────────
     trace.append({"ts": ts(), "type": "disclosure", "name": "Progressive Disclosure",
-                  "msg": "Stage 3: Guidelines disclosed. Extracting clinical evidence.", "status": "info"})
+                  "msg": "Stage 3: Guidelines disclosed. Retrieving semantic context & graph state.", "status": "info"})
+
+    member_id = request.get("memberId", "")
+    retrieved_evidence_docs = []
+    semantic_query = ""
+    graph_state = {}
+
+    # Query Qdrant for relevant evidence
+    qdrant_url = os.environ.get("QDRANT_URL")
+    if qdrant_url and member_id:
+        try:
+            semantic_query = f"CPT {cpt_code} {clinical_notes[:200]}"
+            trace.append({"ts": ts(), "type": "skill", "name": "Axisweave Retrieval",
+                          "msg": f"🔍 Semantic query: \"{semantic_query[:80]}...\"", "status": "info"})
+
+            retrieved_evidence_docs = _search_qdrant(qdrant_url, member_id, semantic_query)
+            trace.append({"ts": ts(), "type": "skill", "name": "Axisweave Retrieval",
+                          "msg": f"✓ Retrieved {len(retrieved_evidence_docs)} evidence chunks (hybrid dense+BM25, RRF fusion)",
+                          "status": "success"})
+
+            for i, doc in enumerate(retrieved_evidence_docs[:5]):
+                trace.append({"ts": ts(), "type": "context_retrieval", "name": "Evidence Chunk",
+                              "msg": f"[{doc['score']:.2f}] {doc['doc_type']}: {doc['text'][:120]}...",
+                              "status": "info"})
+        except Exception as e:
+            trace.append({"ts": ts(), "type": "skill", "name": "Axisweave Retrieval",
+                          "msg": f"⚠ Semantic search unavailable: {str(e)[:80]}", "status": "warning"})
+    else:
+        trace.append({"ts": ts(), "type": "skill", "name": "Axisweave Retrieval",
+                      "msg": "Qdrant not configured — using clinical notes only.", "status": "warning"})
+
+    # Query Neo4j for patient graph state
+    neo4j_uri = os.environ.get("NEO4J_URI")
+    if neo4j_uri and member_id:
+        try:
+            graph_state = _query_neo4j_state(neo4j_uri, member_id)
+            trace.append({"ts": ts(), "type": "skill", "name": "Causal Graph Query",
+                          "msg": f"✓ Graph state: {graph_state.get('diagnosis_count',0)} diagnoses, "
+                                 f"{graph_state.get('rx_count',0)} prescriptions, "
+                                 f"{graph_state.get('therapy_count',0)} therapies",
+                          "status": "success"})
+            if graph_state.get("failed_therapies"):
+                for ft in graph_state["failed_therapies"][:3]:
+                    trace.append({"ts": ts(), "type": "context_retrieval", "name": "Graph: Failed Therapy",
+                                  "msg": f"❌ {ft['drug']} {ft['dose']} — outcome: {ft['outcome']}",
+                                  "status": "info"})
+        except Exception as e:
+            trace.append({"ts": ts(), "type": "skill", "name": "Causal Graph Query",
+                          "msg": f"⚠ Graph query failed: {str(e)[:80]}", "status": "warning"})
+    else:
+        trace.append({"ts": ts(), "type": "skill", "name": "Causal Graph Query",
+                      "msg": "Neo4j not configured — using clinical notes only.", "status": "warning"})
 
     if use_ai_extraction and clinical_notes:
         trace.append({"ts": ts(), "type": "skill", "name": "ExtractEvidence (ClinicalNLP)",
@@ -1036,6 +1087,9 @@ def run_multi_policy_review(request, use_ai_extraction=False):
         "trace": trace,
         "evidence": evidence,
         "criteriaMet": criteria_results,
+        "retrievedEvidence": retrieved_evidence_docs,
+        "semanticQuery": semantic_query,
+        "graphState": graph_state,
         "policyUsed": policy.get("policyId", "default") if policy else "no_match",
         "policyName": policy.get("policyName", "") if policy else "Default",
         "category": policy.get("category", "General") if policy else "General",

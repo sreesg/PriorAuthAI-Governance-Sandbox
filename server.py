@@ -1552,7 +1552,7 @@ Respond ONLY with the JSON object, no other text.
             # Proxy PDFs from S3: /agent/pdf/cases/case-lumbar-approve_bundle.pdf
             from urllib.parse import unquote
             pdf_path = unquote(self.path[len('/agent/pdf/'):])
-            allowed_prefixes = ('cases/', 'policies/', 'real_payer_policy_uhc.pdf', 'medical_necessity_rules.pdf')
+            allowed_prefixes = ('cases/', 'policies/', 'clinical-evidence/', 'real_payer_policy_uhc.pdf', 'medical_necessity_rules.pdf')
             if pdf_path.startswith(allowed_prefixes) and pdf_path.endswith('.pdf'):
                 try:
                     from s3_helper import get_file_bytes

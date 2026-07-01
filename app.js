@@ -4,10 +4,11 @@ import { render as renderBeacon } from './static/crf/beacon_harness_viz.js';
 import { render as renderAxisweave } from './static/crf/axisweave_context_panel.js';
 import { render as renderGraph } from './static/crf/causal_graph_viz.js';
 
+let activeCaseId = null;
+
 document.addEventListener('DOMContentLoaded', async () => {
   const agent = new PriorAuthAgent();
   let activeFile = "rules_declaration.md";
-  let activeCaseId = null;
 
   // Load S3 asset URLs for image and video
   try {

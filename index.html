@@ -334,12 +334,6 @@
           <div class="ai-reasoning-panel-wrapper" id="ai-reasoning-card" style="display:none;margin-bottom:0.75rem;border-bottom:1px solid rgba(255,255,255,0.04);padding-bottom:0.75rem;">
             <div class="ai-card-header" style="display:flex;justify-content:space-between;align-items:center;">
               <h3 style="font-size:0.75rem;margin:0;">🧠 ClinicalNLP Engine — Semantic Reasoning</h3>
-
-          <!-- Retrieved Evidence Documents Panel (populated after execution) -->
-          <div id="retrieved-evidence-panel" class="glass-card" style="display:none;margin-bottom:0.75rem;padding:0.6rem;border-left:3px solid var(--accent-blue);"></div>
-
-          <!-- Patient Graph State Panel (populated after execution) -->
-          <div id="graph-state-panel" class="glass-card" style="display:none;margin-bottom:0.75rem;padding:0.6rem;border-left:3px solid var(--accent-green);"></div>
               <span class="badge badge-purple" id="ai-status-badge">Idle</span>
             </div>
             <p class="subtitle" style="margin-top:2px;font-size:0.65rem;">Semantic extraction vs regex comparison</p>
@@ -368,6 +362,12 @@
               <p>Trace outputs will display here after execution.</p>
             </div>
           </div>
+
+          <!-- Retrieved Evidence Documents Panel (populated after execution) -->
+          <div id="retrieved-evidence-panel" class="glass-card" style="display:none;margin-top:0.75rem;margin-bottom:0.75rem;padding:0.6rem;border-left:3px solid var(--accent-blue);"></div>
+
+          <!-- Patient Graph State Panel (populated after execution) -->
+          <div id="graph-state-panel" class="glass-card" style="display:none;margin-bottom:0.75rem;padding:0.6rem;border-left:3px solid var(--accent-green);"></div>
         </div>
 
         <!-- Tab 2 Content: Causal Graph (Neo4j) -->
@@ -533,42 +533,39 @@
   <!-- VIEW: CRF Fabric (inside main-content for view switching) -->
   <div id="view-crf" class="view-panel" style="display:none;">
     <div class="crf-page" style="padding:1rem;">
-      <!-- Sub-navigation for CRF views -->
-      <div class="crf-subnav" style="display:flex;gap:0.5rem;margin-bottom:1rem;">
-        <button class="crf-subtab active" data-crfview="panels" style="padding:0.35rem 0.8rem;border-radius:8px;border:1px solid var(--card-border);background:var(--bg-secondary);color:var(--text-main);font-size:0.68rem;font-weight:600;cursor:pointer;">
-          📊 Live Panels
-        </button>
-        <button class="crf-subtab" data-crfview="workflow" style="padding:0.35rem 0.8rem;border-radius:8px;border:1px solid var(--card-border);background:transparent;color:var(--text-muted);font-size:0.68rem;font-weight:600;cursor:pointer;">
-          🎬 How It Works
-        </button>
-      </div>
-
-      <!-- Sub-view: Live Panels (the 6 CRF panels - default view) -->
-      <div id="crf-view-panels" class="crf-subview">
-        <div class="crf-panels-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-          <div id="crf-beacon-panel"></div>
-          <div id="crf-axisweave-panel"></div>
-          <div id="crf-bundle-panel"></div>
-          <div id="crf-graph-panel"></div>
-          <div id="crf-sdoh-panel"></div>
-          <div id="crf-mdqueue-panel"></div>
-        </div>
-      </div>
-
-      <!-- Sub-view: How It Works (animated explainer) -->
-      <div id="crf-view-workflow" class="crf-subview" style="display:none;">
+      <div style="display:flex;flex-direction:column;gap:1.5rem;">
+        <!-- Workflow Explainer at the top -->
         <div id="crf-workflow-explainer"></div>
+        
+        <!-- Live Panels Grid below -->
+        <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:1.5rem;">
+          <h2 style="font-size:0.95rem;margin:0 0 0.75rem 0;color:var(--text-main);font-weight:700;">📊 Clinical Reasoning Fabric Live Dashboards</h2>
+          <div class="crf-panels-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+            <div id="crf-beacon-panel"></div>
+            <div id="crf-axisweave-panel"></div>
+            <div id="crf-bundle-panel"></div>
+            <div id="crf-graph-panel"></div>
+            <div id="crf-sdoh-panel"></div>
+            <div id="crf-mdqueue-panel"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
+  <!-- AVI Floating Action Button -->
+  <button class="avi-fab" id="avi-fab">
+    <img src="avi-icon.svg" alt="AVI" class="avi-fab-img">
+  </button>
+
+    </main>
   </div>
 
   <footer class="app-footer">
     <p>PriorAuthAI Audit Sandbox • Built on SkillOpt & SkillJuror Specifications • Powered by ClinicalNLP Engine</p>
   </footer>
 
-  <script type="module" src="app.js?v=1.0.2"></script>
+  <script type="module" src="app.js?v=1.0.3"></script>
   <script type="module">
     // CRF Panel Integration — loads when CRF tab is selected
     import { render as renderBeacon } from './static/crf/beacon_harness_viz.js';
@@ -599,50 +596,12 @@
             renderSDOH('crf-sdoh-panel', memberId);
             renderMDQueue('crf-mdqueue-panel');
           }
-        });
-      }
-
-      // CRF sub-tab switching
-      document.querySelectorAll('.crf-subtab').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const view = btn.dataset.crfview;
-          // Toggle active state
-          document.querySelectorAll('.crf-subtab').forEach(b => {
-            b.classList.remove('active');
-            b.style.background = 'transparent';
-            b.style.color = 'var(--text-muted)';
-          });
-          btn.classList.add('active');
-          btn.style.background = 'var(--bg-secondary)';
-          btn.style.color = 'var(--text-main)';
-
-          // Show/hide sub-views
-          document.querySelectorAll('.crf-subview').forEach(v => v.style.display = 'none');
-          const target = document.getElementById(`crf-view-${view}`);
-          if (target) target.style.display = 'block';
-
-          // Lazy-init workflow explainer on switch
-          if (view === 'workflow' && !crfInitialized) {
+          if (!crfInitialized) {
             crfInitialized = true;
             renderWorkflow('crf-workflow-explainer');
           }
-          
-          // Lazy-init panels on switch
-          if (view === 'panels' && !panelsInitialized) {
-            panelsInitialized = true;
-            const requestId = window.__lastRequestId || 'req-001';
-            const memberId = window.__lastMemberId || 'MEM-4401';
-            const executionId = window.__lastExecutionId || 'exec-001';
-
-            renderBeacon('crf-beacon-panel', requestId, { autoRefresh: true });
-            renderAxisweave('crf-axisweave-panel', requestId);
-            renderBundle('crf-bundle-panel', executionId);
-            renderGraph('crf-graph-panel', memberId);
-            renderSDOH('crf-sdoh-panel', memberId);
-            renderMDQueue('crf-mdqueue-panel');
-          }
         });
-      });
+      }
     });
   </script>
 </body>
