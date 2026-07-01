@@ -311,15 +311,70 @@
       <!-- CRF Cockpit Card containing tabs -->
       <div class="glass-card cockpit-tab-card" style="padding:0.75rem;">
         <div class="cockpit-tabs-header" style="display:flex;gap:0.25rem;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:0.75rem;padding-bottom:0.25rem;">
-          <button type="button" class="cockpit-tab-btn active" data-tab="timeline">🧬 Timeline</button>
+          <button type="button" class="cockpit-tab-btn active" data-tab="cockpit">🔍 Evidence Cockpit</button>
           <button type="button" class="cockpit-tab-btn" data-tab="graph">🕸️ Causal Graph (Neo4j)</button>
-          <button type="button" class="cockpit-tab-btn" data-tab="axisweave">📄 Axisweave Context (Qdrant)</button>
+          <button type="button" class="cockpit-tab-btn" data-tab="axisweave">📄 Axisweave Chunks (Qdrant)</button>
           <button type="button" class="cockpit-tab-btn" data-tab="rawevidence">📁 Raw Evidence</button>
           <button type="button" class="cockpit-tab-btn" data-tab="letter">✉️ Notice Letter</button>
+          <button type="button" class="cockpit-tab-btn" data-tab="timeline">📜 Execution Logs</button>
         </div>
 
-        <!-- Tab 1 Content: Lifecycle & Verification Logs -->
-        <div class="cockpit-tab-content" id="cockpit-content-timeline">
+        <!-- Tab 1 Content: Evidence Cockpit Summary (Active by default) -->
+        <div class="cockpit-tab-content" id="cockpit-content-cockpit" style="display:block;">
+          <!-- 1. Semantic Query Box -->
+          <div class="glass-card" style="margin-bottom:0.75rem;padding:0.6rem;border-left:3px solid var(--accent-purple, #9333ea);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.25rem;">
+              <h4 style="font-size:0.72rem;margin:0;color:var(--text-main);">🔍 Axisweave Semantic Search Query</h4>
+              <span class="badge badge-purple" style="font-size:0.55rem;padding:0.1rem 0.3rem;">Qdrant Vector DB</span>
+            </div>
+            <p style="font-size:0.65rem;margin:0 0 0.4rem 0;color:var(--text-muted);">The clinical concepts formulated by the agent to query the vector database:</p>
+            <div id="cockpit-semantic-query" style="font-family:monospace;font-size:0.68rem;background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:0.4rem;color:#f43f5e;word-break:break-all;">
+              Awaiting review execution to formulate search query...
+            </div>
+          </div>
+
+          <!-- 2. Dual DB Context Findings (Grid Layout) -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
+            <!-- Column 1: Vector Evidence -->
+            <div class="glass-card" style="padding:0.6rem;border-left:3px solid var(--accent-blue);">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem;">
+                <h4 style="font-size:0.7rem;margin:0;color:var(--text-main);">📄 Top Retrieved Evidence (Axisweave)</h4>
+                <span class="badge" style="background:rgba(2,132,199,0.15);color:var(--accent-blue);font-size:0.55rem;padding:0.05rem 0.25rem;">Qdrant</span>
+              </div>
+              <div id="cockpit-vector-findings" style="display:flex;flex-direction:column;gap:0.4rem;max-height:220px;overflow-y:auto;font-size:0.65rem;line-height:1.35;">
+                <span style="color:var(--text-muted);">Awaiting vector search execution...</span>
+              </div>
+            </div>
+
+            <!-- Column 2: Graph Context -->
+            <div class="glass-card" style="padding:0.6rem;border-left:3px solid var(--accent-green);">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem;">
+                <h4 style="font-size:0.7rem;margin:0;color:var(--text-main);">🕸️ Patient Graph State (Causal Graph)</h4>
+                <span class="badge" style="background:rgba(34,197,94,0.15);color:var(--accent-green);font-size:0.55rem;padding:0.05rem 0.25rem;">Neo4j</span>
+              </div>
+              <div id="cockpit-graph-findings" style="display:flex;flex-direction:column;gap:0.4rem;max-height:220px;overflow-y:auto;font-size:0.65rem;line-height:1.35;">
+                <span style="color:var(--text-muted);">Awaiting ontology query execution...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Policy Criteria & Challenger Audit -->
+          <div class="glass-card" style="padding:0.6rem;border-left:3px solid var(--accent-orange, #f97316);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem;">
+              <h4 style="font-size:0.72rem;margin:0;color:var(--text-main);">⚖️ OPA Policy Criteria Evaluation & Decision Logic</h4>
+              <span class="badge" style="background:rgba(249,115,22,0.15);color:var(--accent-orange, #f97316);font-size:0.55rem;padding:0.05rem 0.25rem;">OPA Rego</span>
+            </div>
+            <div id="cockpit-policy-checklist" style="font-size:0.68rem;margin-bottom:0.4rem;line-height:1.4;">
+              <span style="color:var(--text-muted);">Awaiting policy decision evaluation...</span>
+            </div>
+            <div id="cockpit-challenger-alert" style="display:none;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:4px;padding:0.4rem;margin-top:0.4rem;font-size:0.65rem;line-height:1.35;">
+              <!-- Populated if Challenger overrides -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 6 Content: Lifecycle Logs (formerly Timeline) -->
+        <div class="cockpit-tab-content" id="cockpit-content-timeline" style="display:none;">
           <!-- Challenger Agent Panel -->
           <div class="challenger-panel-wrapper" id="challenger-card" style="display:none;margin-bottom:0.75rem;border-bottom:1px solid rgba(255,255,255,0.04);padding-bottom:0.75rem;">
             <div class="challenger-header" style="display:flex;justify-content:space-between;align-items:center;">

@@ -1127,7 +1127,95 @@ document.addEventListener('DOMContentLoaded', async () => {
       window.__lastMemberId = currentMemberId;
       window.__lastExecutionId = outcome.executionId || 'exec-001';
       
-      // Render retrieved evidence documents panel
+      // Populating the Evidence Cockpit Summary Tab
+      const semanticQueryEl = document.getElementById('cockpit-semantic-query');
+      if (semanticQueryEl) {
+        semanticQueryEl.textContent = outcome.semanticQuery || 'N/A (Pattern matching used)';
+      }
+
+      const vectorFindingsEl = document.getElementById('cockpit-vector-findings');
+      if (vectorFindingsEl && outcome.retrievedEvidence) {
+        if (outcome.retrievedEvidence.length === 0) {
+          vectorFindingsEl.innerHTML = '<span style="color:var(--text-muted);">No evidence chunks retrieved.</span>';
+        } else {
+          let vfHtml = '';
+          outcome.retrievedEvidence.slice(0, 3).forEach((doc, idx) => {
+            const scoreColor = doc.score >= 0.8 ? 'var(--accent-green)' : doc.score >= 0.5 ? 'var(--accent-blue)' : 'var(--accent-orange)';
+            const pdfLink = doc.s3_key ? `/agent/pdf/${doc.s3_key}` : '#';
+            vfHtml += `<div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04); border-radius:4px; padding:0.3rem; margin-bottom:0.25rem;">
+              <div style="display:flex; justify-content:space-between; font-weight:600; font-size:0.6rem; color:var(--text-main);">
+                <span>#${idx+1} ${doc.doc_type || 'Evidence Doc'}</span>
+                <span style="color:${scoreColor};">${doc.score.toFixed(2)}</span>
+              </div>
+              <p style="margin:0.2rem 0; color:var(--text-muted); font-size:0.58rem; line-height:1.35;">"${doc.text.substring(0, 140)}..."</p>
+              ${doc.s3_key ? `<a href="${pdfLink}" target="_blank" style="color:var(--accent-blue); text-decoration:none; font-size:0.55rem; font-family:monospace;">View Source PDF →</a>` : ''}
+            </div>`;
+          });
+          vectorFindingsEl.innerHTML = vfHtml;
+        }
+      }
+
+      const graphFindingsEl = document.getElementById('cockpit-graph-findings');
+      if (graphFindingsEl && outcome.graphState) {
+        const gs = outcome.graphState;
+        if (!gs || gs.diagnosis_count === 0) {
+          graphFindingsEl.innerHTML = '<span style="color:var(--text-muted);">No ontology graph records found.</span>';
+        } else {
+          let gfHtml = '';
+          if (gs.diagnoses && gs.diagnoses.length > 0) {
+            gfHtml += `<div style="font-weight:600; color:var(--accent-blue); margin-bottom:0.2rem;">🩺 Diagnoses:</div>`;
+            gs.diagnoses.forEach(d => {
+              gfHtml += `<div style="padding-left:0.3rem; color:var(--text-main); font-size:0.58rem;">• ${d.description || d.condition_code} (${d.condition_code})</div>`;
+            });
+          }
+          if (gs.failed_therapies && gs.failed_therapies.length > 0) {
+            gfHtml += `<div style="font-weight:600; color:var(--accent-red); margin-top:0.3rem; margin-bottom:0.2rem;">❌ Failed Therapies:</div>`;
+            gs.failed_therapies.forEach(ft => {
+              gfHtml += `<div style="padding-left:0.3rem; color:var(--text-muted); font-size:0.58rem;">• ${ft.drug || ft.therapy_type} — Outcome: ${ft.outcome}</div>`;
+            });
+          }
+          if (gs.prescriptions && gs.prescriptions.length > 0) {
+            gfHtml += `<div style="font-weight:600; color:var(--accent-green); margin-top:0.3rem; margin-bottom:0.2rem;">💊 Prescriptions:</div>`;
+            gs.prescriptions.slice(0, 3).forEach(p => {
+              gfHtml += `<div style="padding-left:0.3rem; color:var(--text-muted); font-size:0.58rem;">• ${p.drug} (${p.dose})</div>`;
+            });
+          }
+          graphFindingsEl.innerHTML = gfHtml || '<span style="color:var(--text-muted);">No records.</span>';
+        }
+      }
+
+      const policyChecklist = document.getElementById('cockpit-policy-checklist');
+      if (policyChecklist && outcome.criteriaMet && outcome.criteriaMet.length > 0) {
+        let pcHtml = '<table style="width:100%; border-collapse:collapse; text-align:left; font-size:0.65rem;">';
+        pcHtml += '<thead style="border-bottom:1px solid rgba(255,255,255,0.08);">';
+        pcHtml += '<tr><th style="padding:0.2rem 0.4rem; color:var(--text-muted);">Criteria</th><th style="padding:0.2rem 0.4rem; color:var(--text-muted);">Status</th><th style="padding:0.2rem 0.4rem; color:var(--text-muted);">Details</th></tr>';
+        pcHtml += '</thead><tbody>';
+        outcome.criteriaMet.forEach(c => {
+          const statusIcon = c.met ? '🟢' : '🔴';
+          const statusText = c.met ? 'Passed' : 'Failed';
+          const statusColor = c.met ? 'var(--accent-green)' : 'var(--accent-red)';
+          pcHtml += `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+            <td style="padding:0.3rem 0.4rem; font-weight:600; color:var(--text-main);">${c.name}</td>
+            <td style="padding:0.3rem 0.4rem; color:${statusColor}; font-weight:700;">${statusIcon} ${statusText}</td>
+            <td style="padding:0.3rem 0.4rem; color:var(--text-muted);">${c.detail}</td>
+          </tr>`;
+        });
+        pcHtml += '</tbody></table>';
+        policyChecklist.innerHTML = pcHtml;
+      }
+
+      const challengerAlert = document.getElementById('cockpit-challenger-alert');
+      if (challengerAlert && outcome.challenger) {
+        const ch = outcome.challenger;
+        if (ch.formalChallenge) {
+          challengerAlert.style.display = 'block';
+          challengerAlert.innerHTML = `<span style="font-weight:700; color:var(--accent-red);">🚩 CHALLENGER OVERRIDE:</span> ${ch.reasoning || ''}`;
+        } else {
+          challengerAlert.style.display = 'none';
+        }
+      }
+
+      // Render retrieved evidence documents panel in Execution Logs tab
       const evidencePanel = document.getElementById('retrieved-evidence-panel');
       if (evidencePanel && outcome.retrievedEvidence && outcome.retrievedEvidence.length > 0) {
         evidencePanel.style.display = 'block';
@@ -1161,7 +1249,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         evidencePanel.style.display = 'none';
       }
 
-      // Render graph state summary
+      // Render graph state summary in Execution Logs tab
       const graphStatePanel = document.getElementById('graph-state-panel');
       if (graphStatePanel && outcome.graphState && outcome.graphState.diagnosis_count > 0) {
         graphStatePanel.style.display = 'block';

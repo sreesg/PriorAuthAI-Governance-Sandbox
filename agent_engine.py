@@ -616,6 +616,15 @@ def _query_neo4j_state(neo4j_uri, member_id):
             """, mid=member_id)
             therapies = [dict(r) for r in th_result]
 
+            for th in therapies:
+                if th.get("outcome") in ("inadequate_response", "failed", "unsuccessful", "completed_no_improvement"):
+                    failed_therapies.append({
+                        "drug": th.get("type", "Physical Therapy"),
+                        "dose": th.get("protocol", "Standard protocol"),
+                        "status": "completed",
+                        "outcome": th.get("outcome", "no improvement")
+                    })
+
         driver.close()
 
         return {
