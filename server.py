@@ -1391,7 +1391,6 @@ Respond ONLY with the JSON object, no other text.
                 params = json.loads(post_data.decode())
                 member_id = params.get('memberId', 'MEM-4401')
                 
-                import os
                 results = {}
                 results['qdrant_url'] = os.environ.get('QDRANT_URL', 'NOT SET')
                 results['neo4j_uri'] = os.environ.get('NEO4J_URI', 'NOT SET')
