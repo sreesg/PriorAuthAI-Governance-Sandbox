@@ -1315,8 +1315,6 @@ Respond ONLY with the JSON object, no other text.
                     agent_engine.build_for_policy(p, 'rules')
                     agent_engine.build_for_policy(p, 'skills')
                     agent_engine.build_for_policy(p, 'hooks')
-                    
-                    agent_engine.generate_cases_for_policy(p)
                 
                 md_content = agent_engine.compile_all_policies_to_rules()
                 compiled_rego = compile_rego_from_md(md_content)
@@ -1330,7 +1328,50 @@ Respond ONLY with the JSON object, no other text.
                 self.wfile.write(json.dumps({
                     "status": "success",
                     "policies": policies_extracted,
-                    "message": f"Successfully ingested {len(policies_extracted)} policies from {dest_name}. Rules, skills, hooks, and test cases compiled successfully."
+                    "message": f"Successfully ingested {len(policies_extracted)} policies from {dest_name}. Rules, skills, and hooks compiled and staged successfully."
+                }).encode())
+                
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+        # Interactively build custom test cases for a selected policy
+        elif self.path == '/agent/create-custom-case':
+            if not AGENT_ENGINE_AVAILABLE:
+                self.send_response(503)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Agent engine not loaded"}).encode())
+                return
+            try:
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                params = json.loads(post_data.decode())
+                
+                policy_id = params.get('policyId', '')
+                patient_name = params.get('patientName', 'John Doe')
+                member_id = params.get('memberId', 'MEM-7701')
+                scenario = params.get('scenario', 'approve')
+                
+                if not policy_id:
+                    raise ValueError("policyId is required to generate a custom case.")
+                
+                case = agent_engine.create_custom_case_for_policy(policy_id, patient_name, member_id, scenario)
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "success",
+                    "case": case,
+                    "message": f"Successfully created case for {patient_name} ({member_id}) under policy {policy_id}."
                 }).encode())
                 
             except Exception as e:
@@ -1987,6 +2028,14 @@ Respond ONLY with the JSON object, no other text.
                 try:
                     from s3_helper import get_file_bytes
                     data = get_file_bytes(pdf_path)
+                    if not data:
+                        local_target = pdf_path
+                        if not os.path.isabs(local_target):
+                            local_target = os.path.join(os.path.dirname(os.path.abspath(__file__)), local_target)
+                        if os.path.exists(local_target):
+                            with open(local_target, 'rb') as f:
+                                data = f.read()
+                    
                     if data:
                         self.send_response(200)
                         self.send_header('Content-Type', 'application/pdf')

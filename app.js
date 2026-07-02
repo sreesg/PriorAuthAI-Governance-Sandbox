@@ -324,6 +324,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       
       body.innerHTML = html;
+      const builderCard = document.getElementById('ws-case-builder-card');
+      if (builderCard) builderCard.style.display = 'block';
     }).catch(() => { body.innerHTML = '<p>Error loading policy detail.</p>'; });
   }
 
@@ -1595,6 +1597,55 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnIngest = document.getElementById('btn-ingest-policy');
   if (btnIngest) {
     btnIngest.addEventListener('click', runPolicyIngestion);
+  }
+
+  const btnBuildCase = document.getElementById('btn-build-custom-case');
+  if (btnBuildCase) {
+    btnBuildCase.addEventListener('click', async () => {
+      const select = document.getElementById('policy-select');
+      const patientNameInput = document.getElementById('custom-case-patient-name');
+      const memberIdInput = document.getElementById('custom-case-member-id');
+      const scenarioSelect = document.getElementById('custom-case-scenario');
+      
+      const policyId = select.value;
+      if (!policyId) {
+        showToast("Please select a staged policy first.", "error");
+        return;
+      }
+      
+      const patientName = patientNameInput.value.trim() || 'John Doe';
+      const memberId = memberIdInput.value.trim() || 'MEM-7701';
+      const scenario = scenarioSelect.value;
+      
+      btnBuildCase.disabled = true;
+      btnBuildCase.textContent = '🧪 Generating case & clinical PDF...';
+      
+      try {
+        const res = await fetch('/agent/create-custom-case', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ policyId, patientName, memberId, scenario })
+        });
+        
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Failed to create custom case");
+        }
+        
+        const data = await res.json();
+        showToast(data.message || "Custom case created successfully!", "success");
+        
+        // Reload preset cases list on dashboard
+        await renderPresets();
+        
+      } catch (e) {
+        console.error(e);
+        showToast(`Failed to create case: ${e.message}`, "error");
+      } finally {
+        btnBuildCase.disabled = false;
+        btnBuildCase.textContent = '🧪 Generate Case & Clinical PDF';
+      }
+    });
   }
 
   // Cockpit Tab Switching Listener

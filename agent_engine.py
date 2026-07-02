@@ -2331,3 +2331,118 @@ def compile_all_policies_to_rules():
     print(f"Successfully compiled {len(all_policies)} policies to rules_declaration.md")
     return md_content
 
+
+def create_custom_case_for_policy(policy_id, patient_name, member_id, scenario):
+    """
+    Generate a custom test case for a staged policy using LLM clinical note generation
+    and ReportLab PDF compilation, then register it in preset_cases.json.
+    """
+    all_policies = load_all_policies()
+    policy = next((p for p in all_policies if p.get("policyId") == policy_id), None)
+    if not policy:
+        raise ValueError(f"Policy {policy_id} not found in workspace.")
+
+    policy_name = policy.get("policyName", "")
+    category = policy.get("category", "General")
+    cpt_codes = ", ".join(policy.get("cptCodes", []))
+    icd10_codes = ", ".join(policy.get("allowedIcd10", policy.get("icd10Codes", [])))
+    
+    criteria_text = "\n".join(
+        f"- {c['id']}: {c['description']} (type: {c.get('type', 'N/A')})"
+        for c in policy.get("criteria", [])
+    )
+    
+    cpt = policy.get("cptCodes", ["99999"])[0]
+    icd = policy.get("allowedIcd10", policy.get("icd10Codes", ["M54.5"]))
+    if isinstance(icd, list):
+        icd = icd[0] if icd else "M54.5"
+    
+    prompt = f"""You are a medical case generator. Given this prior authorization clinical policy, generate a realistic prior authorization request case with a detailed clinical story.
+
+Policy ID: {policy_id}
+Policy Name: {policy_name}
+CPT Code: {cpt}
+Diagnosis Code: {icd}
+Criteria:
+{criteria_text}
+
+Generate a case matching the scenario: {scenario.upper()}.
+- If scenario is APPROVED, write a detailed clinical notes paragraph (3-4 sentences) where the patient {patient_name} has fully completed conservative therapy (if any) and meets all criteria.
+- If scenario is ESCALATED, write a detailed clinical notes paragraph (3-4 sentences) where the patient {patient_name} fails at least one criterion (e.g., did not complete physical therapy or symptoms are too brief).
+
+Response format MUST be a single raw JSON object as follows:
+{{
+  "clinicalNotes": "<detailed notes matching the scenario>"
+}}
+
+Respond with ONLY the JSON object. Do not include markdown code block formatting or explanation."""
+
+    response = call_llm(prompt, max_tokens=600, temperature=0)
+    
+    try:
+        res_data = extract_json_from_response(response)
+        notes = res_data.get("clinicalNotes", "")
+    except Exception as e:
+        print(f"Failed to parse custom case notes: {e}")
+        if scenario.lower() == "approve":
+            notes = f"Patient {patient_name} presents for evaluation. All diagnostic criteria for {policy_name} under CPT {cpt} and ICD-10 {icd} have been fully satisfied. Completed conservative therapy trial."
+        else:
+            notes = f"Patient {patient_name} presents with acute symptoms. Has not completed conservative therapy trials yet. CPT {cpt} requested."
+
+    case_id = f"case-{policy_id.lower().replace('.', '_')}-{scenario.lower()}"
+    pdf_filename = f"{case_id}_bundle.pdf"
+    local_dir = os.path.join(DATA_DIR, "cases")
+    os.makedirs(local_dir, exist_ok=True)
+    local_path = os.path.join(local_dir, pdf_filename)
+    
+    create_clinical_evidence_pdf(
+        patient_name, "1980-01-01", member_id, notes, local_path
+    )
+    
+    if is_s3_enabled():
+        try:
+            import boto3
+            s3_key = f"cases/{pdf_filename}"
+            s3_client = boto3.client("s3")
+            with open(local_path, "rb") as f:
+                s3_client.put_object(Bucket=os.environ.get("S3_BUCKET"), Key=s3_key, Body=f.read())
+            print(f"Uploaded custom case bundle to S3: {s3_key}")
+        except Exception as se:
+            print(f"Error uploading custom case bundle to S3: {se}")
+            
+    case = {
+        "id": case_id,
+        "title": f"{policy_name} — {scenario.capitalize()} ({patient_name})",
+        "category": category,
+        "request": {
+            "memberId": member_id,
+            "patientName": patient_name,
+            "patientSsn": "999-01-1234",
+            "patientDob": "1980-01-01",
+            "cptCode": cpt,
+            "icd10Code": icd,
+            "providerName": "Quality Health Partners",
+            "providerNpi": "1234567890",
+            "clinicalNotes": notes
+        },
+        "evidenceBundle": f"cases/{pdf_filename}"
+    }
+    
+    cases_file = os.path.join(POLICIES_DIR, "preset_cases.json")
+    existing_cases = []
+    if os.path.exists(cases_file):
+        try:
+            with open(cases_file, "r") as f:
+                existing_cases = json.load(f)
+        except Exception:
+            pass
+            
+    existing_cases = [c for c in existing_cases if c["id"] != case_id]
+    existing_cases.append(case)
+    
+    with open(cases_file, "w") as f:
+        json.dump(existing_cases, f, indent=2)
+        
+    print(f"Custom case {case_id} added successfully to preset_cases.json")
+    return case
+
