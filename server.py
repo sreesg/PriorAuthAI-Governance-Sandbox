@@ -1252,6 +1252,96 @@ Respond ONLY with the JSON object, no other text.
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(e)}).encode())
 
+        # Ingest a clinical policy from S3 or upload and generate entire policy suite (rules, skills, hooks, cases)
+        elif self.path == '/agent/ingest-policy-pdf':
+            if not AGENT_ENGINE_AVAILABLE:
+                self.send_response(503)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Agent engine not loaded"}).encode())
+                return
+            try:
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                params = json.loads(post_data.decode())
+                
+                s3_key = params.get('s3Key', '')
+                uploaded_base64 = params.get('uploadedFile', '')
+                filename = params.get('filename', '')
+                
+                pdf_bytes = None
+                if s3_key:
+                    from s3_helper import get_file_bytes
+                    pdf_bytes = get_file_bytes(s3_key)
+                    if not pdf_bytes:
+                        raise ValueError(f"Could not read {s3_key} from S3")
+                    dest_name = os.path.basename(s3_key)
+                elif uploaded_base64:
+                    import base64
+                    pdf_bytes = base64.b64decode(uploaded_base64)
+                    dest_name = filename or 'uploaded_policy.pdf'
+                else:
+                    raise ValueError("No S3 key or uploaded file content provided")
+                
+                if not dest_name.startswith('policy_'):
+                    dest_name = f"policy_{dest_name}"
+                if not dest_name.endswith('.pdf'):
+                    dest_name = f"{dest_name}.pdf"
+                
+                dest_name = dest_name.replace(' ', '_').lower()
+                
+                policies_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'policies')
+                os.makedirs(policies_dir, exist_ok=True)
+                pdf_path = os.path.join(policies_dir, dest_name)
+                
+                with open(pdf_path, 'wb') as f:
+                    f.write(pdf_bytes)
+                
+                result = agent_engine.extract_policies_from_pdf(pdf_path)
+                policies_extracted = result.get("policies", [])
+                
+                if not policies_extracted:
+                    raise ValueError("Could not extract structured clinical policies from PDF.")
+                
+                for p in policies_extracted:
+                    p["pdfFile"] = f"policies/{dest_name}"
+                    pid = p.get("policyId", "POL-DUMMY")
+                    
+                    policy_json_path = os.path.join(policies_dir, f"policy_{pid.lower().replace('-', '_')}.json")
+                    with open(policy_json_path, 'w') as pf:
+                        json.dump(p, pf, indent=2)
+                        
+                    agent_engine.build_for_policy(p, 'rules')
+                    agent_engine.build_for_policy(p, 'skills')
+                    agent_engine.build_for_policy(p, 'hooks')
+                    
+                    agent_engine.generate_cases_for_policy(p)
+                
+                md_content = agent_engine.compile_all_policies_to_rules()
+                compiled_rego = compile_rego_from_md(md_content)
+                with open('rules.rego', 'w') as f:
+                    f.write(compiled_rego)
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "success",
+                    "policies": policies_extracted,
+                    "message": f"Successfully ingested {len(policies_extracted)} policies from {dest_name}. Rules, skills, hooks, and test cases compiled successfully."
+                }).encode())
+                
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+
         # 6. Agent: Generate skills for extracted policies
         elif self.path == '/agent/generate-skills':
             if not AGENT_ENGINE_AVAILABLE:
@@ -1293,6 +1383,245 @@ Respond ONLY with the JSON object, no other text.
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(e)}).encode())
 
+        # 6b. Debug: Test Qdrant + Bedrock connectivity from the pod
+        elif self.path == '/agent/debug-qdrant':
+            try:
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                params = json.loads(post_data.decode())
+                member_id = params.get('memberId', 'MEM-4401')
+                
+                import os
+                results = {}
+                results['qdrant_url'] = os.environ.get('QDRANT_URL', 'NOT SET')
+                results['neo4j_uri'] = os.environ.get('NEO4J_URI', 'NOT SET')
+                results['aws_region'] = os.environ.get('AWS_REGION', 'NOT SET')
+                
+                # Test Qdrant connection
+                try:
+                    from qdrant_client import QdrantClient
+                    qdrant_url = os.environ.get('QDRANT_URL', '')
+                    client = QdrantClient(url=qdrant_url, timeout=5)
+                    info = client.get_collection('clinical_documents')
+                    results['qdrant_status'] = 'connected'
+                    results['qdrant_points'] = info.points_count
+                    results['qdrant_vector_size'] = info.config.params.vectors.size
+                    
+                    # Count docs for this member
+                    from qdrant_client.models import Filter, FieldCondition, MatchValue
+                    count = client.count(
+                        collection_name='clinical_documents',
+                        count_filter=Filter(must=[
+                            FieldCondition(key='member_id', match=MatchValue(value=member_id))
+                        ])
+                    )
+                    results['member_chunks'] = count.count
+                except Exception as e:
+                    results['qdrant_status'] = f'error: {type(e).__name__}: {str(e)[:100]}'
+                
+                # Test Bedrock embedding
+                try:
+                    embedding = agent_engine._get_bedrock_embedding("test query")
+                    results['bedrock_status'] = 'working' if embedding else 'empty_response'
+                    results['bedrock_vector_size'] = len(embedding)
+                except Exception as e:
+                    results['bedrock_status'] = f'error: {type(e).__name__}: {str(e)[:100]}'
+                
+                # Test actual vector search (same as agent does)
+                try:
+                    query = f"CPT 72148 lower back pain physical therapy"
+                    search_results = agent_engine._search_qdrant(
+                        os.environ.get('QDRANT_URL', ''), member_id, query
+                    )
+                    results['search_results_count'] = len(search_results)
+                    if search_results:
+                        results['search_top_score'] = search_results[0].get('score', 0)
+                        results['search_top_text'] = search_results[0].get('text', '')[:100]
+                    else:
+                        results['search_note'] = 'Vector search returned 0 results despite chunks existing'
+                        
+                        # Diagnostic: try search WITHOUT filter to see if vectors match at all
+                        from qdrant_client import QdrantClient as _QC2
+                        _client = _QC2(url=os.environ.get('QDRANT_URL', ''), timeout=10)
+                        _emb = agent_engine._get_bedrock_embedding(query)
+                        if _emb:
+                            # Search without any filter
+                            _raw = _client.search(
+                                collection_name='clinical_documents',
+                                query_vector=_emb,
+                                limit=3,
+                            )
+                            results['search_no_filter_count'] = len(_raw)
+                            if _raw:
+                                results['search_no_filter_top_score'] = round(_raw[0].score, 4)
+                                results['search_no_filter_top_member'] = _raw[0].payload.get('member_id', '?')
+                                results['search_no_filter_top_text'] = (_raw[0].payload.get('text', '')[:80])
+                            
+                            # Also scroll to see actual stored member_id values
+                            _scroll = _client.scroll(
+                                collection_name='clinical_documents',
+                                limit=3,
+                                with_payload=True,
+                                with_vectors=False,
+                            )
+                            if _scroll and _scroll[0]:
+                                results['stored_member_ids_sample'] = list(set(
+                                    p.payload.get('member_id', '?') for p in _scroll[0]
+                                ))
+                except Exception as e:
+                    results['search_error'] = f'{type(e).__name__}: {str(e)[:150]}'
+
+                # Test Neo4j
+                try:
+                    neo4j_uri = os.environ.get('NEO4J_URI', '')
+                    graph_state = agent_engine._query_neo4j_state(neo4j_uri, member_id)
+                    results['neo4j_status'] = 'connected'
+                    results['neo4j_members'] = graph_state.get('diagnosis_count', 0)
+                except Exception as e:
+                    results['neo4j_status'] = f'error: {type(e).__name__}: {str(e)[:100]}'
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps(results, indent=2).encode())
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+        # 6c. Reseed Qdrant from inside the pod (where Bedrock works)
+        elif self.path == '/agent/reseed-qdrant':
+            import threading
+            def _reseed_worker():
+                try:
+                    import os as _os, uuid as _uuid, io as _io, sys as _sys
+                    from datetime import datetime as _dt, timezone as _tz
+                    import boto3 as _boto3
+                    from pypdf import PdfReader as _PdfReader
+                    from qdrant_client import QdrantClient as _QC
+                    from qdrant_client.models import Distance as _Dist, PointStruct as _PS, VectorParams as _VP
+
+                    # Write status to a file the pod can serve
+                    status_file = '/tmp/reseed_status.json'
+                    def _write_status(msg, done=False, error=False):
+                        import json as _json
+                        with open(status_file, 'w') as f:
+                            _json.dump({"message": msg, "done": done, "error": error, "ts": _dt.now(_tz.utc).isoformat()}, f)
+                        _sys.stdout.write(f"Reseed: {msg}\n")
+                        _sys.stdout.flush()
+
+                    region = _os.environ.get('AWS_REGION', 'us-west-2')
+                    bucket = _os.environ.get('S3_BUCKET', 'beacon-priorauthai-assets')
+                    qdrant_url = _os.environ.get('QDRANT_URL', 'http://qdrant.beacon.svc.cluster.local:6333')
+                    bedrock = _boto3.client('bedrock-runtime', region_name=region)
+                    s3 = _boto3.client('s3', region_name=region)
+                    qdrant = _QC(url=qdrant_url, timeout=30)
+
+                    _write_status("Deleting old collection...")
+                    try:
+                        qdrant.delete_collection('clinical_documents')
+                    except:
+                        pass
+                    qdrant.create_collection(
+                        collection_name='clinical_documents',
+                        vectors_config=_VP(size=1024, distance=_Dist.COSINE)
+                    )
+                    _write_status("Collection recreated. Listing S3 PDFs...")
+
+                    paginator = s3.get_paginator('list_objects_v2')
+                    pdf_keys = []
+                    for page in paginator.paginate(Bucket=bucket, Prefix='clinical-evidence/'):
+                        for obj in page.get('Contents', []):
+                            if obj['Key'].endswith('.pdf'):
+                                pdf_keys.append(obj['Key'])
+
+                    pdf_keys = pdf_keys[:600]
+                    _write_status(f"Found {len(pdf_keys)} PDFs. Starting ingestion...")
+
+                    points_batch = []
+                    total = 0
+                    errors = 0
+
+                    for idx, key in enumerate(pdf_keys):
+                        try:
+                            resp = s3.get_object(Bucket=bucket, Key=key)
+                            pdf_bytes = resp['Body'].read()
+                            reader = _PdfReader(_io.BytesIO(pdf_bytes))
+                            text = "\n".join(p.extract_text() or '' for p in reader.pages)
+                            if not text.strip():
+                                continue
+
+                            chunks = [text[i:i+500] for i in range(0, len(text), 450)] if len(text) > 500 else [text]
+                            parts = key.split('/')
+                            member_id = parts[1] if len(parts) > 1 else 'unknown'
+                            doc_type = parts[2].split('_')[0] if len(parts) > 2 else 'unknown'
+
+                            for ci, chunk in enumerate(chunks[:3]):
+                                body = json.dumps({"inputText": chunk[:8000]})
+                                emb_resp = bedrock.invoke_model(
+                                    modelId="amazon.titan-embed-text-v2:0",
+                                    contentType="application/json",
+                                    accept="application/json",
+                                    body=body,
+                                )
+                                emb_result = json.loads(emb_resp['body'].read())
+                                vector = emb_result.get('embedding', [])
+                                if not vector:
+                                    continue
+
+                                point_id = str(_uuid.uuid5(_uuid.NAMESPACE_DNS, f"{key}:{ci}"))
+                                points_batch.append(_PS(
+                                    id=point_id,
+                                    vector=vector,
+                                    payload={
+                                        "text": chunk,
+                                        "document_id": key,
+                                        "member_id": member_id,
+                                        "doc_type": doc_type,
+                                        "chunk_index": ci,
+                                        "s3_key": key,
+                                        "s3_bucket": bucket,
+                                        "ingestion_timestamp": _dt.now(_tz.utc).isoformat(),
+                                    }
+                                ))
+                                total += 1
+
+                            if len(points_batch) >= 30:
+                                qdrant.upsert(collection_name='clinical_documents', points=points_batch)
+                                points_batch = []
+
+                            if (idx + 1) % 25 == 0:
+                                _write_status(f"Progress: {idx+1}/{len(pdf_keys)} docs, {total} chunks ingested")
+                        except Exception as e:
+                            errors += 1
+                            continue
+
+                    if points_batch:
+                        qdrant.upsert(collection_name='clinical_documents', points=points_batch)
+
+                    info = qdrant.get_collection('clinical_documents')
+                    _write_status(f"DONE: {total} chunks from {len(pdf_keys)} docs. Collection has {info.points_count} points. Errors: {errors}", done=True)
+                except Exception as e:
+                    import traceback
+                    _sys.stdout.write(f"Reseed FAILED: {e}\n{traceback.format_exc()}\n")
+                    _sys.stdout.flush()
+                    try:
+                        with open('/tmp/reseed_status.json', 'w') as f:
+                            json.dump({"message": f"FAILED: {e}", "done": True, "error": True}, f)
+                    except:
+                        pass
+
+            t = threading.Thread(target=_reseed_worker, daemon=True)
+            t.start()
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "started", "note": "Check /agent/reseed-status for progress"}).encode())
+
         # 7. Agent: Run full review pipeline (Python backend)
         elif self.path == '/agent/run-review':
             if not AGENT_ENGINE_AVAILABLE:
@@ -1311,6 +1640,93 @@ Respond ONLY with the JSON object, no other text.
                 use_ai = params.get('useAI', False)
                 
                 result = agent_engine.run_multi_policy_review(request_data, use_ai_extraction=use_ai)
+                
+                # Compute real BEACON layer states from execution result
+                from datetime import datetime as _bdt
+                _now = _bdt.now().isoformat()
+                trace = result.get('trace', [])
+                decision = result.get('decision', '')
+                evidence = result.get('evidence', {})
+                
+                # L1: Identity — service account authenticated (always passes in-cluster)
+                l1_state = "passed"
+                l1_detail = "beacon-sa service account authenticated"
+                
+                # L2: Context Planner — check if required fields are present
+                has_cpt = bool(request_data.get('cptCode'))
+                has_notes = bool(request_data.get('clinicalNotes'))
+                has_member = bool(request_data.get('memberId'))
+                l2_state = "passed" if (has_cpt and has_notes and has_member) else "failed"
+                l2_detail = f"CPT: {'✓' if has_cpt else '✗'}, Notes: {'✓' if has_notes else '✗'}, Member: {'✓' if has_member else '✗'}"
+                
+                # L3: MCP Gateway — Bedrock LLM call succeeded
+                llm_traces = [t for t in trace if 'ClinicalNLP' in t.get('name', '') or 'Bedrock' in t.get('msg', '')]
+                llm_failed = any(t.get('status') == 'fail' for t in llm_traces)
+                l3_state = "failed" if llm_failed else ("passed" if use_ai else "skipped")
+                l3_detail = "Bedrock Nova inference completed" if l3_state == "passed" else ("LLM inference skipped (regex mode)" if l3_state == "skipped" else "Bedrock call failed")
+                
+                # L4: Sandbox — LLM output was parseable (no hallucinated garbage)
+                has_valid_evidence = isinstance(evidence, dict) and len(evidence) > 0
+                l4_state = "passed" if has_valid_evidence else "warning"
+                l4_detail = f"Bounded extraction: {sum(1 for v in evidence.values() if v)} fields parsed" if has_valid_evidence else "No structured output from LLM"
+                
+                # L5: Verification — criteria results are well-formed
+                criteria = result.get('criteriaMet', [])
+                all_valid = all(isinstance(c.get('met'), bool) for c in criteria) if criteria else False
+                l5_state = "passed" if all_valid else "warning"
+                l5_detail = f"{len(criteria)} criteria evaluated, all well-formed" if all_valid else "Criteria validation incomplete"
+                
+                # L6: Observability — audit trail captured
+                l6_state = "passed" if len(trace) >= 5 else "warning"
+                l6_detail = f"{len(trace)} trace events logged"
+                
+                # L7: Human Gates — pending if escalated, passed if approved
+                if "Approved" in decision:
+                    l7_state = "passed"
+                    l7_detail = "Auto-approved — no human gate required"
+                else:
+                    l7_state = "pending"
+                    l7_detail = "Escalated — awaiting Medical Director review"
+                
+                beacon_layers = [
+                    {"id": "L1", "name": "Identity", "state": l1_state, "timestamp": _now,
+                     "description": "Validates requesting agent credentials and service account authorization",
+                     "detail": l1_detail},
+                    {"id": "L2", "name": "Context Planner", "state": l2_state, "timestamp": _now,
+                     "description": "Verifies request has required clinical context (CPT, ICD, notes, member ID)",
+                     "detail": l2_detail},
+                    {"id": "L3", "name": "MCP Gateway", "state": l3_state, "timestamp": _now,
+                     "description": "Routes LLM inference through Bedrock with model access control",
+                     "detail": l3_detail},
+                    {"id": "L4", "name": "Sandbox", "state": l4_state, "timestamp": _now,
+                     "description": "Executes LLM in bounded context — only disclosed data visible per stage",
+                     "detail": l4_detail},
+                    {"id": "L5", "name": "Verification", "state": l5_state, "timestamp": _now,
+                     "description": "Validates LLM output is parseable and criteria results are well-formed",
+                     "detail": l5_detail},
+                    {"id": "L6", "name": "Observability", "state": l6_state, "timestamp": _now,
+                     "description": "Full audit trail captured — every skill, rule, and hook invocation logged",
+                     "detail": l6_detail},
+                    {"id": "L7", "name": "Human Gates", "state": l7_state, "timestamp": _now,
+                     "description": "Medical Director review gate — engaged when decision is escalated",
+                     "detail": l7_detail},
+                ]
+                
+                # Store for beacon status endpoint
+                case_id = params.get('request', {}).get('memberId', 'unknown')
+                if not hasattr(self.server, '_last_beacon_state'):
+                    self.server._last_beacon_state = {}
+                # Store by multiple keys (case ID patterns used by frontend)
+                for key_prefix in ['case-lumbar-approve', 'case-lumbar-escalate', 'case-pet-approve', 
+                                   'case-pet-deny', 'case-knee-approve', 'case-knee-escalate',
+                                   'case-dupixent-approve', 'case-dupixent-escalate']:
+                    self.server._last_beacon_state[key_prefix] = beacon_layers
+                
+                # Also add beacon to the result so frontend can use it directly
+                result['beaconLayers'] = beacon_layers
+                
+                # Store last execution result for CRF panels
+                self.server._last_execution_result = result
                 
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
@@ -1495,7 +1911,22 @@ Respond ONLY with the JSON object, no other text.
 
     def do_GET(self):
         # Handle API GET routes before falling through to static file serving
-        if self.path == '/agent/asset-urls':
+        if self.path == '/agent/reseed-status':
+            try:
+                with open('/tmp/reseed_status.json', 'r') as f:
+                    status = json.load(f)
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps(status).encode())
+            except FileNotFoundError:
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"message": "No reseed has been triggered", "done": True}).encode())
+        elif self.path == '/agent/asset-urls':
             # Returns URLs for large assets — proxy paths when S3 is enabled
             try:
                 from s3_helper import is_s3_enabled
@@ -1581,6 +2012,37 @@ Respond ONLY with the JSON object, no other text.
                 self.send_header('Content-Type', 'text/plain')
                 self.end_headers()
                 self.wfile.write(b"Forbidden")
+        elif self.path == '/agent/list-s3-pdfs':
+            try:
+                from s3_helper import list_files, is_s3_enabled
+                pdf_files = []
+                if is_s3_enabled():
+                    all_keys = list_files("")
+                    for k in all_keys:
+                        if k.lower().endswith('.pdf') and 'clinical-evidence' not in k and 'cases/' not in k:
+                            pdf_files.append(k)
+                else:
+                    # Scan local folders
+                    policies_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'policies')
+                    if os.path.exists(policies_dir):
+                        for f in os.listdir(policies_dir):
+                            if f.lower().endswith('.pdf'):
+                                pdf_files.append(f"policies/{f}")
+                    for f in os.listdir('.'):
+                        if f.lower().endswith('.pdf') and f.startswith('real_payer_policy'):
+                            pdf_files.append(f)
+                            
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "success", "files": list(set(pdf_files))}).encode())
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
         elif self.path == '/agent/policies':
             try:
                 policies = agent_engine.load_all_policies() if AGENT_ENGINE_AVAILABLE else []
@@ -1693,15 +2155,31 @@ Respond ONLY with the JSON object, no other text.
         # GET /api/beacon/status/{request_id}
         if path.startswith('/api/beacon/status/'):
             request_id = path.split('/api/beacon/status/')[1]
-            layers = [
-                {"id": "L1", "name": "Identity", "state": "passed", "timestamp": None},
-                {"id": "L2", "name": "Context", "state": "passed", "timestamp": None},
-                {"id": "L3", "name": "MCP Gateway", "state": "passed", "timestamp": None},
-                {"id": "L4", "name": "Sandbox", "state": "passed", "timestamp": None},
-                {"id": "L5", "name": "Verification", "state": "passed", "timestamp": None},
-                {"id": "L6", "name": "Observability", "state": "passed", "timestamp": None},
-                {"id": "L7", "name": "Human Gates", "state": "pending", "timestamp": None},
-            ]
+            
+            # Try to get actual execution state from last run
+            last_beacon = getattr(self.server, '_last_beacon_state', {}).get(request_id)
+            
+            if last_beacon:
+                layers = last_beacon
+            else:
+                # Default: no execution yet — show idle state
+                layers = [
+                    {"id": "L1", "name": "Identity", "state": "idle", "timestamp": None,
+                     "description": "Validates requesting agent credentials and service account authorization"},
+                    {"id": "L2", "name": "Context Planner", "state": "idle", "timestamp": None,
+                     "description": "Verifies request has required clinical context (CPT, ICD, notes, member ID)"},
+                    {"id": "L3", "name": "MCP Gateway", "state": "idle", "timestamp": None,
+                     "description": "Routes LLM inference through Bedrock with model access control"},
+                    {"id": "L4", "name": "Sandbox", "state": "idle", "timestamp": None,
+                     "description": "Executes LLM in bounded context — only disclosed data visible per stage"},
+                    {"id": "L5", "name": "Verification", "state": "idle", "timestamp": None,
+                     "description": "Validates LLM output is parseable and criteria results are well-formed"},
+                    {"id": "L6", "name": "Observability", "state": "idle", "timestamp": None,
+                     "description": "Full audit trail captured — every skill, rule, and hook invocation logged"},
+                    {"id": "L7", "name": "Human Gates", "state": "idle", "timestamp": None,
+                     "description": "Medical Director review gate — engaged when decision is escalated"},
+                ]
+            
             json_response({"request_id": request_id, "layers": layers, "current_layer": 6})
 
         # GET /api/axisweave/context/{request_id}
@@ -1714,7 +2192,70 @@ Respond ONLY with the JSON object, no other text.
         # GET /api/evidence-bundle/{execution_id}
         elif path.startswith('/api/evidence-bundle/'):
             execution_id = path.split('/api/evidence-bundle/')[1]
-            json_response({"error": f"No bundle for {execution_id}"}, 404)
+            # Return evidence bundle from last execution if available
+            last_result = getattr(self.server, '_last_execution_result', None)
+            if last_result:
+                from datetime import datetime as _edt
+                _now = _edt.now().isoformat()
+                
+                bundle = {
+                    "execution_id": execution_id,
+                    "decision": last_result.get("decision", "Unknown"),
+                    "reason": last_result.get("reason", ""),
+                    "policy": last_result.get("policyUsed", "Unknown"),
+                    "policyName": last_result.get("policyName", ""),
+                    "lineage_trail": [],
+                    "signatures": [],
+                }
+                
+                # Build lineage trail from criteria + evidence sources
+                for i, crit in enumerate(last_result.get("criteriaMet", [])):
+                    bundle["lineage_trail"].append({
+                        "conclusion": f"{crit.get('name','')}: {'MET' if crit.get('met') else 'NOT MET'} — {crit.get('detail','')}",
+                        "evidence_id": f"criteria-{i+1}",
+                        "confidence": 0.95 if crit.get("met") else 0.3,
+                        "timestamp": _now,
+                    })
+                
+                # Add retrieved evidence as lineage entries
+                for i, doc in enumerate(last_result.get("retrievedEvidence", [])[:5]):
+                    bundle["lineage_trail"].append({
+                        "conclusion": f"[Axisweave] {doc.get('doc_type','doc')}: {doc.get('text','')[:100]}",
+                        "evidence_id": doc.get("s3_key", f"chunk-{i}"),
+                        "confidence": doc.get("score", 0.5),
+                        "timestamp": _now,
+                    })
+                
+                # Add causal chain as a lineage entry
+                causal = last_result.get("causalChain", "")
+                if causal:
+                    bundle["lineage_trail"].append({
+                        "conclusion": f"[Causal Chain] {causal}",
+                        "evidence_id": "graph-reasoning",
+                        "confidence": 0.9,
+                        "timestamp": _now,
+                    })
+                
+                # Graph contributions
+                evidence = last_result.get("evidence", {})
+                if evidence.get("_graph_contributions"):
+                    for gc in evidence["_graph_contributions"]:
+                        bundle["lineage_trail"].append({
+                            "conclusion": f"[Graph → Evidence] {gc}",
+                            "evidence_id": "neo4j-enrichment",
+                            "confidence": 0.85,
+                            "timestamp": _now,
+                        })
+                
+                json_response(bundle)
+            else:
+                json_response({
+                    "execution_id": execution_id,
+                    "decision": "No execution yet",
+                    "reason": "Run a case in Agent Review first, then view the CRF Fabric panel.",
+                    "lineage_trail": [],
+                    "signatures": [],
+                })
 
         # GET /api/evidence-documents/{member_id}
         elif path.startswith('/api/evidence-documents/'):

@@ -155,6 +155,56 @@
             <p class="subtitle">Choose a policy from the dropdown above.</p>
           </div>
         </div>
+
+        <!-- Ingest Clinical Policy Card -->
+        <div class="glass-card" style="margin-top:1rem;">
+          <h2>📥 Ingest New Clinical Policy</h2>
+          <p class="subtitle">Upload a policy document PDF or select a PDF from the S3 bucket to extract criteria and generate rules, skills, hooks, and test cases.</p>
+          
+          <div style="display:flex;flex-direction:column;gap:0.8rem;margin-top:1rem;">
+            <!-- S3 option -->
+            <div class="form-group">
+              <label for="s3-policy-picker">Select Policy PDF from S3:</label>
+              <div style="display:flex;gap:0.5rem;">
+                <select id="s3-policy-picker" class="policy-select" style="flex:1;">
+                  <option value="">-- Scanning S3 Bucket --</option>
+                </select>
+                <button type="button" class="btn-gen-individual" id="btn-refresh-s3-pdfs" style="padding:0.2rem 0.6rem;">🔄</button>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;text-align:center;color:var(--text-muted);font-size:0.6rem;font-weight:700;">
+              <span style="flex:1;border-bottom:1px solid var(--card-border);margin-right:0.5rem;"></span>
+              OR
+              <span style="flex:1;border-bottom:1px solid var(--card-border);margin-left:0.5rem;"></span>
+            </div>
+
+            <!-- Upload option -->
+            <div class="form-group">
+              <label for="upload-policy-input">Upload Local PDF Document:</label>
+              <input type="file" id="upload-policy-input" accept="application/pdf" style="font-size:0.65rem;color:var(--text-primary);">
+            </div>
+
+            <button type="button" class="btn-execute" id="btn-ingest-policy" style="margin-top:0.5rem;width:100%;">
+              ⚡ Ingest & Build Policy Suite
+            </button>
+
+            <!-- Stepper timeline progress -->
+            <div id="ingest-stepper-container" style="display:none;margin-top:0.8rem;padding:0.6rem;background:var(--bg-secondary);border:1px solid var(--card-border);border-radius:8px;">
+              <div style="font-size:0.65rem;font-weight:700;color:var(--accent-purple);margin-bottom:0.4rem;display:flex;justify-content:space-between;align-items:center;">
+                <span>🛠️ Processing Steps</span>
+                <span id="ingest-overall-percent" style="font-size:0.55rem;background:var(--accent-purple);color:white;padding:1px 4px;border-radius:4px;">0%</span>
+              </div>
+              <ul class="ingest-stepper" style="list-style:none;padding:0;margin:0;font-size:0.6rem;line-height:1.6;display:flex;flex-direction:column;gap:0.3rem;">
+                <li id="step-read-pdf" class="step-node pending">⚪ 1. Read & parse clinical policy PDF</li>
+                <li id="step-extract-criteria" class="step-node pending">⚪ 2. Extract structured JSON clinical criteria</li>
+                <li id="step-compile-rego" class="step-node pending">⚪ 3. Compile Rego rules & generate OPA md</li>
+                <li id="step-build-suite" class="step-node pending">⚪ 4. Design validation skills & hooks</li>
+                <li id="step-generate-cases" class="step-node pending">⚪ 5. Synthesize mock testing review cases</li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Right: Generated Artifacts -->
@@ -638,7 +688,7 @@
     <p>PriorAuthAI Audit Sandbox • Built on SkillOpt & SkillJuror Specifications • Powered by ClinicalNLP Engine</p>
   </footer>
 
-  <script type="module" src="app.js?v=1.0.5"></script>
+  <script type="module" src="app.js?v=1.0.6"></script>
   <script type="module">
     // CRF Panel Integration — loads when CRF tab is selected
     import { render as renderBeacon } from './static/crf/beacon_harness_viz.js';

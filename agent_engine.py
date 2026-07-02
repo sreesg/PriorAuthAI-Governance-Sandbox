@@ -18,6 +18,10 @@ import urllib.request
 from datetime import datetime
 from pypdf import PdfReader
 
+# ─── PHI Scrubbing Layer ─────────────────────────────────────────────────────
+from phi_scrubber import scrub_for_llm, scrub_text, PHIScrubber
+_phi_scrubber = PHIScrubber()
+
 # ─── S3 Support ──────────────────────────────────────────────────────────────
 try:
     from s3_helper import is_s3_enabled, get_file_bytes
@@ -38,8 +42,19 @@ GENERATED_SKILLS_FILE = os.path.join(DATA_DIR, "generated_skills.json")
 
 # ─── LLM Interface ──────────────────────────────────────────────────────────
 
-def call_llm(prompt, max_tokens=400, temperature=0):
-    """Call LLM via AWS Bedrock (Claude 3.5 Haiku) or fall back to Ollama."""
+def call_llm(prompt, max_tokens=400, temperature=0, request_context=None):
+    """Call LLM via AWS Bedrock (Claude 3.5 Haiku) or fall back to Ollama.
+    
+    PHI is automatically scrubbed from the prompt before sending to the model.
+    The request_context (if provided) supplies known patient/provider names for
+    targeted scrubbing.
+    """
+    # ─── PHI Scrubbing: de-identify before sending to any model ───────────
+    if request_context:
+        scrubbed_prompt, _phi_map = scrub_for_llm(prompt, request_context)
+    else:
+        scrubbed_prompt = scrub_text(prompt)
+    
     # Try Bedrock first (deployed environment)
     try:
         import boto3
@@ -55,14 +70,14 @@ def call_llm(prompt, max_tokens=400, temperature=0):
                 "max_tokens": max_tokens,
                 "temperature": temperature,
                 "messages": [
-                    {"role": "user", "content": f"{prompt}\n\nRespond concisely. Output ONLY what is asked."}
+                    {"role": "user", "content": f"{scrubbed_prompt}\n\nRespond concisely. Output ONLY what is asked."}
                 ]
             })
         else:
             # Amazon Nova models
             body = json.dumps({
                 "messages": [
-                    {"role": "user", "content": [{"text": f"{prompt}\n\nRespond concisely. Output ONLY what is asked."}]}
+                    {"role": "user", "content": [{"text": f"{scrubbed_prompt}\n\nRespond concisely. Output ONLY what is asked."}]}
                 ],
                 "inferenceConfig": {
                     "maxTokens": max_tokens,
@@ -90,7 +105,7 @@ def call_llm(prompt, max_tokens=400, temperature=0):
 
     # Ollama fallback (local development)
     full_prompt = (
-        f"<start_of_turn>user\n{prompt}\n"
+        f"<start_of_turn>user\n{scrubbed_prompt}\n"
         f"Respond concisely. Output ONLY what is asked.\n"
         f"<end_of_turn>\n<start_of_turn>model\n<|channel>text\n<channel|>"
     )
@@ -259,13 +274,19 @@ def compile_policies_to_rules(policies):
         pid = policy.get("policyId", "UNKNOWN")
         pname = policy.get("policyName", "Unnamed Policy")
         cpts = policy.get("cptCodes", [])
-        icds = policy.get("icd10Codes", [])
+        icds = policy.get("icd10Codes", policy.get("allowedIcd10", []))
         criteria = policy.get("criteria", [])
 
         for cpt in (cpts if cpts else ["UNKNOWN"]):
             md_lines.append(f"\n## Policy: {pid} ({pname})")
             md_lines.append(f"- CPT Code: {cpt}")
-            md_lines.append(f"- Allowed ICD-10 Diagnosis Codes: {', '.join(icds)}")
+            
+            if isinstance(icds, str):
+                icds_str = icds
+            else:
+                icds_str = ", ".join(icds)
+                
+            md_lines.append(f"- Allowed ICD-10 Diagnosis Codes: {icds_str}")
 
             # Map criteria to standard fields
             symptom_wks = "6"
@@ -521,6 +542,253 @@ def run_agent_review(request, use_ai_extraction=False):
 
 # ─── Internal Helpers ────────────────────────────────────────────────────────
 
+def _build_semantic_query(cpt_code, icd_code, clinical_notes, policy, graph_state=None):
+    """
+    Build an intelligent semantic search query tailored to the specific case.
+    
+    Composes a query from:
+    1. Procedure context (CPT + policy name)
+    2. Diagnosis context (ICD + graph diagnoses)
+    3. Policy-specific criteria keywords
+    4. Graph-derived signals (failed therapies, medications)
+    5. Key clinical signals extracted from notes
+    """
+    parts = []
+    
+    # 1. Procedure + policy context
+    parts.append(f"CPT {cpt_code}")
+    if policy:
+        parts.append(policy.get("policyName", ""))
+    
+    # 2. Diagnosis — use graph if available (more structured)
+    parts.append(f"ICD-10 {icd_code}")
+    if graph_state and graph_state.get("diagnoses"):
+        dx_descs = [d.get("description", "") for d in graph_state["diagnoses"][:3] if d.get("description")]
+        if dx_descs:
+            parts.append("Diagnoses: " + ", ".join(dx_descs))
+    
+    # 3. Policy criteria keywords
+    if policy and policy.get("criteria"):
+        criteria_keywords = [c.get("description", "") for c in policy["criteria"][:4] if c.get("description")]
+        if criteria_keywords:
+            parts.append("Evidence needed: " + "; ".join(criteria_keywords))
+    
+    # 4. Graph-derived signals — failed therapies drive the search
+    if graph_state:
+        failed = graph_state.get("failed_therapies", [])
+        if failed:
+            failed_names = [f"{ft.get('drug','')} {ft.get('outcome','')}" for ft in failed[:3]]
+            parts.append("Failed treatments: " + ", ".join(failed_names))
+        
+        therapies = graph_state.get("therapies", [])
+        if therapies:
+            therapy_descs = [f"{t.get('therapy_type','')} {t.get('sessions','')} sessions {t.get('outcome','')}" 
+                           for t in therapies[:2]]
+            parts.append("Therapy history: " + ", ".join(therapy_descs))
+    
+    # 5. Key clinical signals from notes
+    notes_lower = clinical_notes.lower()
+    signals = []
+    
+    therapy_patterns = [
+        r'(?:physical therapy|pt)\s*(?:for\s+)?(\d+\s*weeks?)?',
+        r'(?:failed|inadequate|incomplete)\s+(?:\w+\s+){0,3}(?:therapy|treatment|trial)',
+        r'(?:methotrexate|dmard|biologic|corticosteroid|nsaid)\s*(?:failed|discontinued|intolerant)?',
+    ]
+    for pat in therapy_patterns:
+        match = re.search(pat, notes_lower)
+        if match:
+            signals.append(match.group(0).strip()[:50])
+    
+    finding_patterns = [
+        r'(?:positive|abnormal)\s+\w+(?:\s+\w+)?(?:\s+(?:test|sign|finding))?',
+        r'(?:mri|ct|x-ray|biopsy)\s+(?:shows?|confirms?|reveals?|dated)\s+\w+(?:\s+\w+){0,3}',
+    ]
+    for pat in finding_patterns:
+        match = re.search(pat, notes_lower)
+        if match:
+            signals.append(match.group(0).strip()[:50])
+    
+    if signals:
+        parts.append("Clinical signals: " + ", ".join(signals[:3]))
+    elif not graph_state or not graph_state.get("failed_therapies"):
+        parts.append(clinical_notes[:150].strip())
+    
+    query = " | ".join(parts)
+    return query[:2000]
+
+
+def _merge_graph_evidence(evidence, graph_state, trace, ts):
+    """
+    Merge structured graph state into the evidence dict so it directly informs
+    criteria evaluation. Graph provides ground-truth structured data that
+    supplements or overrides regex/LLM extraction from notes.
+    """
+    if not graph_state:
+        return evidence
+    
+    merged = {**evidence}
+    graph_contributions = []
+    
+    # 1. Failed therapies → satisfies "conservative treatment" criteria
+    failed = graph_state.get("failed_therapies", [])
+    therapies = graph_state.get("therapies", [])
+    
+    if failed or therapies:
+        # Calculate total therapy duration from graph
+        graph_therapy_weeks = 0
+        for t in therapies:
+            sessions = t.get("sessions") or 0
+            if sessions >= 12:
+                graph_therapy_weeks = max(graph_therapy_weeks, 8)
+            elif sessions >= 8:
+                graph_therapy_weeks = max(graph_therapy_weeks, 6)
+            elif sessions >= 4:
+                graph_therapy_weeks = max(graph_therapy_weeks, 4)
+        
+        # If graph has more therapy evidence than notes extraction, upgrade
+        notes_weeks = merged.get("conservativeTherapyWeeks") or 0
+        if graph_therapy_weeks > notes_weeks:
+            merged["conservativeTherapyWeeks"] = graph_therapy_weeks
+            graph_contributions.append(f"Therapy duration upgraded: {notes_weeks}→{graph_therapy_weeks} wks (from graph: {therapies[0].get('therapy_type','')} {therapies[0].get('sessions','')} sessions)")
+        
+        # Failed medications satisfy step therapy
+        failed_drugs = [ft.get("drug", "") for ft in failed if ft.get("drug")]
+        if failed_drugs:
+            existing_meds = merged.get("failedMedications") or []
+            all_meds = list(set(existing_meds + failed_drugs))
+            merged["failedMedications"] = all_meds
+            if len(all_meds) > len(existing_meds):
+                graph_contributions.append(f"Failed meds from graph: {', '.join(failed_drugs)}")
+    
+    # 2. Diagnoses → supports severity/confirmation criteria
+    diagnoses = graph_state.get("diagnoses", [])
+    if diagnoses:
+        severities = [d.get("severity", "") for d in diagnoses if d.get("severity")]
+        if any("severe" in s.lower() for s in severities):
+            if not merged.get("severityScore"):
+                merged["severityScore"] = "severe (graph-confirmed)"
+                graph_contributions.append("Severity confirmed from graph: severe")
+    
+    # 3. Specialist providers → satisfies specialist criteria
+    prescriptions = graph_state.get("prescriptions", [])
+    # If there are multiple failed prescriptions, patient has seen specialists
+    if len([p for p in prescriptions if p.get("outcome") in ("inadequate_response", "failed")]) >= 2:
+        if not merged.get("hasSpecialist"):
+            merged["hasSpecialist"] = True
+            graph_contributions.append("Specialist inferred: multiple failed therapies indicate specialist management")
+    
+    # Log what graph contributed
+    if graph_contributions:
+        merged["_graph_contributions"] = graph_contributions
+        trace.append({"ts": ts(), "type": "skill", "name": "Graph → Evidence Merge",
+                      "msg": f"🔗 Graph enriched evidence: {'; '.join(graph_contributions[:3])}",
+                      "status": "success"})
+    
+    return merged
+
+
+def _cross_validate_graph_vs_notes(graph_state, evidence, clinical_notes):
+    """
+    Cross-validate graph state against clinical notes extraction.
+    Identifies contradictions that the Challenger should investigate.
+    """
+    contradictions = []
+    if not graph_state:
+        return contradictions
+    
+    notes_lower = clinical_notes.lower()
+    
+    # 1. Graph says PT completed, but notes don't mention PT
+    therapies = graph_state.get("therapies", [])
+    for t in therapies:
+        ttype = (t.get("therapy_type") or "").lower()
+        if "physical therapy" in ttype or "pt" in ttype:
+            if "physical therapy" not in notes_lower and " pt " not in notes_lower and "pt," not in notes_lower:
+                contradictions.append(
+                    f"GRAPH-NOTES MISMATCH: Graph shows {t.get('therapy_type','')} "
+                    f"({t.get('sessions',0)} sessions, outcome: {t.get('outcome','')}), "
+                    f"but clinical notes do not mention physical therapy."
+                )
+    
+    # 2. Graph says specific drug failed, but notes claim different treatment history
+    failed = graph_state.get("failed_therapies", [])
+    for ft in failed:
+        drug = (ft.get("drug") or "").lower()
+        if drug and len(drug) > 3:
+            if drug not in notes_lower:
+                contradictions.append(
+                    f"GRAPH-NOTES GAP: Graph records '{ft.get('drug','')}' with outcome "
+                    f"'{ft.get('outcome','')}', but drug not mentioned in clinical notes."
+                )
+    
+    # 3. Notes claim therapy duration but graph shows different
+    notes_weeks = evidence.get("conservativeTherapyWeeks", 0)
+    if therapies and notes_weeks > 0:
+        for t in therapies:
+            sessions = t.get("sessions") or 0
+            # ~2 sessions/week = sessions/2 weeks
+            graph_approx_weeks = sessions / 2 if sessions else 0
+            if graph_approx_weeks > 0 and abs(notes_weeks - graph_approx_weeks) > 3:
+                contradictions.append(
+                    f"DURATION DISCREPANCY: Notes claim {notes_weeks} weeks therapy, "
+                    f"graph shows {sessions} sessions (~{int(graph_approx_weeks)} weeks)."
+                )
+    
+    return contradictions[:3]  # Cap at 3
+
+
+def _build_causal_chain(graph_state, policy):
+    """
+    Build a causal reasoning chain from graph relationships that traces
+    WHY this patient qualifies (or doesn't) for the requested procedure.
+    
+    Chain: DIAGNOSIS → TREATMENT_ATTEMPTED → TREATMENT_FAILED → POLICY_GOVERNS → QUALIFIES
+    """
+    if not graph_state or not policy:
+        return ""
+    
+    diagnoses = graph_state.get("diagnoses", [])
+    failed = graph_state.get("failed_therapies", [])
+    therapies = graph_state.get("therapies", [])
+    
+    if not diagnoses:
+        return ""
+    
+    # Build the chain
+    chain_parts = []
+    
+    # Step 1: Primary diagnosis
+    primary_dx = diagnoses[0]
+    chain_parts.append(f"Dx: {primary_dx.get('description', primary_dx.get('condition_code', '?'))}")
+    
+    # Step 2: Treatments attempted
+    if failed:
+        drug_names = [ft.get("drug", "?") for ft in failed[:3]]
+        chain_parts.append(f"Tried: {', '.join(drug_names)}")
+    
+    # Step 3: Outcomes
+    if failed:
+        outcomes = [ft.get("outcome", "?") for ft in failed[:3]]
+        chain_parts.append(f"Outcomes: {', '.join(set(outcomes))}")
+    
+    if therapies:
+        for t in therapies:
+            if t.get("outcome") in ("failed", "inadequate_response"):
+                chain_parts.append(f"{t.get('therapy_type','Therapy')}: {t.get('outcome','?')} ({t.get('sessions',0)} sessions)")
+    
+    # Step 4: Policy match
+    chain_parts.append(f"Policy: {policy.get('policyId', '?')}")
+    
+    # Step 5: Qualification reasoning
+    if failed or any(t.get("outcome") == "failed" for t in therapies):
+        chain_parts.append("→ Conservative treatment exhausted → Qualifies for escalation")
+    else:
+        chain_parts.append("→ Treatment history incomplete")
+    
+    return " → ".join(chain_parts)
+
+
 def _search_qdrant(qdrant_url, member_id, query_text):
     """Search Qdrant for evidence documents relevant to this PA request."""
     try:
@@ -530,43 +798,86 @@ def _search_qdrant(qdrant_url, member_id, query_text):
         # Use Bedrock Titan Embeddings for query vector
         query_vector = _get_bedrock_embedding(query_text)
         if not query_vector:
+            print(f"Qdrant search skipped: Bedrock embedding returned empty for member {member_id}")
             return []
 
         from qdrant_client.models import Filter, FieldCondition, MatchValue
-        results = client.search(
-            collection_name="clinical_documents",
-            query_vector=query_vector,
-            query_filter=Filter(must=[
-                FieldCondition(key="member_id", match=MatchValue(value=member_id))
-            ]),
-            limit=20,
-        )
 
+        member_filter = Filter(must=[
+            FieldCondition(key="member_id", match=MatchValue(value=member_id))
+        ])
+
+        # Try the newer query_points API first (qdrant-client >= 1.10)
         docs = []
-        for hit in results:
-            payload = hit.payload or {}
-            docs.append({
-                "chunk_id": hit.id,
-                "text": payload.get("text", "")[:300],
-                "score": round(hit.score, 3),
-                "document_id": payload.get("document_id", ""),
-                "doc_type": payload.get("doc_type", "unknown"),
-                "member_id": payload.get("member_id", ""),
-                "s3_key": payload.get("s3_key", ""),
-                "ingestion_timestamp": payload.get("ingestion_timestamp", ""),
-            })
+        try:
+            results = client.query_points(
+                collection_name="clinical_documents",
+                query=query_vector,
+                query_filter=member_filter,
+                limit=20,
+            )
+            # query_points returns a QueryResponse with .points
+            points = results.points if hasattr(results, 'points') else results
+            for hit in points:
+                payload = hit.payload or {}
+                docs.append({
+                    "chunk_id": str(hit.id),
+                    "text": payload.get("text", "")[:300],
+                    "score": round(hit.score, 3),
+                    "document_id": payload.get("document_id", ""),
+                    "doc_type": payload.get("doc_type", "unknown"),
+                    "member_id": payload.get("member_id", ""),
+                    "s3_key": payload.get("s3_key", ""),
+                    "ingestion_timestamp": payload.get("ingestion_timestamp", ""),
+                })
+        except AttributeError:
+            # Fall back to older .search() API (qdrant-client < 1.10)
+            results = client.search(
+                collection_name="clinical_documents",
+                query_vector=query_vector,
+                query_filter=member_filter,
+                limit=20,
+            )
+            for hit in results:
+                payload = hit.payload or {}
+                docs.append({
+                    "chunk_id": str(hit.id),
+                    "text": payload.get("text", "")[:300],
+                    "score": round(hit.score, 3),
+                    "document_id": payload.get("document_id", ""),
+                    "doc_type": payload.get("doc_type", "unknown"),
+                    "member_id": payload.get("member_id", ""),
+                    "s3_key": payload.get("s3_key", ""),
+                    "ingestion_timestamp": payload.get("ingestion_timestamp", ""),
+                })
+
+        if not docs:
+            # Debug: check if filter-only count works
+            count_result = client.count(
+                collection_name="clinical_documents",
+                count_filter=member_filter,
+            )
+            print(f"Qdrant: vector search returned 0, but filter count for {member_id} = {count_result.count}")
+
         return docs
     except Exception as e:
-        print(f"Qdrant search error: {e}")
+        print(f"Qdrant search error: {type(e).__name__}: {e}")
         return []
 
 
 def _get_bedrock_embedding(text):
-    """Generate embedding vector using Amazon Bedrock Titan Embeddings v2."""
+    """Generate embedding vector using Amazon Bedrock Titan Embeddings v2.
+    
+    PHI is scrubbed from text before sending to the embedding model.
+    Clinical content (diagnoses, medications, procedures) is preserved
+    since it's needed for semantic matching.
+    """
     try:
         import boto3
+        # Scrub PHI before sending to Bedrock
+        scrubbed = scrub_text(text)
         client = boto3.client("bedrock-runtime", region_name=os.environ.get("AWS_REGION", "us-west-2"))
-        body = json.dumps({"inputText": text[:8000]})  # Titan max 8k chars
+        body = json.dumps({"inputText": scrubbed[:8000]})  # Titan max 8k chars
         response = client.invoke_model(
             modelId="amazon.titan-embed-text-v2:0",
             contentType="application/json",
@@ -574,9 +885,12 @@ def _get_bedrock_embedding(text):
             body=body,
         )
         result = json.loads(response["body"].read())
-        return result.get("embedding", [])
+        embedding = result.get("embedding", [])
+        if not embedding:
+            print(f"Bedrock embedding warning: response had no 'embedding' key. Keys: {list(result.keys())}")
+        return embedding
     except Exception as e:
-        print(f"Bedrock embedding error: {e}")
+        print(f"Bedrock embedding error: {type(e).__name__}: {e}")
         return []
 
 
@@ -593,7 +907,7 @@ def _query_neo4j_state(neo4j_uri, member_id):
             dx_result = session.run("""
                 MATCH (m:Member {member_id: $mid})-[:HAS_CONDITION]->(e:Event)
                 WHERE e.type = 'diagnosis' AND e.status = 'active'
-                RETURN e.condition_code AS code, e.description AS desc, e.severity AS severity
+                RETURN e.condition_code AS condition_code, e.description AS description, e.severity AS severity
             """, mid=member_id)
             diagnoses = [dict(r) for r in dx_result]
 
@@ -611,10 +925,18 @@ def _query_neo4j_state(neo4j_uri, member_id):
             th_result = session.run("""
                 MATCH (m:Member {member_id: $mid})-[:HAS_CONDITION]->(e:Event)
                 WHERE e.type = 'therapy'
-                RETURN e.therapy_type AS type, e.protocol AS protocol,
+                RETURN e.therapy_type AS therapy_type, e.protocol AS protocol,
                        e.sessions_completed AS sessions, e.outcome AS outcome, e.notes AS notes
             """, mid=member_id)
             therapies = [dict(r) for r in th_result]
+            # Include failed therapies from therapy events too
+            for t in therapies:
+                if t.get("outcome") in ("failed", "inadequate_response"):
+                    failed_therapies.append({
+                        "drug": t.get("therapy_type", "Therapy"),
+                        "dose": t.get("protocol", ""),
+                        "outcome": t.get("outcome", "")
+                    })
 
             for th in therapies:
                 if th.get("outcome") in ("inadequate_response", "failed", "unsuccessful", "completed_no_improvement"):
@@ -870,12 +1192,31 @@ def run_multi_policy_review(request, use_ai_extraction=False):
     bundle_path = request.get("evidenceBundle", "")
     bundle_text = ""
     if bundle_path:
-        full_path = os.path.join(DATA_DIR, bundle_path)
-        if os.path.exists(full_path):
-            bundle_text = read_pdf_text(full_path, max_pages=5)
+        # Try S3 first (deployed environment)
+        if S3_AVAILABLE and is_s3_enabled():
+            pdf_bytes = get_file_bytes(bundle_path)
+            if pdf_bytes:
+                reader = PdfReader(io.BytesIO(pdf_bytes))
+                pages = []
+                for i, page in enumerate(reader.pages[:5]):
+                    text = page.extract_text()
+                    if text and text.strip():
+                        pages.append(text.strip())
+                bundle_text = "\n".join(pages)
+        
+        # Fallback to local filesystem
+        if not bundle_text:
+            full_path = os.path.join(DATA_DIR, bundle_path)
+            if os.path.exists(full_path):
+                bundle_text = read_pdf_text(full_path, max_pages=5)
+        
+        if bundle_text:
             trace.append({"ts": ts(), "type": "skill", "name": "ReadDocumentSkill",
-                          "msg": f"Read evidence bundle: {os.path.basename(bundle_path)} ({len(bundle_text)} chars)",
+                          "msg": f"📄 Read evidence bundle: {os.path.basename(bundle_path)} ({len(bundle_text)} chars)",
                           "status": "success"})
+        else:
+            trace.append({"ts": ts(), "type": "skill", "name": "ReadDocumentSkill",
+                          "msg": f"⚠ Evidence bundle not found: {bundle_path}", "status": "warning"})
     
     # Use bundle text as the primary clinical source if available
     clinical_notes = bundle_text if bundle_text else request.get("clinicalNotes", "")
@@ -886,8 +1227,17 @@ def run_multi_policy_review(request, use_ai_extraction=False):
     # ─── STAGE 1: PHI + Intake ────────────────────────────────────────────
     trace.append({"ts": ts(), "type": "disclosure", "name": "Progressive Disclosure",
                   "msg": "Stage 1: PHI redaction only. No policies loaded yet.", "status": "info"})
+    
+    # Actual PHI scrubbing — determine what will be stripped before LLM calls
+    _test_scrub, _phi_mapping = scrub_for_llm(clinical_notes, request)
+    phi_items_found = len(_phi_mapping)
+    phi_categories = list(set(k.split('_')[0].strip('[]') for k in _phi_mapping.keys()))
+    
     trace.append({"ts": ts(), "type": "rule", "name": "RULE-01 (PHI Redaction)",
-                  "msg": "Sensitive data scrubbed from trace.", "status": "success"})
+                  "msg": f"✓ PHI scrubber active: {phi_items_found} identifiers detected and will be tokenized before any LLM/embedding call. "
+                         f"Categories: {', '.join(phi_categories) if phi_categories else 'none detected'}. "
+                         f"Clinical content (diagnoses, medications, findings) preserved.",
+                  "status": "success"})
 
     # ─── STAGE 2: Policy Routing + Coverage ───────────────────────────────
     trace.append({"ts": ts(), "type": "disclosure", "name": "Progressive Disclosure",
@@ -942,31 +1292,7 @@ def run_multi_policy_review(request, use_ai_extraction=False):
     semantic_query = ""
     graph_state = {}
 
-    # Query Qdrant for relevant evidence
-    qdrant_url = os.environ.get("QDRANT_URL")
-    if qdrant_url and member_id:
-        try:
-            semantic_query = f"CPT {cpt_code} {clinical_notes[:200]}"
-            trace.append({"ts": ts(), "type": "skill", "name": "Axisweave Retrieval",
-                          "msg": f"🔍 Semantic query: \"{semantic_query[:80]}...\"", "status": "info"})
-
-            retrieved_evidence_docs = _search_qdrant(qdrant_url, member_id, semantic_query)
-            trace.append({"ts": ts(), "type": "skill", "name": "Axisweave Retrieval",
-                          "msg": f"✓ Retrieved {len(retrieved_evidence_docs)} evidence chunks (hybrid dense+BM25, RRF fusion)",
-                          "status": "success"})
-
-            for i, doc in enumerate(retrieved_evidence_docs[:5]):
-                trace.append({"ts": ts(), "type": "context_retrieval", "name": "Evidence Chunk",
-                              "msg": f"[{doc['score']:.2f}] {doc['doc_type']}: {doc['text'][:120]}...",
-                              "status": "info"})
-        except Exception as e:
-            trace.append({"ts": ts(), "type": "skill", "name": "Axisweave Retrieval",
-                          "msg": f"⚠ Semantic search unavailable: {str(e)[:80]}", "status": "warning"})
-    else:
-        trace.append({"ts": ts(), "type": "skill", "name": "Axisweave Retrieval",
-                      "msg": "Qdrant not configured — using clinical notes only.", "status": "warning"})
-
-    # Query Neo4j for patient graph state
+    # Query Neo4j FIRST — graph state drives the semantic query and informs criteria
     neo4j_uri = os.environ.get("NEO4J_URI")
     if neo4j_uri and member_id:
         try:
@@ -979,8 +1305,13 @@ def run_multi_policy_review(request, use_ai_extraction=False):
             if graph_state.get("failed_therapies"):
                 for ft in graph_state["failed_therapies"][:3]:
                     trace.append({"ts": ts(), "type": "context_retrieval", "name": "Graph: Failed Therapy",
-                                  "msg": f"❌ {ft['drug']} {ft['dose']} — outcome: {ft['outcome']}",
+                                  "msg": f"❌ {ft.get('drug','Unknown')} {ft.get('dose','')} — outcome: {ft.get('outcome','unknown')}",
                                   "status": "info"})
+            # Trace causal chain
+            causal_chain = _build_causal_chain(graph_state, policy)
+            if causal_chain:
+                trace.append({"ts": ts(), "type": "context_retrieval", "name": "Causal Reasoning Chain",
+                              "msg": f"🔗 {causal_chain}", "status": "info"})
         except Exception as e:
             trace.append({"ts": ts(), "type": "skill", "name": "Causal Graph Query",
                           "msg": f"⚠ Graph query failed: {str(e)[:80]}", "status": "warning"})
@@ -988,10 +1319,38 @@ def run_multi_policy_review(request, use_ai_extraction=False):
         trace.append({"ts": ts(), "type": "skill", "name": "Causal Graph Query",
                       "msg": "Neo4j not configured — using clinical notes only.", "status": "warning"})
 
+    # Query Qdrant — semantic query now DRIVEN BY graph state
+    qdrant_url = os.environ.get("QDRANT_URL")
+    if qdrant_url and member_id:
+        try:
+            semantic_query = _build_semantic_query(cpt_code, icd_code, clinical_notes, policy, graph_state)
+            trace.append({"ts": ts(), "type": "skill", "name": "Axisweave Retrieval",
+                          "msg": f"🔍 Semantic query: \"{semantic_query[:100]}...\"", "status": "info"})
+
+            retrieved_evidence_docs = _search_qdrant(qdrant_url, member_id, semantic_query)
+            if retrieved_evidence_docs:
+                trace.append({"ts": ts(), "type": "skill", "name": "Axisweave Retrieval",
+                              "msg": f"✓ Retrieved {len(retrieved_evidence_docs)} evidence chunks (Bedrock Titan cosine search)",
+                              "status": "success"})
+                for i, doc in enumerate(retrieved_evidence_docs[:5]):
+                    trace.append({"ts": ts(), "type": "context_retrieval", "name": "Evidence Chunk",
+                                  "msg": f"[{doc['score']:.2f}] {doc['doc_type']}: {doc['text'][:120]}...",
+                                  "status": "info"})
+            else:
+                trace.append({"ts": ts(), "type": "skill", "name": "Axisweave Retrieval",
+                              "msg": f"⚠ 0 chunks returned for {member_id}.",
+                              "status": "warning"})
+        except Exception as e:
+            trace.append({"ts": ts(), "type": "skill", "name": "Axisweave Retrieval",
+                          "msg": f"⚠ Semantic search unavailable: {str(e)[:80]}", "status": "warning"})
+    else:
+        trace.append({"ts": ts(), "type": "skill", "name": "Axisweave Retrieval",
+                      "msg": "Qdrant not configured — using clinical notes only.", "status": "warning"})
+
     if use_ai_extraction and clinical_notes:
         trace.append({"ts": ts(), "type": "skill", "name": "ExtractEvidence (ClinicalNLP)",
                       "msg": "🧠 Reading clinical documentation with LLM...", "status": "info"})
-        evidence = _ai_extract_full(clinical_notes, cpt_code, policy)
+        evidence = _ai_extract_full(clinical_notes, cpt_code, policy, request_context=request)
         if isinstance(evidence, list):
             evidence = evidence[0] if evidence else {}
         if not isinstance(evidence, dict):
@@ -1007,12 +1366,21 @@ def run_multi_policy_review(request, use_ai_extraction=False):
         trace.append({"ts": ts(), "type": "skill", "name": "ExtractEvidence (Regex)",
                       "msg": f"Extracted: therapy={evidence.get('conservativeTherapyWeeks',0)}wk, neuro={evidence.get('hasNeurologicalSymptoms')}, specialist={evidence.get('hasSpecialist')}", "status": "success"})
 
+    # ─── Merge graph state into evidence (graph informs decision logic) ────
+    evidence = _merge_graph_evidence(evidence, graph_state, trace, ts)
+
     # ─── STAGE 4: Criteria Evaluation ─────────────────────────────────────
     trace.append({"ts": ts(), "type": "disclosure", "name": "Progressive Disclosure",
                   "msg": "Stage 4: Evaluating criteria against policy rules.", "status": "info"})
 
     criteria_results = _evaluate_policy_criteria(evidence, policy, request)
     all_met = all(c["met"] for c in criteria_results)
+
+    # ─── Cross-validation: graph vs notes contradictions ──────────────────
+    contradictions = _cross_validate_graph_vs_notes(graph_state, evidence, clinical_notes)
+    for contradiction in contradictions:
+        trace.append({"ts": ts(), "type": "rule", "name": "Cross-Validation",
+                      "msg": f"⚠ {contradiction}", "status": "warning"})
 
     for c in criteria_results:
         status = "success" if c["met"] else "fail"
@@ -1054,7 +1422,9 @@ def run_multi_policy_review(request, use_ai_extraction=False):
             criteria_met=criteria_results,
             request=request,
             policy=policy,
-            bundle_text=bundle_text
+            bundle_text=bundle_text,
+            graph_contradictions=contradictions,
+            graph_state=graph_state,
         )
         # Merge challenger trace into main trace
         for t in challenger_result.get("trace", []):
@@ -1099,6 +1469,8 @@ def run_multi_policy_review(request, use_ai_extraction=False):
         "retrievedEvidence": retrieved_evidence_docs,
         "semanticQuery": semantic_query,
         "graphState": graph_state,
+        "causalChain": _build_causal_chain(graph_state, policy) if graph_state else "",
+        "crossValidation": contradictions,
         "policyUsed": policy.get("policyId", "default") if policy else "no_match",
         "policyName": policy.get("policyName", "") if policy else "Default",
         "category": policy.get("category", "General") if policy else "General",
@@ -1118,8 +1490,9 @@ def run_multi_policy_review(request, use_ai_extraction=False):
     }
 
 
-def _ai_extract_full(clinical_notes, cpt_code, policy):
-    """Use Gemma 4 to extract evidence relevant to the specific policy criteria."""
+def _ai_extract_full(clinical_notes, cpt_code, policy, request_context=None):
+    """Use LLM to extract evidence relevant to the specific policy criteria.
+    PHI is automatically scrubbed via call_llm."""
     criteria_desc = ""
     if policy and policy.get("criteria"):
         criteria_desc = "Criteria to look for:\n" + "\n".join(
@@ -1135,7 +1508,7 @@ NOTES: {clinical_notes}
 Return JSON with these fields (use true/false for booleans, integers for weeks/months):
 {{"conservativeTherapyWeeks": <int>, "hasNeurologicalSymptoms": <bool>, "hasMechanicalSymptoms": <bool>, "hasImagingFindings": <bool>, "hasSpecialist": <bool>, "hasPriorImaging": <bool>, "hasPathology": <bool>, "severityScore": <int or null>, "failedMedications": [<list>], "reasoning": "<brief>"}}"""
 
-    response = call_llm(prompt, max_tokens=300, temperature=0)
+    response = call_llm(prompt, max_tokens=300, temperature=0, request_context=request_context)
     try:
         result = extract_json_from_response(response)
         if isinstance(result, list):
@@ -1423,6 +1796,7 @@ def avi_respond(user_message, ui_context=None):
     - Generated skills
     - Current system state
     - The user's current UI context (which tab, which case, decision state)
+    - Last execution results: decision, trace, graph state, evidence, challenger
     
     This is a REAL agent — it assembles its own context based on what it needs.
     """
@@ -1456,33 +1830,94 @@ def avi_respond(user_message, ui_context=None):
     else:
         skills_ref += "- No skills generated yet. User should use Policy Workspace to generate.\n"
     
-    # Determine which tab the user is on for context-sensitive responses
-    active_tab = "unknown"
+    # ─── Context-Aware Section ─────────────────────────────────────────────────
+    # Determine which tab the user is on and build rich contextual awareness
+    active_view = "unknown"
     tab_context = ""
+    decision_context = ""
+    trace_context = ""
+    graph_context = ""
+    evidence_context = ""
+    challenger_context = ""
+    
     if ui_context:
-        active_tab = ui_context.get("activeTab", "review")
-        if active_tab == "workspace":
+        active_view = ui_context.get("activeView", ui_context.get("activeTab", "review"))
+        
+        # Last Decision context
+        last_decision = ui_context.get("lastDecision")
+        if last_decision:
+            decision_context = f"\nLAST EXECUTION DECISION:\n- Decision: {last_decision.get('decision', 'N/A')}\n- Reason: {last_decision.get('reason', 'N/A')}\n- Policy: {last_decision.get('policyName', 'N/A')}\n"
+        
+        # Last Trace events
+        last_trace = ui_context.get("lastTrace")
+        if last_trace:
+            trace_context = "\nLAST TRACE EVENTS (most recent):\n"
+            for t in last_trace:
+                trace_context += f"- [{t.get('type', '')}] {t.get('name', '')}: {t.get('msg', '')}\n"
+        
+        # Graph state
+        graph_state = ui_context.get("graphState")
+        if graph_state:
+            graph_context = f"\nPATIENT GRAPH STATE (Neo4j CRF):\n{graph_state}\n"
+        
+        # Retrieved evidence
+        retrieved_evidence = ui_context.get("retrievedEvidence")
+        if retrieved_evidence:
+            evidence_context = f"\nRETRIEVED EVIDENCE:\n- Documents retrieved: {retrieved_evidence.get('count', 0)} chunks\n- Summary: {retrieved_evidence.get('summary', 'N/A')}\n"
+        
+        # Challenger verdict
+        challenger_verdict = ui_context.get("challengerVerdict")
+        if challenger_verdict:
+            challenger_context = f"\nCHALLENGER AGENT VERDICT:\n- Verdict: {challenger_verdict.get('verdict', 'N/A')}\n- Reasoning: {challenger_verdict.get('reasoning', 'N/A')}\n"
+        
+        # Tab-specific guidance
+        if active_view == "review":
+            case_data = ui_context.get("caseContext", "")
+            tab_context = f"\nUSER IS ON: Agent Review tab — they can see the PA execution results.\n{case_data}\n"
+            tab_context += "You have access to the PA execution results. Use the decision, trace, evidence, and challenger data above to answer questions about why something was approved/escalated, what criteria passed/failed, and what the Challenger found."
+        elif active_view == "crf":
+            tab_context = "\nUSER IS ON: Clinical Reasoning Fabric (CRF) tab — they're viewing the patient ontology graph.\n"
+            tab_context += "You're viewing the Clinical Reasoning Fabric. Use the graph state data above to explain diagnoses, failed therapies, and patient history connections shown in the graph."
+        elif active_view == "workspace":
             selected_policy = ui_context.get("selectedPolicy", "")
-            tab_context = f"\nUSER IS ON: Policy Workspace tab. Selected policy: {selected_policy}. They may be asking about policy configuration, rules generation, or skill management."
+            audit_log = ui_context.get("auditLog", "")
+            tab_context = f"\nUSER IS ON: Policy Workspace tab. Selected policy: {selected_policy}.\n"
+            tab_context += f"Audit log: {audit_log[:200]}\n"
+            tab_context += "You're in the Policy Workspace managing policy artifacts. Help with policy configuration, rules generation, skill management, and hook setup."
+        elif active_view == "concepts":
+            tab_context = "\nUSER IS ON: Concepts tab — the animated architecture demo showing how PA Agent and Challenger Agent work together with skills, rules, and hooks."
+        elif active_view == "video":
+            tab_context = "\nUSER IS ON: Video Tutorial tab."
+        elif active_view == "home":
+            tab_context = "\nUSER IS ON: Home tab — system overview and architecture."
         else:
             case_data = ui_context.get("caseContext", "")
-            tab_context = f"\nUSER IS ON: Agent Review tab.\n{case_data}"
+            tab_context = f"\nUSER IS ON: {active_view} tab.\n{case_data}"
     
-    system_prompt = f"""You are AVI, the clinical intelligence assistant built into PriorAuthAI. You have real-time access to the system's loaded policies, skills, and state.
+    system_prompt = f"""You are AVI, the clinical intelligence assistant built into PriorAuthAI. You have real-time access to the system's loaded policies, skills, state, AND the current execution context.
 
 YOUR CAPABILITIES:
-1. Explain decisions (why approved/escalated) based on actual policy criteria
+1. Explain decisions (why approved/escalated) based on actual policy criteria and execution results
 2. Identify missing documentation by comparing evidence against policy thresholds
 3. Explain rules: RULE-01 (PHI Redaction), RULE-02 (Clinical Conservatism), RULE-03 (Citation), RULE-04 (Code Match), RULE-05 (Plain Language)
 4. Explain the 5-stage progressive disclosure pipeline
 5. Interpret CPT/ICD-10 codes using the reference data below
 6. Guide users on Policy Workspace actions (generate rules/skills/hooks)
 7. Explain how ClinicalNLP Engine differs from regex extraction
+8. Answer "Why was this escalated?" using the decision + trace + criteria results
+9. Answer "What did the graph show?" using the patient graph state
+10. Answer "What evidence was retrieved?" using the retrieved evidence data
+11. Explain the Challenger decision using the challenger verdict and reasoning
 
 {policy_ref}
 {code_ref}
 {skills_ref}
 {tab_context}
+{decision_context}
+{trace_context}
+{graph_context}
+{evidence_context}
+{challenger_context}
 
 RULES:
 - RULE-01 (PHI Redaction): Scrubs names/SSN/DOB from trace logs
@@ -1490,6 +1925,13 @@ RULES:
 - RULE-03 (Citation Compulsory): Every notice must cite the policy ID
 - RULE-04 (Code Match): Validates CPT/ICD format and alignment with policy
 - RULE-05 (Plain Language): Translates medical acronyms for patient correspondence
+
+CONTEXT-AWARE ANSWERING:
+- If user asks "Why was this escalated/approved?" → Use LAST EXECUTION DECISION and trace events to explain exactly which criteria passed/failed and why.
+- If user asks "What did the graph show?" → Use PATIENT GRAPH STATE to describe diagnoses, therapies, and clinical history nodes.
+- If user asks "What evidence was retrieved?" → Use RETRIEVED EVIDENCE to describe document count, types, and relevance scores.
+- If user asks "Explain the Challenger decision" → Use CHALLENGER AGENT VERDICT to explain the Challenger's reasoning, confidence score, and findings.
+- If decision data is not available, say "No execution has been run yet. Please run a case first."
 
 IMPORTANT: Use ONLY the reference data above for code lookups. Never fabricate definitions.
 Keep answers concise (3-5 sentences). Be direct and clinical. You ARE AVI."""
@@ -1519,16 +1961,34 @@ def read_evidence_bundle(bundle_path, cpt_code):
     trace.append({"ts": ts(), "type": "skill", "name": "ReadEvidenceBundleSkill",
                   "msg": f"Reading PDF: {os.path.basename(bundle_path)}", "status": "info"})
     
-    # Read the PDF
+    # Read the PDF — try S3 first, then local
     full_path = os.path.join(DATA_DIR, bundle_path)
-    if not os.path.exists(full_path):
-        trace.append({"ts": ts(), "type": "skill", "name": "ReadEvidenceBundleSkill",
-                      "msg": f"File not found: {bundle_path}", "status": "fail"})
-        return {"error": "Bundle not found", "trace": trace}
     
-    pdf_text = read_pdf_text(full_path, max_pages=5)
-    trace.append({"ts": ts(), "type": "skill", "name": "ReadEvidenceBundleSkill",
-                  "msg": f"Extracted {len(pdf_text)} chars from PDF", "status": "success"})
+    # Check S3 first (deployed environment)
+    pdf_text = ""
+    if S3_AVAILABLE and is_s3_enabled():
+        pdf_bytes = get_file_bytes(bundle_path)
+        if pdf_bytes:
+            reader = PdfReader(io.BytesIO(pdf_bytes))
+            pages_text = []
+            for i, page in enumerate(reader.pages[:5]):
+                text = page.extract_text()
+                if text and text.strip():
+                    pages_text.append(f"--- PAGE {i+1} ---\n{text.strip()}")
+            pdf_text = "\n\n".join(pages_text)
+            trace.append({"ts": ts(), "type": "skill", "name": "ReadEvidenceBundleSkill",
+                          "msg": f"Read from S3: {len(pdf_text)} chars", "status": "success"})
+    
+    # Fallback to local filesystem
+    if not pdf_text and os.path.exists(full_path):
+        pdf_text = read_pdf_text(full_path, max_pages=5)
+        trace.append({"ts": ts(), "type": "skill", "name": "ReadEvidenceBundleSkill",
+                      "msg": f"Read from local: {len(pdf_text)} chars", "status": "success"})
+    
+    if not pdf_text:
+        trace.append({"ts": ts(), "type": "skill", "name": "ReadEvidenceBundleSkill",
+                      "msg": f"File not found in S3 or locally: {bundle_path}", "status": "fail"})
+        return {"error": "Bundle not found", "trace": trace}
     
     # Find the matching policy
     policy = find_policy_for_cpt(cpt_code)
@@ -1594,4 +2054,256 @@ Return JSON (keep findings SHORT - max 8 words each):
             "extracted": {"clinicalSummary": response[:300]},
             "trace": trace
         }
+
+
+def create_clinical_evidence_pdf(patient_name, dob, member_id, clinical_notes, filepath):
+    """Generate a clean synthetic clinical evidence PDF document for a dynamic case."""
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+        from reportlab.lib import colors
+
+        doc = SimpleDocTemplate(filepath, pagesize=letter)
+        styles = getSampleStyleSheet()
+        story = []
+
+        # Title
+        title_style = ParagraphStyle(
+            'DocTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            leading=22,
+            textColor=colors.HexColor('#0f172a'),
+            spaceAfter=12
+        )
+        story.append(Paragraph("Clinical Evidence Document", title_style))
+        story.append(Spacer(1, 10))
+
+        # Metadata
+        meta_style = ParagraphStyle(
+            'DocMeta',
+            parent=styles['Normal'],
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor('#475569')
+        )
+        story.append(Paragraph(f"<b>Patient Name:</b> {patient_name}", meta_style))
+        story.append(Paragraph(f"<b>Date of Birth:</b> {dob}", meta_style))
+        story.append(Paragraph(f"<b>Member ID:</b> {member_id}", meta_style))
+        story.append(Paragraph(f"<b>Document Date:</b> {datetime.now().strftime('%Y-%m-%d')}", meta_style))
+        story.append(Spacer(1, 15))
+
+        # Section Header
+        story.append(Paragraph("<b>Clinical Notes & Findings Summary:</b>", styles['Heading3']))
+        story.append(Spacer(1, 8))
+
+        # Notes Body
+        body_style = ParagraphStyle(
+            'DocBody',
+            parent=styles['Normal'],
+            fontSize=9.5,
+            leading=14.5,
+            textColor=colors.HexColor('#1e293b')
+        )
+        # Convert simple text formatting to HTML-like paragraphs
+        notes_html = clinical_notes.replace('\n', '<br/>')
+        story.append(Paragraph(notes_html, body_style))
+
+        doc.build(story)
+        return True
+    except Exception as e:
+        print(f"Error creating PDF: {e}")
+        return False
+
+
+def generate_cases_for_policy(policy):
+    """
+    Call Bedrock to design exactly 2 testing cases for a newly loaded policy.
+    One Approved case (fully meeting criteria) and one Escalated case.
+    Saves to preset_cases.json and compiles PDF bundles.
+    """
+    policy_id = policy.get("policyId", "")
+    policy_name = policy.get("policyName", "")
+    category = policy.get("category", "General")
+    cpt_codes = ", ".join(policy.get("cptCodes", []))
+    icd10_codes = ", ".join(policy.get("allowedIcd10", policy.get("icd10Codes", [])))
+    
+    criteria_text = "\n".join(
+        f"- {c['id']}: {c['description']} (type: {c.get('type', 'N/A')}, threshold: {c.get('threshold', 'N/A')})"
+        for c in policy.get("criteria", [])
+    )
+    
+    prompt = f"""You are a medical case generator. Given this prior authorization clinical policy, generate exactly two distinct prior authorization request cases as a JSON array.
+
+Policy ID: {policy_id}
+Policy Name: {policy_name}
+CPT Codes: {cpt_codes}
+Diagnosis Codes: {icd10_codes}
+Criteria:
+{criteria_text}
+
+Generate a JSON array of exactly 2 cases:
+1. First case must represent an APPROVED scenario:
+   - Make up a realistic member ID, patient name, SSN, and DOB.
+   - Use one of the covered CPT codes and diagnosis codes.
+   - Write a detailed "clinicalNotes" string (2-3 sentences) where the patient has completed the required conservative therapy duration (if any), has the required symptoms/findings, and meets all criteria.
+2. Second case must represent an ESCALATED scenario:
+   - Make up a realistic member ID, patient name, SSN, and DOB.
+   - Use one of the covered CPT codes and diagnosis codes.
+   - Write a detailed "clinicalNotes" string (2-3 sentences) where the patient does NOT meet the criteria (e.g., has mechanical symptoms but has NOT completed the required weeks of conservative physical therapy, or CPT/ICD-10 is mismatching).
+
+Output format:
+[
+  {{
+    "id": "case-{policy_id.lower()}-approve",
+    "title": "{policy_name} — Approved (meets clinical criteria)",
+    "category": "{category}",
+    "request": {{
+      "memberId": "MEM-{random_member_suffix()}",
+      "patientName": "<patient name>",
+      "patientSsn": "999-99-9999",
+      "patientDob": "1980-01-01",
+      "cptCode": "<cpt>",
+      "icd10Code": "<icd10>",
+      "providerName": "<provider name>",
+      "providerNpi": "1234567890",
+      "clinicalNotes": "<detailed notes meeting all criteria>"
+    }}
+  }},
+  {{
+    "id": "case-{policy_id.lower()}-escalate",
+    "title": "{policy_name} — Escalated (fails criteria)",
+    "category": "{category}",
+    "request": {{
+      "memberId": "MEM-{random_member_suffix(True)}",
+      "patientName": "<patient name>",
+      "patientSsn": "999-99-9999",
+      "patientDob": "1985-05-05",
+      "cptCode": "<cpt>",
+      "icd10Code": "<icd10>",
+      "providerName": "<provider name>",
+      "providerNpi": "1234567890",
+      "clinicalNotes": "<detailed notes failing criteria>"
+    }}
+  }}
+]
+
+Respond with ONLY the JSON array. Do not include markdown code block formatting or explanation."""
+
+    response = call_llm(prompt, max_tokens=1000, temperature=0)
+    
+    try:
+        cases = extract_json_from_response(response)
+        if not isinstance(cases, list) or len(cases) < 2:
+            raise ValueError("Expected list of 2 cases")
+    except Exception as e:
+        print(f"Failed to parse cases from LLM: {e}. Generating fallback cases.")
+        # Fallback cases
+        cpt = policy.get("cptCodes", ["99999"])[0]
+        icd = policy.get("allowedIcd10", policy.get("icd10Codes", ["M54.5"]))[0]
+        cases = [
+            {
+                "id": f"case-{policy_id.lower()}-approve",
+                "title": f"{policy_name} — Approved (meets clinical criteria)",
+                "category": category,
+                "request": {
+                    "memberId": f"MEM-{random_member_suffix()}",
+                    "patientName": "John Doe",
+                    "patientSsn": "999-01-2345",
+                    "patientDob": "1978-10-12",
+                    "cptCode": cpt,
+                    "icd10Code": icd,
+                    "providerName": "Quality Health Partners",
+                    "providerNpi": "9876543210",
+                    "clinicalNotes": f"Patient presents for evaluation. All diagnostic criteria for {policy_name} under {cpt} and {icd} have been fully satisfied. Completed 8 weeks of physical therapy and conservative management with documented failure."
+                }
+            },
+            {
+                "id": f"case-{policy_id.lower()}-escalate",
+                "title": f"{policy_name} — Escalated (fails criteria)",
+                "category": category,
+                "request": {
+                    "memberId": f"MEM-{random_member_suffix(True)}",
+                    "patientName": "Jane Smith",
+                    "patientSsn": "999-02-6789",
+                    "patientDob": "1988-04-18",
+                    "cptCode": cpt,
+                    "icd10Code": icd,
+                    "providerName": "Quality Health Partners",
+                    "providerNpi": "9876543210",
+                    "clinicalNotes": f"Patient reports symptoms for only 2 weeks. Has not completed conservative therapy or physical therapy trials yet. CPT {cpt} requested."
+                }
+            }
+        ]
+        
+    # Generate PDF documents and save locally + S3
+    for case in cases:
+        req = case["request"]
+        case_id = case["id"]
+        pdf_filename = f"{case_id}_bundle.pdf"
+        local_dir = os.path.join(DATA_DIR, "cases")
+        os.makedirs(local_dir, exist_ok=True)
+        local_path = os.path.join(local_dir, pdf_filename)
+        
+        # Build PDF
+        create_clinical_evidence_pdf(
+            req["patientName"], req["patientDob"], req["memberId"],
+            req["clinicalNotes"], local_path
+        )
+        
+        case["evidenceBundle"] = f"cases/{pdf_filename}"
+        
+        # Upload to S3 if configured
+        if is_s3_enabled():
+            try:
+                import boto3
+                s3_key = f"cases/{pdf_filename}"
+                s3_client = boto3.client("s3")
+                with open(local_path, "rb") as f:
+                    s3_client.put_object(Bucket=os.environ.get("S3_BUCKET"), Key=s3_key, Body=f.read())
+                print(f"Uploaded case bundle to S3: {s3_key}")
+            except Exception as se:
+                print(f"Error uploading case bundle to S3: {se}")
+
+    # Append to preset_cases.json
+    cases_file = os.path.join(POLICIES_DIR, "preset_cases.json")
+    existing_cases = []
+    if os.path.exists(cases_file):
+        try:
+            with open(cases_file, "r") as f:
+                existing_cases = json.load(f)
+        except Exception:
+            pass
+            
+    # Remove any existing versions of these specific case IDs to avoid duplicates
+    new_ids = [c["id"] for c in cases]
+    existing_cases = [c for c in existing_cases if c["id"] not in new_ids]
+    
+    existing_cases.extend(cases)
+    
+    with open(cases_file, "w") as f:
+        json.dump(existing_cases, f, indent=2)
+        
+    print(f"Appended {len(cases)} cases for policy {policy_id} to preset_cases.json")
+    return cases
+
+
+def random_member_suffix(escalate=False):
+    import random
+    num = random.randint(1000, 9999)
+    return f"{num}"
+
+
+def compile_all_policies_to_rules():
+    """Load all policies from disk and rebuild rules_declaration.md & rules.rego."""
+    all_policies = load_all_policies()
+    md_content = compile_policies_to_rules(all_policies)
+    
+    # Save rules_declaration.md
+    with open('rules_declaration.md', 'w') as f:
+        f.write(md_content)
+        
+    print(f"Successfully compiled {len(all_policies)} policies to rules_declaration.md")
+    return md_content
 

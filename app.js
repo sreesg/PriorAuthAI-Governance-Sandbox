@@ -1353,6 +1353,179 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  async function loadS3PdfPicker() {
+    const picker = document.getElementById('s3-policy-picker');
+    if (!picker) return;
+    try {
+      picker.innerHTML = '<option value="">-- Scanning S3 Bucket --</option>';
+      const res = await fetch('/agent/list-s3-pdfs');
+      const data = await res.json();
+      picker.innerHTML = '<option value="">-- Select from S3 bucket --</option>';
+      if (data.files && data.files.length > 0) {
+        data.files.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f;
+          opt.textContent = f;
+          picker.appendChild(opt);
+        });
+      } else {
+        picker.innerHTML = '<option value="">No PDFs found in S3</option>';
+      }
+    } catch(e) {
+      console.error("Failed to load S3 PDFs:", e);
+      picker.innerHTML = '<option value="">Error listing S3 files</option>';
+    }
+  }
+
+  async function runPolicyIngestion() {
+    const s3Select = document.getElementById('s3-policy-picker');
+    const uploadInput = document.getElementById('upload-policy-input');
+    const btn = document.getElementById('btn-ingest-policy');
+    const stepperContainer = document.getElementById('ingest-stepper-container');
+    const percentEl = document.getElementById('ingest-overall-percent');
+    
+    const steps = {
+      read: document.getElementById('step-read-pdf'),
+      extract: document.getElementById('step-extract-criteria'),
+      rego: document.getElementById('step-compile-rego'),
+      build: document.getElementById('step-build-suite'),
+      cases: document.getElementById('step-generate-cases')
+    };
+
+    // Reset step styles
+    Object.values(steps).forEach(s => setStepStatus(s, 'pending', s.textContent.substring(2)));
+    percentEl.textContent = '0%';
+
+    let payload = {};
+    
+    // Check if uploaded local file exists
+    if (uploadInput.files && uploadInput.files.length > 0) {
+      const file = uploadInput.files[0];
+      stepperContainer.style.display = 'block';
+      setStepStatus(steps.read, 'active', '1. Reading local PDF file...');
+      percentEl.textContent = '10%';
+      
+      const reader = new FileReader();
+      const base64Promise = new Promise((resolve) => {
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+      });
+      reader.readAsDataURL(file);
+      const b64Data = await base64Promise;
+      payload = {
+        uploadedFile: b64Data,
+        filename: file.name
+      };
+    } else if (s3Select.value) {
+      stepperContainer.style.display = 'block';
+      setStepStatus(steps.read, 'active', '1. Requesting S3 file...');
+      percentEl.textContent = '10%';
+      payload = {
+        s3Key: s3Select.value
+      };
+    } else {
+      showToast("Please upload a local PDF or select a PDF file from S3 first.", "error");
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Processing Policy...';
+    
+    try {
+      setStepStatus(steps.read, 'success', '1. PDF file read completed');
+      setStepStatus(steps.extract, 'active', '2. ClinicalNLP Engine extracting criteria...');
+      percentEl.textContent = '30%';
+      
+      await new Promise(r => setTimeout(r, 800));
+      
+      const res = await fetch('/agent/ingest-policy-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Ingestion request failed");
+      }
+      
+      const data = await res.json();
+      
+      setStepStatus(steps.extract, 'success', '2. Clinical criteria extracted successfully');
+      setStepStatus(steps.rego, 'active', '3. Rebuilding Rego engine and rules declaration...');
+      percentEl.textContent = '60%';
+      
+      await new Promise(r => setTimeout(r, 600));
+      setStepStatus(steps.rego, 'success', '3. Rego and rules_declaration.md recompiled');
+      setStepStatus(steps.build, 'active', '4. Generating skills and hooks for workspace...');
+      percentEl.textContent = '80%';
+      
+      await new Promise(r => setTimeout(r, 600));
+      setStepStatus(steps.build, 'success', '4. Clinical validation skills and hooks designed');
+      setStepStatus(steps.cases, 'active', '5. Designing Approved & Escalated cases...');
+      percentEl.textContent = '95%';
+      
+      await new Promise(r => setTimeout(r, 800));
+      setStepStatus(steps.cases, 'success', '5. Synthetic mock review cases completed');
+      percentEl.textContent = '100%';
+      
+      showToast(data.message || "Policy suite ingested successfully!", "success");
+      await reloadWorkspaceAfterIngest(data.policies[0]?.policyId);
+      
+    } catch (e) {
+      console.error(e);
+      Object.values(steps).forEach(s => {
+        if (s.classList.contains('active')) {
+          setStepStatus(s, 'fail', s.textContent.substring(2) + ' - FAILED');
+        }
+      });
+      showToast(`Ingestion failed: ${e.message}`, "error");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '⚡ Ingest & Build Policy Suite';
+      uploadInput.value = '';
+    }
+  }
+
+  function setStepStatus(element, status, text) {
+    element.className = `step-node ${status}`;
+    const cleanText = text.replace(/^[⚪⏳✓✗]\s*/, '');
+    if (status === 'success') {
+      element.innerHTML = `✓ ${cleanText}`;
+    } else if (status === 'active') {
+      element.innerHTML = `⏳ ${cleanText}`;
+    } else if (status === 'fail') {
+      element.innerHTML = `✗ ${cleanText}`;
+    } else {
+      element.innerHTML = `⚪ ${cleanText}`;
+    }
+  }
+
+  async function reloadWorkspaceAfterIngest(newPolicyId) {
+    const res = await fetch('/agent/policies');
+    const policies = await res.json();
+    workspacePolicies = policies || [];
+    
+    const select = document.getElementById('policy-select');
+    select.innerHTML = '';
+    workspacePolicies.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.policyId;
+      opt.textContent = `${p.name} (${p.category}) — ${p.cptCodes.join(', ')}`;
+      select.appendChild(opt);
+    });
+    
+    if (newPolicyId) {
+      select.value = newPolicyId;
+      showWorkspacePolicy(newPolicyId);
+    } else if (workspacePolicies.length > 0) {
+      showWorkspacePolicy(workspacePolicies[0].policyId);
+    }
+    
+    await refreshActiveFileView();
+    await refreshSkillsPills(workspacePolicies);
+    await renderPresets();
+  }
+
   // Concurrent Initialization logic
   async function initializeApp() {
     // Launch non-dependent asset and preset fetches concurrently
@@ -1404,13 +1577,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (select) select.innerHTML = '<option>Failed to load policies</option>';
       });
 
+    const s3PdfPromise = loadS3PdfPicker();
+
     // Await all concurrently running initialization tasks
-    await Promise.all([assetPromise, casesPromise, fileViewPromise, policiesPromise]);
+    await Promise.all([assetPromise, casesPromise, fileViewPromise, policiesPromise, s3PdfPromise]);
   }
 
   // Init UI
   await initializeApp();
   renderRulesToggles();
+
+  // Ingestion Event Listeners
+  const btnRefreshS3 = document.getElementById('btn-refresh-s3-pdfs');
+  if (btnRefreshS3) {
+    btnRefreshS3.addEventListener('click', loadS3PdfPicker);
+  }
+  const btnIngest = document.getElementById('btn-ingest-policy');
+  if (btnIngest) {
+    btnIngest.addEventListener('click', runPolicyIngestion);
+  }
 
   // Cockpit Tab Switching Listener
   document.querySelectorAll('.cockpit-tab-btn').forEach(btn => {
