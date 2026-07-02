@@ -215,12 +215,36 @@ def extract_policies_from_pdf(pdf_path):
     trace = []
     trace.append({"step": "pdf_read", "message": f"Reading PDF: {os.path.basename(pdf_path)}"})
 
-    pdf_text = read_pdf_text(pdf_path, max_pages=15)
-    trace.append({"step": "pdf_read", "message": f"Extracted {len(pdf_text)} chars from PDF"})
-
-    # Chunk the text for LLM (Gemma 4 context is 4096 tokens)
-    # Take the most relevant sections (first few pages usually have the criteria)
-    chunk = pdf_text[:6000]
+    # Extract all text, but filter pages that look like they contain guidelines (e.g. have CPT codes)
+    from pypdf import PdfReader
+    reader = PdfReader(pdf_path)
+    
+    pages_text = []
+    guideline_pages = []
+    for i, page in enumerate(reader.pages):
+        text = page.extract_text()
+        if not text:
+            continue
+        # Search for CPT codes (e.g., CPT 73221, CPT® 73222) or 'cpt' case-insensitive
+        if 'cpt' in text.lower() or any(re.search(r'\b\d{5}\b', text) for _ in [1]):
+            # Skip pages that look like Table of Contents
+            if 'table of contents' in text.lower() and i < 15:
+                continue
+            guideline_pages.append((i, text))
+            
+    # If no pages matched, fallback to first 10 pages
+    if not guideline_pages:
+        for i, page in enumerate(reader.pages[:10]):
+            text = page.extract_text()
+            if text:
+                pages_text.append(text)
+    else:
+        # Take the first 3 matching guideline pages to build a clean 6000-8000 char chunk
+        for i, text in guideline_pages[:3]:
+            pages_text.append(f"--- PAGE {i+1} ---\n{text}")
+            
+    chunk = "\n\n".join(pages_text)[:9000]
+    trace.append({"step": "pdf_read", "message": f"Extracted {len(chunk)} chars of clinical criteria from matching guideline pages"})
 
     trace.append({"step": "llm_extract", "message": "Sending PDF text to ClinicalNLP Engine for policy extraction..."})
 
