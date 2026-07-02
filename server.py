@@ -1305,10 +1305,15 @@ Respond ONLY with the JSON object, no other text.
                     raise ValueError("Could not extract structured clinical policies from PDF.")
                 
                 for p in policies_extracted:
-                    p["pdfFile"] = f"policies/{dest_name}"
                     pid = p.get("policyId", "POL-DUMMY")
+                    if not pid.startswith("staged_"):
+                        staged_pid = f"staged_{pid}"
+                    else:
+                        staged_pid = pid
+                    p["policyId"] = staged_pid
+                    p["pdfFile"] = f"policies/{dest_name}"
                     
-                    policy_json_path = os.path.join(policies_dir, f"policy_{pid.lower().replace('-', '_')}.json")
+                    policy_json_path = os.path.join(policies_dir, f"policy_{staged_pid.lower().replace('-', '_')}.json")
                     with open(policy_json_path, 'w') as pf:
                         json.dump(p, pf, indent=2)
                         
@@ -1374,6 +1379,93 @@ Respond ONLY with the JSON object, no other text.
                     "message": f"Successfully created case for {patient_name} ({member_id}) under policy {policy_id}."
                 }).encode())
                 
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+        # Promote a staged policy to approved production status
+        elif self.path == '/agent/promote-policy':
+            if not AGENT_ENGINE_AVAILABLE:
+                self.send_response(503)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Agent engine not loaded"}).encode())
+                return
+            try:
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                params = json.loads(post_data.decode())
+                policy_id = params.get('policyId', '')
+                
+                if not policy_id:
+                    raise ValueError("policyId is required to promote.")
+                
+                result = agent_engine.promote_policy(policy_id)
+                if result.get("status") == "error":
+                    raise ValueError(result.get("message"))
+                
+                md_content = agent_engine.compile_all_policies_to_rules()
+                compiled_rego = compile_rego_from_md(md_content)
+                with open('rules.rego', 'w') as f:
+                    f.write(compiled_rego)
+                    
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "success",
+                    "newPolicyId": result.get("newPolicyId"),
+                    "message": f"Policy {policy_id} promoted to production successfully."
+                }).encode())
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+        # Reject & delete a staged or active policy
+        elif self.path == '/agent/delete-policy':
+            if not AGENT_ENGINE_AVAILABLE:
+                self.send_response(503)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Agent engine not loaded"}).encode())
+                return
+            try:
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                params = json.loads(post_data.decode())
+                policy_id = params.get('policyId', '')
+                
+                if not policy_id:
+                    raise ValueError("policyId is required to delete.")
+                
+                result = agent_engine.delete_policy(policy_id)
+                
+                md_content = agent_engine.compile_all_policies_to_rules()
+                compiled_rego = compile_rego_from_md(md_content)
+                with open('rules.rego', 'w') as f:
+                    f.write(compiled_rego)
+                    
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "success",
+                    "message": f"Policy {policy_id} and all related skills, rules, hooks, and test cases deleted successfully."
+                }).encode())
             except Exception as e:
                 import traceback
                 traceback.print_exc()

@@ -326,6 +326,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       body.innerHTML = html;
       const builderCard = document.getElementById('ws-case-builder-card');
       if (builderCard) builderCard.style.display = 'block';
+      
+      const stagedCard = document.getElementById('ws-staged-actions-card');
+      if (stagedCard) {
+        if (policyId.startsWith('staged_')) {
+          stagedCard.style.display = 'block';
+        } else {
+          stagedCard.style.display = 'none';
+        }
+      }
     }).catch(() => { body.innerHTML = '<p>Error loading policy detail.</p>'; });
   }
 
@@ -1644,6 +1653,126 @@ document.addEventListener('DOMContentLoaded', async () => {
       } finally {
         btnBuildCase.disabled = false;
         btnBuildCase.textContent = '🧪 Generate Case & Clinical PDF';
+      }
+    });
+  }
+
+  // Promote Staged Policy Click Listener
+  const btnPromote = document.getElementById('btn-promote-policy');
+  if (btnPromote) {
+    btnPromote.addEventListener('click', async () => {
+      const select = document.getElementById('policy-select');
+      const policyId = select.value;
+      if (!policyId) return;
+      
+      btnPromote.disabled = true;
+      btnPromote.textContent = '⏳ Promoting...';
+      
+      try {
+        const res = await fetch('/agent/promote-policy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ policyId })
+        });
+        
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Failed to promote policy");
+        }
+        
+        const data = await res.json();
+        showToast(data.message || "Policy promoted successfully!", "success");
+        
+        // Reload all workspace policies and details
+        const policiesRes = await fetch('/agent/policies');
+        workspacePolicies = await policiesRes.json();
+        
+        // Refresh policies select list
+        let dropdownHtml = '';
+        workspacePolicies.forEach(p => {
+          dropdownHtml += `<option value="${p.policyId}">${p.policyId}: ${p.name}</option>`;
+        });
+        select.innerHTML = dropdownHtml;
+        
+        // Select the newly promoted policy (its new ID)
+        const newPolicyId = data.newPolicyId || policyId.replace('staged_', '');
+        select.value = newPolicyId;
+        
+        showWorkspacePolicy(newPolicyId);
+        await refreshActiveFileView();
+        
+      } catch (e) {
+        console.error(e);
+        showToast(`Failed to promote: ${e.message}`, "error");
+      } finally {
+        btnPromote.disabled = false;
+        btnPromote.textContent = '✔️ Approve & Promote';
+      }
+    });
+  }
+
+  // Delete/Reject Staged Policy Click Listener
+  const btnDelete = document.getElementById('btn-delete-policy');
+  if (btnDelete) {
+    btnDelete.addEventListener('click', async () => {
+      const select = document.getElementById('policy-select');
+      const policyId = select.value;
+      if (!policyId) return;
+      
+      if (!confirm(`Are you sure you want to reject and delete policy ${policyId} and all associated files/cases?`)) {
+        return;
+      }
+      
+      btnDelete.disabled = true;
+      btnDelete.textContent = '⏳ Deleting...';
+      
+      try {
+        const res = await fetch('/agent/delete-policy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ policyId })
+        });
+        
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Failed to delete policy");
+        }
+        
+        const data = await res.json();
+        showToast(data.message || "Policy deleted successfully!", "success");
+        
+        // Reload all workspace policies
+        const policiesRes = await fetch('/agent/policies');
+        workspacePolicies = await policiesRes.json();
+        
+        // Refresh policies select list
+        let dropdownHtml = '';
+        workspacePolicies.forEach(p => {
+          dropdownHtml += `<option value="${p.policyId}">${p.policyId}: ${p.name}</option>`;
+        });
+        select.innerHTML = dropdownHtml;
+        
+        // Select the first policy in the dropdown if available
+        if (workspacePolicies.length > 0) {
+          select.value = workspacePolicies[0].policyId;
+          showWorkspacePolicy(workspacePolicies[0].policyId);
+        } else {
+          select.innerHTML = '<option value="">-- No Policies Loaded --</option>';
+          document.getElementById('ws-policy-title').textContent = 'Select a policy';
+          document.getElementById('ws-policy-body').innerHTML = '<p class="subtitle">Choose a policy from the dropdown above.</p>';
+          document.getElementById('ws-case-builder-card').style.display = 'none';
+          document.getElementById('ws-staged-actions-card').style.display = 'none';
+        }
+        
+        await refreshActiveFileView();
+        await renderPresets();
+        
+      } catch (e) {
+        console.error(e);
+        showToast(`Failed to delete: ${e.message}`, "error");
+      } finally {
+        btnDelete.disabled = false;
+        btnDelete.textContent = '🗑️ Delete';
       }
     });
   }

@@ -2446,3 +2446,168 @@ Respond with ONLY the JSON object. Do not include markdown code block formatting
     print(f"Custom case {case_id} added successfully to preset_cases.json")
     return case
 
+
+def promote_policy(policy_id):
+    """
+    Remove 'staged_' prefix from policy files and contents, converting the staged
+    policy into an approved production policy.
+    """
+    if not policy_id.startswith("staged_"):
+        return {"status": "error", "message": "Policy is not in staged status."}
+        
+    prod_id = policy_id[len("staged_"):]
+    policies_dir = os.path.join(DATA_DIR, "policies")
+    
+    # 1. Load, update, and rename the policy JSON
+    staged_json_path = os.path.join(policies_dir, f"policy_{policy_id.lower().replace('-', '_')}.json")
+    prod_json_path = os.path.join(policies_dir, f"policy_{prod_id.lower().replace('-', '_')}.json")
+    
+    if not os.path.exists(staged_json_path):
+        return {"status": "error", "message": f"Staged policy JSON not found: {staged_json_path}"}
+        
+    with open(staged_json_path, "r") as f:
+        policy = json.load(f)
+        
+    policy["policyId"] = prod_id
+    
+    # 2. Write prod JSON and delete staged JSON
+    with open(prod_json_path, "w") as f:
+        json.dump(policy, f, indent=2)
+        
+    try:
+        os.remove(staged_json_path)
+    except Exception:
+        pass
+        
+    # 3. Rename rules, skills, and hooks files
+    for suffix in ["_rules.md", "_skills.json", "_hooks.json"]:
+        staged_file = os.path.join(policies_dir, f"{policy_id}{suffix}")
+        prod_file = os.path.join(policies_dir, f"{prod_id}{suffix}")
+        if os.path.exists(staged_file):
+            with open(staged_file, "r") as f:
+                content = f.read()
+            content = content.replace(policy_id, prod_id)
+            with open(prod_file, "w") as f:
+                f.write(content)
+            try:
+                os.remove(staged_file)
+            except Exception:
+                pass
+                
+    # 4. Rename cases in preset_cases.json if any custom test cases exist
+    cases_file = os.path.join(policies_dir, "preset_cases.json")
+    if os.path.exists(cases_file):
+        try:
+            with open(cases_file, "r") as f:
+                cases = json.load(f)
+            changed = False
+            for case in cases:
+                if case["id"].startswith(f"case-{policy_id.lower().replace('.', '_')}"):
+                    case["id"] = case["id"].replace(
+                        f"case-{policy_id.lower().replace('.', '_')}",
+                        f"case-{prod_id.lower().replace('.', '_')}"
+                    )
+                    case["title"] = case["title"].replace(policy_id, prod_id)
+                    old_pdf = case["evidenceBundle"]
+                    new_pdf = old_pdf.replace(
+                        policy_id.lower().replace('.', '_'),
+                        prod_id.lower().replace('.', '_')
+                    )
+                    case["evidenceBundle"] = new_pdf
+                    
+                    old_pdf_abs = os.path.join(DATA_DIR, old_pdf)
+                    new_pdf_abs = os.path.join(DATA_DIR, new_pdf)
+                    if os.path.exists(old_pdf_abs):
+                        os.rename(old_pdf_abs, new_pdf_abs)
+                        
+                    changed = True
+            if changed:
+                with open(cases_file, "w") as f:
+                    json.dump(cases, f, indent=2)
+        except Exception as ce:
+            print(f"Error renaming cases during promotion: {ce}")
+            
+    print(f"Policy {policy_id} promoted to {prod_id} successfully.")
+    return {"status": "success", "newPolicyId": prod_id}
+
+
+def delete_policy(policy_id):
+    """
+    Completely delete a staged or approved policy, its rules, skills, hooks, cases,
+    and S3 assets.
+    """
+    policies_dir = os.path.join(DATA_DIR, "policies")
+    
+    # 1. Load JSON to find associated PDF file path
+    json_path = os.path.join(policies_dir, f"policy_{policy_id.lower().replace('-', '_')}.json")
+    pdf_file_rel = ""
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, "r") as f:
+                policy = json.load(f)
+                pdf_file_rel = policy.get("pdfFile", "")
+        except Exception:
+            pass
+            
+    # 2. Delete main policy files
+    for suffix in [f"policy_{policy_id.lower().replace('-', '_')}.json", f"{policy_id}_rules.md", f"{policy_id}_skills.json", f"{policy_id}_hooks.json"]:
+        file_path = os.path.join(policies_dir, suffix)
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
+                
+    # 3. Delete PDF locally and from S3
+    if pdf_file_rel:
+        pdf_path_abs = os.path.join(DATA_DIR, pdf_file_rel)
+        if os.path.exists(pdf_path_abs):
+            try:
+                os.remove(pdf_path_abs)
+            except Exception:
+                pass
+        if is_s3_enabled():
+            try:
+                import boto3
+                s3_key = os.path.basename(pdf_file_rel)
+                s3 = boto3.client("s3")
+                s3.delete_object(Bucket=os.environ.get("S3_BUCKET"), Key=s3_key)
+                print(f"Deleted PDF {s3_key} from S3 bucket.")
+            except Exception as se:
+                print(f"Failed to delete S3 PDF: {se}")
+
+    # 4. Remove associated test cases from preset_cases.json
+    cases_file = os.path.join(policies_dir, "preset_cases.json")
+    if os.path.exists(cases_file):
+        try:
+            with open(cases_file, "r") as f:
+                cases = json.load(f)
+            
+            case_prefix = f"case-{policy_id.lower().replace('.', '_')}"
+            for case in cases:
+                if case["id"].startswith(case_prefix):
+                    bundle_rel = case.get("evidenceBundle", "")
+                    if bundle_rel:
+                        bundle_abs = os.path.join(DATA_DIR, bundle_rel)
+                        if os.path.exists(bundle_abs):
+                            try:
+                                os.remove(bundle_abs)
+                            except Exception:
+                                pass
+                        if is_s3_enabled():
+                            try:
+                                import boto3
+                                s3 = boto3.client("s3")
+                                s3.delete_object(Bucket=os.environ.get("S3_BUCKET"), Key=bundle_rel)
+                            except Exception:
+                                pass
+                                
+            filtered_cases = [c for c in cases if not c["id"].startswith(case_prefix)]
+            with open(cases_file, "w") as f:
+                json.dump(filtered_cases, f, indent=2)
+        except Exception as ce:
+            print(f"Error cleaning cases during deletion: {ce}")
+            
+    print(f"Policy {policy_id} deleted successfully from container & S3.")
+    return {"status": "success"}
+
