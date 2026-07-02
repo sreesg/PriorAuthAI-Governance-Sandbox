@@ -10,28 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const agent = new PriorAuthAgent();
   let activeFile = "rules_declaration.md";
 
-  // Load S3 asset URLs for image and video
-  try {
-    const assetRes = await fetch('/agent/asset-urls');
-    const assets = await assetRes.json();
-    const archImg = document.getElementById('arch-image');
-    if (archImg && assets.architecture) {
-      archImg.src = assets.architecture;
-      archImg.style.display = 'block';
-    }
-    const videoSrc = document.getElementById('video-source');
-    const videoEl = document.getElementById('tutorial-video');
-    if (videoSrc && assets.video) {
-      videoSrc.src = assets.video;
-      if (videoEl) videoEl.load();
-    }
-  } catch(e) {
-    console.warn('Asset URLs not available, using local fallback');
-    const archImg = document.getElementById('arch-image');
-    if (archImg) { archImg.src = './PA Agentic architecture.png'; archImg.style.display = 'block'; }
-    const videoSrc = document.getElementById('video-source');
-    if (videoSrc) videoSrc.src = './PA agent.mp4';
-  }
+  // Asset URLs and video sources will load concurrently in initializeApp()
 
   // Elements
   const presetContainer = document.getElementById('preset-cases-container');
@@ -226,34 +205,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 3000);
   }
 
-  // Load initial workspace file view
-  try {
-    await refreshActiveFileView();
-  } catch (e) {
-    console.error("Initial file view load failed:", e);
-  }
-  await refreshSkillsPills();
-  loadPolicyWorkspace();
-
-  // Load policies into the workspace dropdown and detail view
+  // Initialize workspacePolicies list
   let workspacePolicies = [];
-  
-  async function loadPolicyWorkspace() {
+
+  // Bind workspace dropdown and generation listeners immediately
+  initPolicyWorkspaceListeners();
+
+  function initPolicyWorkspaceListeners() {
     const select = document.getElementById('policy-select');
-    try {
-      const res = await fetch('/agent/policies');
-      workspacePolicies = await res.json();
-      select.innerHTML = '';
-      workspacePolicies.forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p.policyId;
-        opt.textContent = `${p.name} (${p.category}) — ${p.cptCodes.join(', ')}`;
-        select.appendChild(opt);
-      });
-      if (workspacePolicies.length > 0) showWorkspacePolicy(workspacePolicies[0].policyId);
-    } catch (e) {
-      select.innerHTML = '<option>Failed to load policies</option>';
-    }
     
     // Dropdown change — update detail AND refresh artifacts for new policy
     select.addEventListener('change', () => {
@@ -297,7 +256,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       btn.disabled = false;
       btn.textContent = '🧠 Generate All';
       await refreshActiveFileView();
-      refreshSkillsPills();
+      refreshSkillsPills(workspacePolicies);
       showToast(`All artifacts generated for ${policyId}`, 'success');
     });
     
@@ -319,7 +278,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           });
           const data = await res.json();
           auditConsole.textContent = `✅ ${action.toUpperCase()} generated:\n\n${data.auditLog || data.error || 'Done'}`;
-          if (action === 'skills') refreshSkillsPills();
+          if (action === 'skills') refreshSkillsPills(workspacePolicies);
           await refreshActiveFileView();
           showToast(`${action} generated for ${policyId}`, 'success');
         } catch(e) {
@@ -438,30 +397,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // 3. Render active registered skills pills in the UI (from both JS agent and backend)
-  async function refreshSkillsPills() {
+  async function refreshSkillsPills(policies) {
     activeSkillsPills.innerHTML = '';
     
     // Get JS agent skills
     const jsSkills = Object.keys(agent.skills);
     
-    // Get generated skills from all policy files
+    // Get generated skills from all policy files in parallel
     let backendSkills = [];
     try {
-      const res = await fetch('/agent/policies');
-      const policies = await res.json();
-      for (const p of policies) {
+      let policyList = policies;
+      if (!policyList) {
+        const res = await fetch('/agent/policies');
+        policyList = await res.json();
+      }
+      
+      const skillPromises = policyList.map(async (p) => {
         try {
           const sRes = await fetch(`/policies/${p.policyId}_skills.json?t=${Date.now()}`);
           if (sRes.ok) {
             const data = await sRes.json();
-            (data.skills || []).forEach(s => {
-              if (s.skillName && !backendSkills.includes(s.skillName)) {
-                backendSkills.push(s.skillName);
-              }
-            });
+            return (data.skills || []).map(s => s.skillName).filter(Boolean);
           }
         } catch(_) {}
-      }
+        return [];
+      });
+      
+      const skillsArrays = await Promise.all(skillPromises);
+      skillsArrays.forEach(skills => {
+        skills.forEach(sName => {
+          if (!backendSkills.includes(sName)) {
+            backendSkills.push(sName);
+          }
+        });
+      });
     } catch(_) {}
     
     const allSkills = [...new Set([...jsSkills, ...backendSkills])];
@@ -663,6 +632,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (aiCard) aiCard.style.display = 'none';
     const challengerCard = document.getElementById('challenger-card');
     if (challengerCard) challengerCard.style.display = 'none';
+    const outcomeDetails = document.getElementById('outcome-details');
+    if (outcomeDetails) outcomeDetails.style.display = 'none';
     const aiInsights = document.getElementById('ai-insights-panel');
     if (aiInsights) aiInsights.style.display = 'none';
     const aiModelBadge = document.getElementById('ai-model-badge');
@@ -672,6 +643,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Remove any note summary/quality popups
     document.querySelectorAll('.notes-summary-popup').forEach(el => el.remove());
+    
+    // Hide bundle AI output panel
+    const bundleAiOutput = document.getElementById('bundle-ai-output');
+    if (bundleAiOutput) bundleAiOutput.style.display = 'none';
     
     // Show evidence bundle actions
     const evidenceActions = document.getElementById('evidence-actions');
@@ -809,7 +784,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const cptCode = evidenceActions?.dataset.cpt;
     
     if (!bundlePath) return;
-    btn.disabled = true; btn.textContent = '🧠 Reading...';
+    btn.disabled = true; btn.textContent = '🧠 Reading PDF...';
     
     try {
       const res = await fetch('/agent/read-bundle', {
@@ -821,33 +796,44 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       if (data.extracted) {
         const ex = data.extracted;
-        // Auto-populate form from extracted data
-        if (ex.clinicalSummary) inputNotes.value = ex.clinicalSummary;
+        const outputPanel = document.getElementById('bundle-ai-output');
+        const findingsEl = document.getElementById('bundle-ai-findings');
         
-        // Show validation results as a summary popup
-        let summaryHtml = '<strong>📎 AI Bundle Analysis:</strong><br>';
+        let html = '';
+        
+        // Clinical summary extracted from PDF
+        if (ex.clinicalSummary) {
+          html += `<div style="margin-bottom:0.4rem;"><strong style="color:var(--text-main);">📝 Clinical Summary (from PDF):</strong></div>`;
+          html += `<div style="padding:0.3rem 0.5rem;background:rgba(0,0,0,0.1);border-radius:4px;margin-bottom:0.5rem;font-size:0.62rem;white-space:pre-wrap;">${ex.clinicalSummary}</div>`;
+        }
+        
+        // Criteria findings
         if (ex.criteriaFindings && ex.criteriaFindings.length > 0) {
+          html += `<div style="margin-bottom:0.2rem;"><strong style="color:var(--text-main);">✓/✗ Criteria Findings:</strong></div>`;
           ex.criteriaFindings.forEach(f => {
             const icon = f.met ? '✓' : '✗';
-            const color = f.met ? '#059669' : '#dc2626';
-            summaryHtml += `<span style="color:${color}">${icon} ${f.criterion}: ${f.finding}</span><br>`;
+            const color = f.met ? 'var(--accent-green)' : 'var(--accent-red)';
+            html += `<div style="padding:0.1rem 0;"><span style="color:${color};font-weight:700;">${icon}</span> ${f.criterion}: <em>${f.finding}</em></div>`;
           });
         }
+        
+        // Missing documentation
         if (ex.missingDocumentation && ex.missingDocumentation.length > 0) {
-          summaryHtml += `<br><strong style="color:#d97706;">Missing:</strong> ${ex.missingDocumentation.join(', ')}`;
+          html += `<div style="margin-top:0.4rem;color:var(--accent-orange);font-weight:600;">⚠ Missing Documentation:</div>`;
+          ex.missingDocumentation.forEach(m => {
+            html += `<div style="padding:0.1rem 0.3rem;">• ${m}</div>`;
+          });
         }
+        
+        // Validation summary
         if (ex.validationSummary) {
-          summaryHtml += `<br><strong>${ex.validationSummary}</strong>`;
+          html += `<div style="margin-top:0.4rem;padding:0.3rem 0.5rem;background:rgba(139,92,246,0.1);border-radius:4px;font-weight:600;">${ex.validationSummary}</div>`;
         }
         
-        const popup = document.createElement('div');
-        popup.className = 'notes-summary-popup';
-        popup.innerHTML = summaryHtml;
-        const existing = inputNotes.parentElement.querySelector('.notes-summary-popup');
-        if (existing) existing.remove();
-        inputNotes.parentElement.insertBefore(popup, inputNotes);
+        findingsEl.innerHTML = html;
+        outputPanel.style.display = 'block';
         
-        showToast('📎 Bundle read and validated by AI', 'success');
+        showToast('📎 Bundle analyzed — findings displayed below notes', 'success');
       } else {
         showToast(data.error || 'Failed to read bundle', 'error');
       }
@@ -977,7 +963,91 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Update outcome card
       outcomeCard.className = `glass-card outcome-card ${outcome.status}`;
       outcomeBadge.textContent = outcome.decision;
-      outcomeReason.textContent = `${outcome.policyName} (${outcome.category}) — ${outcome.reason}`;
+      
+      // Build clear, human-readable outcome reason
+      const isApproved = outcome.decision === 'Approved';
+      const isEscalated = outcome.decision.includes('Escalated') || outcome.decision.includes('Flagged');
+      
+      if (isApproved) {
+        outcomeReason.textContent = `All clinical criteria satisfied — approved per ${outcome.policyName} guidelines.`;
+      } else if (isEscalated) {
+        const failedCriteria = (outcome.criteriaMet || []).filter(c => !c.met);
+        if (failedCriteria.length > 0) {
+          outcomeReason.textContent = `${failedCriteria.length} criteria not met — escalated to Medical Director for human review.`;
+        } else {
+          outcomeReason.textContent = outcome.reason;
+        }
+      } else {
+        outcomeReason.textContent = outcome.reason;
+      }
+      
+      // Build expanded decision details
+      const detailsEl = document.getElementById('outcome-details');
+      const policySec = document.getElementById('outcome-policy-section');
+      const criteriaSec = document.getElementById('outcome-criteria-section');
+      const actionSec = document.getElementById('outcome-action-section');
+      const challengerSummary = document.getElementById('outcome-challenger-summary');
+      
+      if (detailsEl) {
+        detailsEl.style.display = 'block';
+        
+        // Policy section
+        policySec.innerHTML = `
+          <div style="font-size:0.68rem;font-weight:700;color:var(--text-main);margin-bottom:0.2rem;">📋 Policy Applied</div>
+          <div style="font-size:0.62rem;color:var(--text-muted);padding-left:0.5rem;">
+            <strong>${outcome.policyUsed || 'N/A'}</strong>: ${outcome.policyName || 'Default'} (${outcome.category || 'General'})
+          </div>
+        `;
+        
+        // Criteria breakdown
+        const criteria = outcome.criteriaMet || [];
+        if (criteria.length > 0) {
+          let critHtml = '<div style="font-size:0.68rem;font-weight:700;color:var(--text-main);margin-bottom:0.2rem;">✓/✗ Criteria Results</div>';
+          critHtml += '<div style="padding-left:0.5rem;">';
+          criteria.forEach(c => {
+            const icon = c.met ? '✅' : '❌';
+            const color = c.met ? 'var(--accent-green)' : 'var(--accent-red)';
+            critHtml += `<div style="font-size:0.62rem;padding:0.1rem 0;display:flex;align-items:baseline;gap:0.3rem;">
+              <span>${icon}</span>
+              <span style="color:${color};font-weight:600;">${c.met ? 'MET' : 'NOT MET'}</span>
+              <span style="color:var(--text-main);">${c.name}</span>
+              <span style="color:var(--text-muted);font-style:italic;margin-left:auto;">— ${c.detail}</span>
+            </div>`;
+          });
+          critHtml += '</div>';
+          criteriaSec.innerHTML = critHtml;
+        }
+        
+        // Action required section
+        if (isEscalated) {
+          const failedCriteria = criteria.filter(c => !c.met);
+          let actionHtml = '<div style="font-size:0.68rem;font-weight:700;color:var(--accent-orange);margin-bottom:0.2rem;">⚠ What Needs to Happen</div>';
+          actionHtml += '<div style="padding-left:0.5rem;font-size:0.62rem;color:var(--text-main);">';
+          if (failedCriteria.length > 0) {
+            actionHtml += '<div style="margin-bottom:0.2rem;">To get this approved, the provider needs to submit:</div>';
+            failedCriteria.forEach(c => {
+              actionHtml += `<div style="padding:0.1rem 0;">• Documentation proving: <strong>${c.name.replace(/CRIT-\d+\s*/, '')}</strong></div>`;
+            });
+          } else {
+            actionHtml += '<div>Medical Director will review the evidence for any ambiguities flagged by the quality system.</div>';
+          }
+          actionHtml += '</div>';
+          actionSec.innerHTML = actionHtml;
+        } else if (isApproved) {
+          actionSec.innerHTML = `
+            <div style="font-size:0.68rem;font-weight:700;color:var(--accent-green);margin-bottom:0.2rem;">✅ Approved — No Further Action</div>
+            <div style="padding-left:0.5rem;font-size:0.62rem;color:var(--text-muted);">
+              Authorization is granted. Notice letter generated for provider and patient.
+            </div>
+          `;
+        } else {
+          actionSec.innerHTML = '';
+        }
+        
+        // Challenger summary (brief)
+        challengerSummary.innerHTML = '';
+      }
+
       letterContent.textContent = outcome.notice;
 
       // Render trace
@@ -1283,8 +1353,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // Concurrent Initialization logic
+  async function initializeApp() {
+    // Launch non-dependent asset and preset fetches concurrently
+    const assetPromise = fetch('/agent/asset-urls')
+      .then(r => r.json())
+      .then(assets => {
+        const archImg = document.getElementById('arch-image');
+        if (archImg && assets.architecture) {
+          archImg.src = assets.architecture;
+          archImg.style.display = 'block';
+        }
+        const videoSrc = document.getElementById('video-source');
+        const videoEl = document.getElementById('tutorial-video');
+        if (videoSrc && assets.video) {
+          videoSrc.src = assets.video;
+          if (videoEl) videoEl.load();
+        }
+      }).catch(e => {
+        console.warn('Asset URLs not available, using local fallback');
+        const archImg = document.getElementById('arch-image');
+        if (archImg) { archImg.src = './PA Agentic architecture.png'; archImg.style.display = 'block'; }
+        const videoSrc = document.getElementById('video-source');
+        if (videoSrc) videoSrc.src = './PA agent.mp4';
+      });
+
+    const casesPromise = renderPresets();
+
+    const fileViewPromise = refreshActiveFileView().catch(e => {
+      console.error("Initial file view load failed:", e);
+    });
+
+    const policiesPromise = fetch('/agent/policies')
+      .then(r => r.json())
+      .then(async (policies) => {
+        workspacePolicies = policies || [];
+        const select = document.getElementById('policy-select');
+        select.innerHTML = '';
+        workspacePolicies.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.policyId;
+          opt.textContent = `${p.name} (${p.category}) — ${p.cptCodes.join(', ')}`;
+          select.appendChild(opt);
+        });
+        if (workspacePolicies.length > 0) showWorkspacePolicy(workspacePolicies[0].policyId);
+        await refreshSkillsPills(workspacePolicies);
+      }).catch(e => {
+        console.error("Failed to load policies during init:", e);
+        const select = document.getElementById('policy-select');
+        if (select) select.innerHTML = '<option>Failed to load policies</option>';
+      });
+
+    // Await all concurrently running initialization tasks
+    await Promise.all([assetPromise, casesPromise, fileViewPromise, policiesPromise]);
+  }
+
   // Init UI
-  await renderPresets();
+  await initializeApp();
   renderRulesToggles();
 
   // Cockpit Tab Switching Listener
@@ -1486,11 +1611,67 @@ Clinical notes to score:\n${notes}`,
   function getAviUiContext() {
     // Determine which tab is active
     const activeTabEl = document.querySelector('.sidebar-tab.active');
-    const activeTab = activeTabEl ? activeTabEl.getAttribute('data-view') : 'review';
+    const activeView = activeTabEl ? activeTabEl.getAttribute('data-view') : 'review';
     
-    const context = { activeTab };
+    const context = { activeTab: activeView, activeView };
     
-    if (activeTab === 'workspace') {
+    // Last decision context (always include if available)
+    const decision = outcomeBadge ? outcomeBadge.textContent : '';
+    const reason = outcomeReason ? outcomeReason.textContent : '';
+    if (decision && decision !== 'Ready to Run' && decision !== 'Processing...') {
+      context.lastDecision = {
+        decision: decision,
+        reason: reason,
+        policyName: reason.split('(')[0]?.trim() || ''
+      };
+    }
+
+    // Last trace events (last 5 events from timeline)
+    const traceItems = document.querySelectorAll('.timeline-item');
+    if (traceItems.length > 0) {
+      const lastTrace = [];
+      const items = Array.from(traceItems).slice(-5);
+      items.forEach(item => {
+        const typeBadge = item.querySelector('.item-type-badge');
+        const title = item.querySelector('.item-title');
+        const msg = item.querySelector('.item-msg');
+        lastTrace.push({
+          type: typeBadge ? typeBadge.textContent.trim() : '',
+          name: title ? title.textContent.trim() : '',
+          msg: msg ? msg.textContent.trim().substring(0, 120) : ''
+        });
+      });
+      context.lastTrace = lastTrace;
+    }
+
+    // Graph state (from last execution)
+    const graphPanel = document.getElementById('graph-state-panel');
+    if (graphPanel && graphPanel.style.display !== 'none') {
+      context.graphState = graphPanel.textContent.substring(0, 400);
+    }
+
+    // Retrieved evidence summary
+    const evidencePanel = document.getElementById('retrieved-evidence-panel');
+    if (evidencePanel && evidencePanel.style.display !== 'none') {
+      const evidenceChunks = evidencePanel.querySelectorAll('[style*="border-radius"]');
+      context.retrievedEvidence = {
+        count: evidenceChunks.length || 0,
+        summary: evidencePanel.textContent.substring(0, 300)
+      };
+    }
+
+    // Challenger verdict
+    const challengerBadge = document.getElementById('challenger-verdict-badge');
+    const challengerBody = document.getElementById('challenger-body');
+    if (challengerBadge && challengerBadge.textContent.trim()) {
+      context.challengerVerdict = {
+        verdict: challengerBadge.textContent.trim(),
+        reasoning: challengerBody ? challengerBody.textContent.substring(0, 300) : ''
+      };
+    }
+
+    // Tab-specific context
+    if (activeView === 'workspace') {
       const policySelect = document.getElementById('policy-select');
       context.selectedPolicy = policySelect ? policySelect.value : '';
       context.auditLog = auditConsole ? auditConsole.textContent.substring(0, 300) : '';
