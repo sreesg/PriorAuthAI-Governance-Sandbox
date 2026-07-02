@@ -2186,8 +2186,8 @@ Respond ONLY with the JSON object, no other text.
         elif self.path == '/agent/policies':
             try:
                 policies = agent_engine.load_all_policies() if AGENT_ENGINE_AVAILABLE else []
-                summary = [{"policyId": p["policyId"], "name": p["policyName"], "category": p["category"],
-                            "payer": p["payer"], "cptCodes": p["cptCodes"], "pdfFile": p.get("pdfFile", "")} for p in policies]
+                summary = [{"policyId": p.get("policyId", ""), "name": p.get("policyName", ""), "category": p.get("category", "General"),
+                            "payer": p.get("payer", "General Payer"), "cptCodes": p.get("cptCodes", []), "pdfFile": p.get("pdfFile", "")} for p in policies]
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Access-Control-Allow-Origin', '*')

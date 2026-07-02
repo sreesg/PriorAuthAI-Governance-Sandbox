@@ -295,7 +295,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     fetch(`/agent/policy-detail?id=${policyId}`).then(r => r.json()).then(p => {
       title.textContent = `${p.policyId}: ${p.policyName}`;
-      payer.textContent = `${p.payer} • ${p.category}`;
+      payer.textContent = `${p.payer || 'General Payer'} • ${p.category || 'General'}`;
       
       let html = '';
       html += '<div style="margin-bottom:0.5rem;"><strong style="font-size:0.72rem;color:var(--text-muted);">CPT CODES:</strong></div>';
@@ -1521,7 +1521,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     workspacePolicies.forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.policyId;
-      opt.textContent = `${p.name} (${p.category}) — ${p.cptCodes.join(', ')}`;
+      opt.textContent = `${p.name} (${p.category || 'General'}) — ${(p.cptCodes || []).join(', ')}`;
       select.appendChild(opt);
     });
     
@@ -1577,7 +1577,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         workspacePolicies.forEach(p => {
           const opt = document.createElement('option');
           opt.value = p.policyId;
-          opt.textContent = `${p.name} (${p.category}) — ${p.cptCodes.join(', ')}`;
+          opt.textContent = `${p.name} (${p.category || 'General'}) — ${(p.cptCodes || []).join(', ')}`;
           select.appendChild(opt);
         });
         if (workspacePolicies.length > 0) showWorkspacePolicy(workspacePolicies[0].policyId);
